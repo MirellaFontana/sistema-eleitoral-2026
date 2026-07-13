@@ -7,8 +7,10 @@ type Territorio = { id: string; nome_bairro: string | null };
 
 const PAPEIS = [
   { value: "embaixador", label: "Embaixador" },
-  { value: "advogado", label: "Advogado" },
-  { value: "coord_comunicacao", label: "Coord. de comunicação" },
+  { value: "advogado_responsavel", label: "Advogado responsável" },
+  { value: "assistente_juridico", label: "Assistente jurídico" },
+  { value: "coord_marketing", label: "Coord. de marketing" },
+  { value: "redator_marketing", label: "Redator de marketing" },
   { value: "coord_campanha", label: "Coord. de campanha" },
   { value: "candidato", label: "Candidato" },
 ];

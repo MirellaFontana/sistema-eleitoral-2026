@@ -222,3 +222,29 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - Reaproveita `current_campanha_id()`/`current_papel()` da migration 0001 — não recria lógica de tenant.
 
 ---
+
+## [2026-07-13] Reorganização de módulos + hierarquia de papéis (decisão do usuário)
+
+- **Módulos renumerados:** Módulo 1 continua sendo tabelas/cadastros (schema + telas já prontas). **Módulo 2 = Campanha** — é exatamente a base de conhecimento já construída (propostas/temas/projetos que nutrem a campanha), só a categorização certa, sem código novo. **Módulo 3 = Jurídico**, **Módulo 4 = Marketing** (antes "relacionamento com eleitores" — nome e talvez escopo revistos quando chegar a vez).
+- **Hierarquia de acesso (decisão do usuário):** `candidato` e `coord_campanha` são o nível mais alto, com leitura de tudo (inclusive PII de cidadão). Abaixo deles, dois ramos com níveis internos: Jurídico e Marketing. `candidato` **não** ganha poder administrativo (gestão de usuários/edição de campanha continua exclusiva de `coord_campanha`) — só leitura ampliada.
+- **Mudança de segurança relevante:** isso reverte a regra original da especificação (§3.2) de que candidato não acessa PII bruta de cidadão. Decisão explícita e confirmada do usuário, documentada aqui porque contradiz o texto de origem — próxima leitura da especificação deve considerar esta entrada como a atualização vigente.
+
+### Estrutura de papéis proposta (sugerida por mim, confirmada com o usuário)
+- **Jurídico:** `advogado_responsavel` (acesso total ao bloco jurídico + único que pode fazer encaminhamento formal à Justiça Eleitoral) e `assistente_juridico` (mesmo acesso de consulta/preparação, sem o poder de encaminhamento).
+- **Marketing:** `coord_marketing` (sucede `coord_comunicacao` — acesso total ao bloco de marketing + edita base de conhecimento) e `redator_marketing` (cria/edita rascunho de peça, não edita base de conhecimento nem aprova publicação).
+- **Sem mudança:** `coord_campanha`, `candidato` (agora com leitura total), `embaixador` (papel de campo, fora dessa hierarquia corporativa).
+
+### Migração técnica (enum não permite remover valor, só renomear/adicionar)
+1. `ALTER TYPE papel_usuario RENAME VALUE 'coord_comunicacao' TO 'coord_marketing'`.
+2. `ALTER TYPE papel_usuario RENAME VALUE 'advogado' TO 'advogado_responsavel'`.
+3. `ALTER TYPE papel_usuario ADD VALUE 'assistente_juridico'` e `ADD VALUE 'redator_marketing'`.
+4. Em migration separada (enum novo valor não pode ser usado na mesma transação que o cria, em versões mais antigas do Postgres — separar por segurança): atualizar todas as policies que referenciam papéis antigos (`cidadaos_select`, `consentimentos_select`, `log_auditoria_select`, `base_conhecimento_itens_*`, `temas_campanha_*`) para os novos nomes, e remover `candidato` da exclusão de PII em `cidadaos`/`consentimentos_lgpd`.
+
+### Critérios de aceite
+- [ ] Enum renomeado sem quebrar dados existentes (usuários já cadastrados com `advogado`/`coord_comunicacao` continuam válidos sob o novo nome).
+- [ ] `candidato` lê `cidadaos`/`consentimentos_lgpd`/`log_auditoria` como `coord_campanha` lê hoje — testado com fixture real.
+- [ ] `candidato` continua sem conseguir INSERT/UPDATE em `usuarios_internos`/`campanhas` (sem poder administrativo).
+- [ ] `advogado_responsavel` e `assistente_juridico` têm o mesmo acesso de leitura ao bloco jurídico; só `advogado_responsavel` tem a flag/permissão de encaminhamento formal (a decisão de ONDE isso vira campo de banco fica para quando o módulo Jurídico for construído — aqui só garantimos que o papel existe e é distinguível).
+- [ ] `coord_marketing` e `redator_marketing`: ambos leem o bloco de marketing; só `coord_marketing` edita `base_conhecimento_itens`/`temas_campanha` (retestar a policy já existente com o nome novo).
+
+---

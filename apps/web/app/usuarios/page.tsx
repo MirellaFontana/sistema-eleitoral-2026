@@ -13,8 +13,10 @@ function formatarDataUTC(iso: string) {
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
-  advogado: "Advogado",
-  coord_comunicacao: "Coord. de comunicação",
+  advogado_responsavel: "Advogado responsável",
+  assistente_juridico: "Assistente jurídico",
+  coord_marketing: "Coord. de marketing",
+  redator_marketing: "Redator de marketing",
   coord_campanha: "Coord. de campanha",
   candidato: "Candidato",
 };

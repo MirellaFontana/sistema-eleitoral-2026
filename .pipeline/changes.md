@@ -109,3 +109,14 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** confirmar upload via clique real de usuário (fora do alcance desta sessão de teste automatizado).
 
 ---
+
+## [2026-07-13] Hierarquia de papéis — migrations 0005 (enum) + 0006 (policies)
+
+- **Arquivos alterados:** `supabase/migrations/0005_papeis_hierarquia_enum.sql`, `0006_papeis_hierarquia_policies.sql`, `.pipeline/hierarquia_test.sql` (novo).
+- **Decisão do usuário (ref. specs.md):** candidato sobe pra leitura total (inclusive PII de cidadão), sem poder administrativo. `advogado`→`advogado_responsavel` (+ novo `assistente_juridico`), `coord_comunicacao`→`coord_marketing` (+ novo `redator_marketing`). Renomeado via `ALTER TYPE ... RENAME VALUE` (preserva usuários já cadastrados), não recriado do zero.
+- **Testado real (9/9):** candidato lê cidadaos/log_auditoria (positivo), candidato sem poder em usuarios_internos/campanhas (negativo), advogado_responsavel/assistente_juridico sem PII mas com leitura de auditoria, coord_marketing edita base de conhecimento (renomeado), redator_marketing só lê (não edita).
+- **Bug de teste encontrado e corrigido (não é bug de segurança):** o teste 4 (candidato não pode UPDATE em campanhas) deu falso positivo na primeira rodada — `UPDATE` bloqueado por RLS não gera exceção, só afeta 0 linhas silenciosamente. Conferi o valor real da coluna depois do UPDATE (`debug_candidato2.sql`, fora do pipeline principal): não mudou. Corrigi o teste pra usar `GET DIAGNOSTICS ... ROW_COUNT` em vez de só checar ausência de erro. A policy sempre esteve correta; o teste que estava errado.
+- **Desvio da spec:** nenhum (a mudança de acesso do candidato já é a spec, documentada antes do código).
+- **Pendências:** frontend (`InviteUserForm`, `usuarios/page.tsx`, `base-conhecimento/page.tsx`) ainda referencia os nomes antigos de papel (`advogado`, `coord_comunicacao`) — próximo passo antes de considerar isso fechado.
+
+---

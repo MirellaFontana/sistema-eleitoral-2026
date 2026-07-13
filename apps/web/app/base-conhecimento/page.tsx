@@ -8,13 +8,15 @@ import { DownloadButton } from "./DownloadButton";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
-  advogado: "Advogado",
-  coord_comunicacao: "Coord. de comunicação",
+  advogado_responsavel: "Advogado responsável",
+  assistente_juridico: "Assistente jurídico",
+  coord_marketing: "Coord. de marketing",
+  redator_marketing: "Redator de marketing",
   coord_campanha: "Coord. de campanha",
   candidato: "Candidato",
 };
 
-const PAPEIS_QUE_EDITAM = new Set(["coord_campanha", "coord_comunicacao"]);
+const PAPEIS_QUE_EDITAM = new Set(["coord_campanha", "coord_marketing"]);
 
 export default async function BaseConhecimentoPage() {
   const supabase = await createClient();
