@@ -87,3 +87,25 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** nenhuma pendência bloqueante; ambiente segue rodando localmente (`npm run dev` em `apps/web`) pra continuidade.
 
 ---
+
+## [2026-07-13] Base de conhecimento da campanha — migration 0004 (temas + itens + Storage)
+
+- **Arquivos alterados:** `supabase/migrations/0004_base_conhecimento.sql` (novo), `.pipeline/base_conhecimento_test.sql` (novo).
+- **Decisão técnica:** `coord_comunicacao` tem INSERT/UPDATE aqui (diferente do padrão de PII de cidadão, onde esse papel só lê) — decisão explícita do usuário, é quem mais alimenta essa base. Storage usa bucket privado `base-conhecimento` com policies em `storage.objects` que reaproveitam `current_campanha_id()`/`current_papel()` já testados, filtrando pelo primeiro segmento do path (`storage.foldername(name)[1]`).
+- **Testado real (8/8):** isolamento cross-tenant, coord_comunicacao cria item (positivo), embaixador não cria mas lê (dois testes), CHECK descricao-ou-arquivo, storage insert dentro da própria pasta (positivo), storage bloqueado cross-tenant, storage bloqueado por papel sem permissão.
+- **Nota de teste:** não deu pra limpar 100% a fixture de Storage — a role de conexão da Management API não é dona de `storage.objects` pra desabilitar o trigger `protect_objects_delete` (só permite DELETE via Storage API). Ficou 1 linha de metadado órfã no bucket de staging (sem arquivo binário real por trás, não referencia campanha nenhuma existente) — sem custo prático, registrado aqui em vez de escondido.
+- **Desvio da spec:** nenhum.
+- **Pendências para o Testador:** nenhuma.
+
+---
+
+## [2026-07-13] Tela de base de conhecimento (Next.js) — testada no navegador
+
+- **Arquivos alterados:** `apps/web/app/base-conhecimento/` (page, TemaForm, ItemForm, DownloadButton), `components/AppHeader.tsx` (nav entre Usuários e Base de conhecimento).
+- **Testado real no navegador:** criação de tema, item só com descrição, item com upload de PDF real (via chamada de script equivalente à do formulário, já que este navegador de teste não consegue dirigir o seletor nativo de arquivo do SO) + geração de signed URL de download — tudo contra o Supabase de staging.
+- **Bug real achado e corrigido:** `ItemForm` inicializava `temaId` com `useState(temas[0]?.id ?? "")`; como o componente monta antes de existir tema nenhum (primeira visita à página), esse estado ficava travado em `""` mesmo depois de um tema ser criado (React não reprocessa o valor inicial do `useState` quando as props mudam). Corrigido com `useEffect` que resincroniza `temaId` quando `temas` muda.
+- **Limitação de teste registrada, não do app:** não foi possível clicar num `<input type="file">` real neste navegador de teste (bloqueio de segurança do próprio browser contra preenchimento programático) — o caminho de upload foi validado chamando `supabase.storage.upload()` diretamente com um `File` construído em memória, mesmo método usado pelo componente real.
+- **Desvio da spec:** nenhum.
+- **Pendências para o Testador:** confirmar upload via clique real de usuário (fora do alcance desta sessão de teste automatizado).
+
+---

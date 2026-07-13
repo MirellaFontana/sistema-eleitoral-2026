@@ -195,3 +195,30 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - "Lembrar este dispositivo" — cada login pede o código de novo, por design nesta fase.
 
 ---
+
+## [2026-07-13] Base de conhecimento da campanha — pré-requisito antes de qualquer outro nível/módulo
+
+- **Motivo (decisão do usuário):** antes de avançar pro Nível 3 (embaixador) ou pro Módulo 2 (jurídico), precisa existir um lugar pra registrar propostas, biografia e demais informações que os módulos de IA (rascunho de peças, plano de governo) vão usar como fonte de verdade. Sem isso, geração de conteúdo não tem em cima do que se apoiar.
+- **Decisões de escopo (confirmadas com o usuário):**
+  1. **Estruturado por tema** (não documentos soltos sem organização) — cada item pertence a um tema (ex.: Saúde, Educação, Biografia).
+  2. Cada item aceita **descrição digitada OU um arquivo anexado (PDF)**, os dois são opcionais individualmente mas pelo menos um deve existir — cobre tanto "proposta escrita na hora" quanto "sobe o PDF pronto da biografia".
+  3. **Sem IA/RAG nesta entrega** — é só repositório de referência que humano consulta. Embedding/busca semântica fica pra quando o módulo jurídico/relacionamento existir de verdade.
+  4. **Edição:** `coord_campanha` e `coord_comunicacao`. Leitura: qualquer papel interno da campanha (mesmo padrão de território/usuários).
+
+### Modelo de dados
+- **`temas_campanha`** — id, campanha_id, nome, ordem. Isolado por tenant como todo o resto.
+- **`base_conhecimento_itens`** — id, campanha_id (denormalizado, evita join), tema_id, titulo, descricao (nullable), arquivo_path (nullable, aponta pro Storage), arquivo_nome_original (nullable), criado_por (usuarios_internos.id), criado_em. CHECK: `descricao IS NOT NULL OR arquivo_path IS NOT NULL`.
+- **Storage:** bucket privado `base-conhecimento`, caminho `{campanha_id}/{tema_id}/{arquivo}` — RLS de storage.objects usa o mesmo `current_campanha_id()`/`current_papel()` já testados no Módulo 1, filtrando pelo primeiro segmento do path.
+
+### Critérios de aceite
+- [ ] RLS force-enabled nas duas tabelas novas, mesmo padrão de isolamento por `campanha_id` do Módulo 1.
+- [ ] CHECK que impede item sem descrição E sem arquivo.
+- [ ] Upload/download de arquivo só funciona dentro da própria campanha (storage RLS testada, não só a tabela).
+- [ ] `coord_comunicacao` consegue criar/editar item (diferente das outras telas, onde esse papel só lê).
+- [ ] Embaixador/advogado/candidato conseguem **ler** a base (consulta), não editar.
+
+### Dependências
+- Extensão de Storage do Supabase habilitada no projeto (já vem por padrão).
+- Reaproveita `current_campanha_id()`/`current_papel()` da migration 0001 — não recria lógica de tenant.
+
+---
