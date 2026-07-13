@@ -129,3 +129,69 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - Confirmação do usuário sobre a nota de divergência de papéis acima antes de o Programador gerar a migration SQL.
 
 ---
+
+## [2026-07-13] Escopo do produto reduzido a 3 módulos (decisão do usuário)
+
+- **Simulador de quociente eleitoral removido do escopo.** Motivo do usuário: já é oferecido pelos partidos — deixa de fazer sentido como diferencial ou isca comercial própria.
+- **Módulos confirmados, nesta ordem:**
+  1. **Tabelas e cadastros** — Módulo 1 (esta especificação). Schema/RLS já prontos e testados; telas de cadastro ainda não existem (ver spec abaixo).
+  2. **Jurídico** — bloco de proteção jurídica da Camada 3 (conformidade/rotulagem IA, escudo antideepfake, matriz de alertas).
+  3. **Relacionamento com eleitores** — bloco de relacionamento da Camada 3 (enquete, loop de demanda, embaixadores, mandato).
+- Camada 4 (painéis) e módulos de apoio (agenda territorial) não têm dono de módulo próprio — nascem dentro do módulo 2 ou 3 conforme a tela precisar.
+
+---
+
+## [2026-07-13] Telas de cadastro — Nível 1 (campanha) e Nível 2 (usuários internos)
+
+- **Objetivo:** construir a interface web que dá uso real ao schema do Módulo 1 — hoje só é possível inserir dado via SQL direto. Cobre os dois primeiros níveis de cadastro da especificação (§3.1): setup da campanha (raiz do tenant) e setup da estrutura interna (usuários e papéis). **Não cobre ainda** o Nível 3 (cadastro de cidadão pelo embaixador em campo) — isso é a próxima spec, depende de já existir usuário interno de verdade para testar.
+- **Por que começar aqui, não pelo embaixador:** o fluxo do embaixador (Nível 3) só faz sentido testar com um `usuarios_internos` real logado — sem login/onboarding funcionando, não dá pra validar o app de campo de ponta a ponta.
+
+### Escopo desta tela
+1. **Login** — Supabase Auth (email/senha). MFA obrigatório (coord_campanha/candidato) fica para uma iteração seguinte; não bloqueia esta entrega.
+2. **Onboarding de campanha (Nível 1)** — formulário único: nome do candidato, cargo, UF, partido, plano contratado. Cria a linha raiz em `campanhas`. Só acontece uma vez, na primeira entrada.
+3. **Gestão de usuários internos (Nível 2)** — lista os usuários da campanha (nome, papel, status, expiração) + formulário de convite/cadastro (nome, papel, território quando embaixador, MFA obrigatório quando coord_campanha/candidato). Edição de papel/status restrita a `coord_campanha`, espelhando a policy já testada — a tela não reimplementa a regra, só reflete o que a policy permite (se a query falhar por RLS, a tela mostra o erro, não contorna).
+
+### Stack
+- Next.js (App Router) + TypeScript, dentro de `apps/web/` no mesmo repositório.
+- `@supabase/supabase-js` + `@supabase/ssr` para sessão de auth no servidor.
+- Tailwind para estilo — sem framework de UI pesado nesta fase.
+
+### Critérios de aceite
+- [ ] Login funcional contra o projeto Supabase de staging já linkado.
+- [ ] Onboarding cria `campanhas` uma única vez por conta (não deixa duplicar).
+- [ ] Tela de usuários internos lista respeitando RLS (cada sessão só vê a própria campanha — já garantido pelo banco, a tela só precisa não quebrar).
+- [ ] Cadastro de usuário interno com papel `embaixador` exige território e data de expiração antes de enviar (mesma regra que já existe como CHECK no banco — validação de UI é conveniência, não substitui o CHECK).
+- [ ] Nenhuma chamada do frontend usa `service_role` — sempre a chave `anon`/sessão do usuário, para que a RLS testada no Módulo 1 seja o que realmente protege os dados.
+
+### Risco TSE/LGPD
+- Baixo nesta entrega — não expõe PII de cidadão, só dado de usuário interno (nome, papel).
+- Risco real está em manter a garantia "frontend nunca usa service_role" — se essa regra vazar, todo o trabalho de RLS do Módulo 1 vira decorativo.
+
+### Dependências
+- Migrations 0001 + 0002 já aplicadas no staging (confirmado).
+- **Bug de bootstrap encontrado ao planejar esta tela (antes de qualquer código):** a migration 0001 nunca teve policy de INSERT em `campanhas`, e `usuarios_internos_insert` exige `current_papel() = 'coord_campanha'` — ou seja, com RLS forçada, **ninguém consegue criar a primeira campanha nem o primeiro usuário interno** pelo caminho normal (galinha-e-ovo). Isso não apareceu nos 13 testes do Módulo 1 porque a fixture era inserida via role com bypassRLS, não pelo caminho real de um usuário novo.
+- **Resolução:** função `SECURITY DEFINER` única, `bootstrap_campanha(...)`, que cria a `campanha` e o primeiro `usuarios_internos` (papel `coord_campanha`) atomicamente, só quando `auth.uid()` ainda não pertence a nenhuma campanha. Não abre policy de INSERT permanente em `campanhas` — o controle fica todo dentro da função, uma função, uma responsabilidade. Vai como migration `0003_bootstrap_campanha.sql`, testada antes do frontend ser escrito em cima dela.
+
+---
+
+## [2026-07-13] MFA (TOTP) — pré-requisito descoberto ao testar a tela de convite no navegador
+
+- **Achado:** ao testar de verdade (não só ler o código), o convite de usuário pelo `coord_campanha` falhou com "new row violates row-level security policy" — não é bug de policy, é a policy `usuarios_internos_insert` fazendo exatamente o que foi testada pra fazer no Módulo 1: exige `mfa_verificado()` (sessão em `aal2`). A conta recém-criada não tem MFA configurado, então nunca alcança `aal2`. A spec anterior (telas de cadastro) tinha marcado MFA como "não bloqueia esta entrega" — na prática bloqueia, porque a RLS já exige em produção desde o Módulo 1.
+- **Decisão do usuário:** construir o enrollment de MFA agora, como pré-requisito real, em vez de afrouxar a policy.
+
+### Escopo
+1. **`/mfa/enroll`** — para usuário com papel `coord_campanha` ou `candidato` sem fator TOTP verificado ainda. Usa `supabase.auth.mfa.enroll({factorType:'totp'})`, mostra QR code, confirma com código de 6 dígitos via `mfa.challengeAndVerify`.
+2. **`/mfa/verify`** — para usuário que já tem fator verificado mas a sessão atual ainda está em `aal1` (login novo). Pede o código de 6 dígitos, eleva a sessão pra `aal2` via `mfa.challengeAndVerify`.
+3. Redirecionamento centralizado: qualquer página que dependa de ação gated por `mfa_verificado()` (onboarding N2, usuários) checa `supabase.auth.mfa.getAuthenticatorAssuranceLevel()` e manda pro fluxo certo antes de renderizar a ação.
+
+### Critérios de aceite
+- [ ] coord_campanha/candidato sem fator → obrigado a passar por `/mfa/enroll` antes de ver a tela de usuários.
+- [ ] coord_campanha/candidato com fator, sessão `aal1` → obrigado a passar por `/mfa/verify` a cada novo login.
+- [ ] Papéis sem exigência de MFA (embaixador, advogado, coord_comunicacao) não são afetados.
+- [ ] Depois do `mfa.challengeAndVerify`, o convite de usuário (que falhou nesta sessão) passa a funcionar.
+
+### Fora do escopo desta entrega (registrado, não esquecido)
+- Códigos de recuperação (recovery codes) se o usuário perder o autenticador.
+- "Lembrar este dispositivo" — cada login pede o código de novo, por design nesta fase.
+
+---
