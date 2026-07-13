@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { TemaForm } from "./TemaForm";
 import { ItemForm } from "./ItemForm";
-import { DownloadButton } from "./DownloadButton";
+import { ItemCard } from "./ItemCard";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -47,8 +47,12 @@ export default async function BaseConhecimentoPage() {
 
   const { data: itens } = await supabase
     .from("base_conhecimento_itens")
-    .select("id, tema_id, titulo, descricao, arquivo_path, arquivo_nome_original, created_at")
+    .select("id, tema_id, titulo, descricao, created_at")
     .order("created_at", { ascending: false });
+
+  const { data: arquivos } = await supabase
+    .from("base_conhecimento_arquivos")
+    .select("id, item_id, arquivo_path, arquivo_nome_original");
 
   const proximaOrdem = (temas?.length ?? 0) + 1;
 
@@ -102,22 +106,13 @@ export default async function BaseConhecimentoPage() {
                 ) : (
                   <ul className="space-y-2">
                     {itensDoTema.map((item) => (
-                      <li key={item.id} className="rounded border border-neutral-200 p-3">
-                        <p className="text-sm font-medium">{item.titulo}</p>
-                        {item.descricao && (
-                          <p className="mt-1 text-sm text-neutral-600 whitespace-pre-wrap">
-                            {item.descricao}
-                          </p>
-                        )}
-                        {item.arquivo_path && (
-                          <div className="mt-1">
-                            <DownloadButton
-                              path={item.arquivo_path}
-                              nome={item.arquivo_nome_original ?? "arquivo"}
-                            />
-                          </div>
-                        )}
-                      </li>
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        arquivos={(arquivos ?? []).filter((a) => a.item_id === item.id)}
+                        campanhaId={eu.campanha_id}
+                        podeEditar={podeEditar}
+                      />
                     ))}
                   </ul>
                 )}

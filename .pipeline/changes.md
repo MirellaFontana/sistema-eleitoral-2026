@@ -129,6 +129,27 @@ Formato sugerido por entrada:
 
 ---
 
+## [2026-07-13] Editar/excluir item + múltiplos arquivos — migration 0009
+
+- **Arquivos alterados:** `supabase/migrations/0009_base_conhecimento_arquivos.sql` (novo), `.pipeline/base_conhecimento_arquivos_test.sql` (novo).
+- **Achado ao planejar:** usuário testou anexar "Código eleitoral" só com descrição, quis depois anexar o PDF — não dava, só criar item novo. "Complementar" (confirmado com o usuário) = item aceita **vários arquivos**, não é troca de arquivo único.
+- **Decisão técnica:** `arquivo_path`/`arquivo_nome_original` saem de `base_conhecimento_itens` e viram tabela própria `base_conhecimento_arquivos` (item → muitos arquivos, `ON DELETE CASCADE`). CHECK `descricao_ou_arquivo` removida do banco (não dá pra checar "existe filho" com CHECK simples) — validação de "descrição ou arquivo" volta a ser só de UI. Dado existente (Biografia PDF) migrado antes de dropar as colunas — conferido sem perda.
+- **Testado real (7/7):** editar item (positivo), embaixador não edita, múltiplos arquivos no mesmo item, embaixador não adiciona arquivo, isolamento cross-tenant, remover 1 arquivo mantendo o outro, excluir item cascateia os arquivos.
+- **Desvio da spec:** nenhum.
+- **Pendências:** frontend (edição/exclusão de item, múltiplos arquivos) ainda não construído — próximo passo.
+
+---
+
+## [2026-07-13] Frontend — editar/excluir item + múltiplos arquivos + confirmação sem dialog nativo
+
+- **Arquivos alterados:** `ItemCard.tsx` (novo — edição inline, exclusão, lista de arquivos com remoção individual, upload de arquivo adicional), `ItemForm.tsx` (upload agora insere em `base_conhecimento_arquivos` depois de criar o item, não mais coluna direta), `page.tsx` (busca `base_conhecimento_arquivos` separado e agrupa por item), `DownloadButton.tsx` removido (órfão, substituído pelo botão de baixar dentro do `ItemCard`).
+- **Bug real achado testando no navegador:** usei `window.confirm()` pra "excluir item"/"remover arquivo" — trava a ferramenta de automação de teste (diálogo nativo bloqueia o processo) e é UX inconsistente entre navegadores de qualquer forma. Substituído por confirmação inline (clique em "Excluir" mostra "Confirmar/Cancelar" no lugar, sem diálogo bloqueante).
+- **Testado no navegador, com o item real do usuário:** editei a descrição do item "Código eleitoral" dele, anexei um PDF (`lei-9504-1997.pdf`, via upload real simulado — mesma limitação de sempre pra clicar em `<input type=file>` nativo), testei excluir um item de teste meu (funcionou, confirmação inline sem travar).
+- **Desvio da spec:** nenhum.
+- **Pendências:** nenhuma.
+
+---
+
 ## [2026-07-13] Monitoramento (clipping) — migration 0007
 
 - **Arquivos alterados:** `supabase/migrations/0007_monitoramento.sql` (novo), `.pipeline/monitoramento_test.sql` (novo).

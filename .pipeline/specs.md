@@ -280,3 +280,23 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - **Revisitar depois:** se a lista de categorias continuar crescendo por pedido do usuário, vale reconsiderar migrar pra tabela cadastrável em vez de enum — registrado aqui como sinal, não decidido agora.
 
 ---
+
+## [2026-07-13] Editar/excluir item + múltiplos arquivos por item (base de conhecimento)
+
+- **Motivo:** usuário testou adicionar "Código eleitoral" com só descrição, quis depois anexar o PDF de verdade — hoje só dá pra criar item novo, não editar o existente nem anexar mais de um arquivo. Confirmado com o usuário: "complementar" = um item pode acumular **vários arquivos** ao longo do tempo (a lei + um resumo + um parecer, por exemplo), não é troca de arquivo único.
+- **Escopo:**
+  1. Editar título/descrição de um item existente.
+  2. Excluir item existente (e seus arquivos).
+  3. Arquivos viram tabela própria (`base_conhecimento_arquivos`, item → muitos arquivos), não mais coluna única em `base_conhecimento_itens`. Cada arquivo pode ser adicionado/removido independentemente, sem mexer no resto do item.
+- **Migração de dado:** os 2 itens de teste que já têm `arquivo_path` (Biografia PDF) precisam ser migrados pra a tabela nova antes de remover as colunas antigas — não pode perder o que já foi cadastrado.
+- **Mudança de regra:** a CHECK `descricao_ou_arquivo` sai do banco (não dá pra checar "existe pelo menos 1 arquivo relacionado" com CHECK simples, exigiria trigger). Vira validação só de UI — o formulário de criação continua exigindo descrição OU arquivo antes de enviar, mas o banco não trava mais isso sozinho.
+- **Permissão:** editar/excluir item e adicionar/remover arquivo seguem a mesma regra de quem cria hoje (`coord_campanha`, `coord_marketing`).
+
+### Critérios de aceite
+- [ ] Dado existente (Biografia PDF) migrado sem perda pra `base_conhecimento_arquivos`.
+- [ ] Editar título/descrição funciona e respeita RLS (só coord_campanha/coord_marketing).
+- [ ] Excluir item remove os arquivos associados (linha do banco — limpeza do Storage em si é conhecida como pendência, mesma ressalva já registrada pro bucket órfão do teste anterior).
+- [ ] Um item aceita mais de 1 arquivo simultaneamente, cada um com upload/remoção independente.
+- [ ] Isolamento cross-tenant testado na tabela nova.
+
+---

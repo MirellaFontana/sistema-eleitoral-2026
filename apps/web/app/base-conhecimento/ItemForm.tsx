@@ -41,11 +41,20 @@ export function ItemForm({ campanhaId, temas }: { campanhaId: string; temas: Tem
 
     setCarregando(true);
 
-    let arquivoPath: string | null = null;
-    let arquivoNomeOriginal: string | null = null;
+    const { data: novoItem, error } = await supabase
+      .from("base_conhecimento_itens")
+      .insert({ campanha_id: campanhaId, tema_id: temaId, titulo, descricao: descricao.trim() || null })
+      .select("id")
+      .single();
+
+    if (error || !novoItem) {
+      setCarregando(false);
+      setErro(error?.message ?? "erro ao criar item");
+      return;
+    }
 
     if (arquivo) {
-      const caminho = `${campanhaId}/${temaId}/${Date.now()}-${arquivo.name}`;
+      const caminho = `${campanhaId}/${novoItem.id}/${Date.now()}-${arquivo.name}`;
       const { error: uploadError } = await supabase.storage
         .from("base-conhecimento")
         .upload(caminho, arquivo);
@@ -55,25 +64,22 @@ export function ItemForm({ campanhaId, temas }: { campanhaId: string; temas: Tem
         setErro(uploadError.message);
         return;
       }
-      arquivoPath = caminho;
-      arquivoNomeOriginal = arquivo.name;
-    }
 
-    const { error } = await supabase.from("base_conhecimento_itens").insert({
-      campanha_id: campanhaId,
-      tema_id: temaId,
-      titulo,
-      descricao: descricao.trim() || null,
-      arquivo_path: arquivoPath,
-      arquivo_nome_original: arquivoNomeOriginal,
-    });
+      const { error: arquivoError } = await supabase.from("base_conhecimento_arquivos").insert({
+        item_id: novoItem.id,
+        campanha_id: campanhaId,
+        arquivo_path: caminho,
+        arquivo_nome_original: arquivo.name,
+      });
+
+      if (arquivoError) {
+        setCarregando(false);
+        setErro(arquivoError.message);
+        return;
+      }
+    }
 
     setCarregando(false);
-    if (error) {
-      setErro(error.message);
-      return;
-    }
-
     setSucesso(`"${titulo}" adicionado.`);
     setTitulo("");
     setDescricao("");
