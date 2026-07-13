@@ -4,6 +4,7 @@ import { SignOutButton } from "./SignOutButton";
 const NAV = [
   { href: "/usuarios", label: "Usuários" },
   { href: "/base-conhecimento", label: "Base de conhecimento" },
+  { href: "/monitoramento", label: "Monitoramento" },
 ];
 
 export function AppHeader({ campanhaNome, papel }: { campanhaNome?: string; papel?: string }) {

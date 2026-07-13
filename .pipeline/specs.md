@@ -248,3 +248,26 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - [ ] `coord_marketing` e `redator_marketing`: ambos leem o bloco de marketing; só `coord_marketing` edita `base_conhecimento_itens`/`temas_campanha` (retestar a policy já existente com o nome novo).
 
 ---
+
+## [2026-07-13] Monitoramento (clipping) — mais uma peça do Módulo 2 Campanha
+
+- **Motivo (decisão do usuário):** um único registro de "coisa encontrada sobre o candidato na internet" — não separado entre jurídico e marketing desde a entrada, porque a mesma menção pode interessar aos dois times (ameaça jurídica vs. oportunidade de marketing). Vive no Módulo Campanha porque é dali que "dispara" pros dois.
+- **"Código eleitoral":** resolvido sem tabela nova — é só mais um tema dentro da base de conhecimento já existente (ex.: tema "Legislação" com PDF da Lei 9.504/1997, Resolução TSE etc.).
+- **Escopo confirmado:** registro **manual** nesta entrega (alguém da equipe cola link/print + nota). Sem crawler/Google Alerts agora — fica registrado como evolução futura, não escondido.
+
+### Modelo de dados
+- **`monitoramento_itens`** — campanha_id, url (nullable — nem toda menção tem link público), descricao (obrigatória — é sempre "o que a pessoa viu"), categoria (`ameaca_juridica`, `deepfake_suspeito`, `mencao_neutra`, `oportunidade_marketing`, `outro`), gravidade (nullable — só relevante pras categorias de ameaça), status (`novo`, `em_analise`, `resolvido`), captura_path (nullable, Storage), registrado_por, created_at.
+- **Storage:** bucket privado `monitoramento`, mesmo padrão de path/RLS do `base-conhecimento` (`{campanha_id}/{arquivo}`).
+
+### Acesso
+- Leitura: qualquer papel interno da campanha (mesmo padrão dos temas/itens de conhecimento).
+- Criação: `coord_campanha`, `advogado_responsavel`, `assistente_juridico`, `coord_marketing`, `redator_marketing`. Não inclui `embaixador` (papel de campo, não é função dele) nem `candidato` (mantém "só leitura, sem poder administrativo" já decidido — registrar item é tratado como ação de conteúdo, não leitura).
+- **Fora do escopo desta entrega, registrado:** workflow de "encaminhamento formal à Justiça Eleitoral" a partir de um item de categoria `ameaca_juridica` — isso é responsabilidade do Módulo Jurídico quando for construído; aqui só classificamos e listamos.
+
+### Critérios de aceite
+- [ ] RLS force-enabled, isolamento por `campanha_id` (mesmo padrão testado).
+- [ ] `embaixador` e `candidato` conseguem ler mas não inserir.
+- [ ] Os outros 5 papéis (exceto embaixador/candidato) conseguem inserir.
+- [ ] Storage do bucket `monitoramento` isolado por campanha, mesmo padrão testado do `base-conhecimento`.
+
+---

@@ -120,3 +120,21 @@ Formato sugerido por entrada:
 - **Pendências:** frontend (`InviteUserForm`, `usuarios/page.tsx`, `base-conhecimento/page.tsx`) ainda referencia os nomes antigos de papel (`advogado`, `coord_comunicacao`) — próximo passo antes de considerar isso fechado.
 
 ---
+
+## [2026-07-13] Frontend atualizado pra hierarquia de papéis nova
+
+- **Arquivos alterados:** `InviteUserForm.tsx`, `usuarios/page.tsx`, `base-conhecimento/page.tsx` — labels e listas de papel trocados pros nomes novos (`advogado_responsavel`, `assistente_juridico`, `coord_marketing`, `redator_marketing`).
+- **Testado no navegador:** dropdown de convite mostra os 7 papéis corretos; convite de um `redator_marketing` de verdade funcionou (achei e descartei um falso alarme — clique em `ref` desatualizado após o layout mudar, não bug do app).
+- **Pendências:** nenhuma.
+
+---
+
+## [2026-07-13] Monitoramento (clipping) — migration 0007
+
+- **Arquivos alterados:** `supabase/migrations/0007_monitoramento.sql` (novo), `.pipeline/monitoramento_test.sql` (novo).
+- **Decisão técnica:** um único ponto de entrada (`monitoramento_itens`) pra ameaça jurídica, deepfake suspeito, menção neutra ou oportunidade de marketing — classificado por `categoria`, não separado em tabelas por módulo. Leitura liberada a todos os papéis internos (inclusive embaixador/candidato); criação restrita a quem trabalha o conteúdo (`coord_campanha`, `advogado_responsavel`, `assistente_juridico`, `coord_marketing`, `redator_marketing`) — embaixador (papel de campo) e candidato (só leitura, decisão já registrada) ficam de fora da criação.
+- **Testado real (7/7):** criação pelo papel liberado, bloqueio de embaixador e candidato na criação, leitura liberada pros dois, isolamento cross-tenant, storage (bucket `monitoramento`) liberado pro papel certo e bloqueado pro embaixador.
+- **Desvio da spec:** nenhum.
+- **Pendências:** frontend (`/monitoramento`) ainda não construído — próximo passo.
+
+---
