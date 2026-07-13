@@ -271,3 +271,12 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - [ ] Storage do bucket `monitoramento` isolado por campanha, mesmo padrão testado do `base-conhecimento`.
 
 ---
+
+## [2026-07-13] Categorias de monitoramento — ampliação (decisão do usuário)
+
+- **Pergunta do usuário:** quais categorias existem e dá pra cadastrar categoria nova? Resposta honesta: hoje é enum fixo, ninguém cadastra pela tela.
+- **Decisão:** manter enum fixo por enquanto (usuário não pediu pra virar tabela cadastrável), mas adicionar 3 categorias: `mencao_positiva`, `mencao_negativa`, `gestao_crise`. Lista final: ameaça jurídica, deepfake suspeito, gestão de crise, menção positiva, menção neutra, menção negativa, oportunidade de marketing, outro.
+- **Gravidade** continua só nas categorias que pedem resposta ativa: ameaça jurídica, deepfake suspeito, gestão de crise. A família "menção" (positiva/neutra/negativa) é só sentimento, sem campo de gravidade.
+- **Revisitar depois:** se a lista de categorias continuar crescendo por pedido do usuário, vale reconsiderar migrar pra tabela cadastrável em vez de enum — registrado aqui como sinal, não decidido agora.
+
+---

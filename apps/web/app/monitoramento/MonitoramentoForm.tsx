@@ -7,12 +7,15 @@ import { createClient } from "@/lib/supabase/client";
 const CATEGORIAS = [
   { value: "ameaca_juridica", label: "Ameaça jurídica" },
   { value: "deepfake_suspeito", label: "Deepfake suspeito" },
+  { value: "gestao_crise", label: "Gestão de crise" },
+  { value: "mencao_positiva", label: "Menção positiva" },
   { value: "mencao_neutra", label: "Menção neutra" },
+  { value: "mencao_negativa", label: "Menção negativa" },
   { value: "oportunidade_marketing", label: "Oportunidade de marketing" },
   { value: "outro", label: "Outro" },
 ];
 
-const CATEGORIAS_COM_GRAVIDADE = new Set(["ameaca_juridica", "deepfake_suspeito"]);
+const CATEGORIAS_COM_GRAVIDADE = new Set(["ameaca_juridica", "deepfake_suspeito", "gestao_crise"]);
 
 const GRAVIDADES = [
   { value: "baixa", label: "Baixa" },

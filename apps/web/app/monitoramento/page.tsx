@@ -26,7 +26,10 @@ const PAPEIS_QUE_REGISTRAM = new Set([
 const CATEGORIA_LABEL: Record<string, string> = {
   ameaca_juridica: "Ameaça jurídica",
   deepfake_suspeito: "Deepfake suspeito",
+  gestao_crise: "Gestão de crise",
+  mencao_positiva: "Menção positiva",
   mencao_neutra: "Menção neutra",
+  mencao_negativa: "Menção negativa",
   oportunidade_marketing: "Oportunidade de marketing",
   outro: "Outro",
 };
@@ -72,8 +75,8 @@ export default async function MonitoramentoPage() {
         <div>
           <h1 className="text-lg font-semibold">Monitoramento</h1>
           <p className="text-sm text-neutral-500">
-            Menções ao candidato encontradas na internet — ameaça jurídica, deepfake suspeito,
-            menção neutra ou oportunidade de marketing. Registro manual por enquanto.
+            Menções ao candidato encontradas na internet — de ameaça jurídica e gestão de crise a
+            menções de sentimento e oportunidades de marketing. Registro manual por enquanto.
           </p>
         </div>
 
