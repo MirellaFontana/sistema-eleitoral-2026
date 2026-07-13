@@ -9,11 +9,13 @@ export function TemaForm({ campanhaId, proximaOrdem }: { campanhaId: string; pro
   const supabase = createClient();
   const [nome, setNome] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
+    setSucesso(null);
     setCarregando(true);
 
     const { error } = await supabase
@@ -25,6 +27,7 @@ export function TemaForm({ campanhaId, proximaOrdem }: { campanhaId: string; pro
       setErro(error.message);
       return;
     }
+    setSucesso(`Tema "${nome}" criado.`);
     setNome("");
     router.refresh();
   }
@@ -49,6 +52,7 @@ export function TemaForm({ campanhaId, proximaOrdem }: { campanhaId: string; pro
         {carregando ? "Adicionando…" : "Adicionar tema"}
       </button>
       {erro && <p className="w-full text-sm text-red-600">{erro}</p>}
+      {sucesso && <p className="w-full text-sm text-green-700">{sucesso}</p>}
     </form>
   );
 }

@@ -22,11 +22,13 @@ export function ItemForm({ campanhaId, temas }: { campanhaId: string; temas: Tem
   const [descricao, setDescricao] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
+    setSucesso(null);
 
     if (!temaId) {
       setErro("Crie um tema antes de adicionar um item.");
@@ -72,6 +74,7 @@ export function ItemForm({ campanhaId, temas }: { campanhaId: string; temas: Tem
       return;
     }
 
+    setSucesso(`"${titulo}" adicionado.`);
     setTitulo("");
     setDescricao("");
     setArquivo(null);
@@ -137,6 +140,7 @@ export function ItemForm({ campanhaId, temas }: { campanhaId: string; temas: Tem
       </div>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {sucesso && <p className="text-sm text-green-700">{sucesso}</p>}
 
       <button
         type="submit"

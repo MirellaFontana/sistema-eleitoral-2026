@@ -33,6 +33,7 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
   const [descricao, setDescricao] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
   const precisaGravidade = CATEGORIAS_COM_GRAVIDADE.has(categoria);
@@ -40,6 +41,7 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
+    setSucesso(null);
     setCarregando(true);
 
     let capturaPath: string | null = null;
@@ -73,6 +75,7 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
       return;
     }
 
+    setSucesso("Item registrado.");
     setUrl("");
     setDescricao("");
     setGravidade("");
@@ -153,6 +156,7 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
       </div>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {sucesso && <p className="text-sm text-green-700">{sucesso}</p>}
 
       <button
         type="submit"

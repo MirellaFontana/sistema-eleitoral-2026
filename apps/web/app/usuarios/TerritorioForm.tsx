@@ -10,11 +10,13 @@ export function TerritorioForm({ campanhaId }: { campanhaId: string }) {
   const [nomeBairro, setNomeBairro] = useState("");
   const [zonaEleitoral, setZonaEleitoral] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
+    setSucesso(null);
     setCarregando(true);
 
     const { error } = await supabase
@@ -26,6 +28,7 @@ export function TerritorioForm({ campanhaId }: { campanhaId: string }) {
       setErro(error.message);
       return;
     }
+    setSucesso(`Território "${nomeBairro}" adicionado.`);
     setNomeBairro("");
     setZonaEleitoral("");
     router.refresh();
@@ -58,6 +61,7 @@ export function TerritorioForm({ campanhaId }: { campanhaId: string }) {
         {carregando ? "Adicionando…" : "Adicionar território"}
       </button>
       {erro && <p className="w-full text-sm text-red-600">{erro}</p>}
+      {sucesso && <p className="w-full text-sm text-green-700">{sucesso}</p>}
     </form>
   );
 }
