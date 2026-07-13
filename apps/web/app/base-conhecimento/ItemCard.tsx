@@ -28,6 +28,11 @@ export function ItemCard({
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
+  // "Adicionar informação" nunca substitui o que já existe — só acrescenta ao final. "Editar"
+  // continua existindo, separado, pra quando for corrigir/substituir de verdade.
+  const [adicionandoInfo, setAdicionandoInfo] = useState(false);
+  const [novaInfo, setNovaInfo] = useState("");
+
   // Confirmação inline (não window.confirm — trava automação de teste e é UX inconsistente
   // entre navegadores) — dois cliques: "Excluir" mostra "Confirmar / Cancelar" no lugar.
   const [confirmandoExclusaoItem, setConfirmandoExclusaoItem] = useState(false);
@@ -46,6 +51,25 @@ export function ItemCard({
       return;
     }
     setEditando(false);
+    router.refresh();
+  }
+
+  async function adicionarInformacao() {
+    if (!novaInfo.trim()) return;
+    setErro(null);
+    setCarregando(true);
+    const descricaoAtualizada = item.descricao ? `${item.descricao}\n\n${novaInfo.trim()}` : novaInfo.trim();
+    const { error } = await supabase
+      .from("base_conhecimento_itens")
+      .update({ descricao: descricaoAtualizada })
+      .eq("id", item.id);
+    setCarregando(false);
+    if (error) {
+      setErro(error.message);
+      return;
+    }
+    setNovaInfo("");
+    setAdicionandoInfo(false);
     router.refresh();
   }
 
@@ -161,6 +185,9 @@ export function ItemCard({
         <p className="text-sm font-medium">{item.titulo}</p>
         {podeEditar && !confirmandoExclusaoItem && (
           <div className="flex shrink-0 gap-3 text-xs">
+            <button onClick={() => setAdicionandoInfo(true)} className="text-neutral-500 hover:text-neutral-900">
+              Adicionar informação
+            </button>
             <button onClick={() => setEditando(true)} className="text-neutral-500 hover:text-neutral-900">
               Editar
             </button>
@@ -187,6 +214,38 @@ export function ItemCard({
       </div>
 
       {item.descricao && <p className="text-sm text-neutral-600 whitespace-pre-wrap">{item.descricao}</p>}
+
+      {adicionandoInfo && (
+        <div className="space-y-2 rounded border border-neutral-200 bg-neutral-50 p-2">
+          <textarea
+            autoFocus
+            rows={2}
+            placeholder="O que você quer acrescentar…"
+            value={novaInfo}
+            onChange={(e) => setNovaInfo(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={adicionarInformacao}
+              disabled={!novaInfo.trim() || carregando}
+              className="rounded bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+            >
+              {carregando ? "Adicionando…" : "Adicionar"}
+            </button>
+            <button
+              onClick={() => {
+                setAdicionandoInfo(false);
+                setNovaInfo("");
+                setErro(null);
+              }}
+              className="rounded border border-neutral-300 px-3 py-1 text-xs"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {arquivos.length > 0 && (
         <ul className="space-y-1">

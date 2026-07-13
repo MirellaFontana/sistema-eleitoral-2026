@@ -300,3 +300,11 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - [ ] Isolamento cross-tenant testado na tabela nova.
 
 ---
+
+## [2026-07-13] "Complementar" também vale pro texto — "Adicionar informação" não substitui
+
+- **Motivo:** usuário deixou claro que editar não pode "anular o conhecimento" já registrado num item — só devia poder acrescentar. "Editar" (substitui título/descrição) já existe e continua, separado, pra correções de verdade.
+- **Decisão do usuário:** botão próprio **"Adicionar informação"** — abre uma caixa de texto vazia, o que for digitado é **acrescentado ao final** da descrição existente (separado por linha em branco), nunca substitui. Sem tabela nova (ao contrário dos arquivos) — continua sendo o campo `descricao` único, só a ação de escrever nele que muda.
+- **Escopo:** só frontend — nenhuma migration necessária.
+
+---
