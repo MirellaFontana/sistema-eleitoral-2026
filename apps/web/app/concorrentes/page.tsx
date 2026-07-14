@@ -1,0 +1,108 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { AppHeader } from "@/components/AppHeader";
+import { proximaRotaMfa } from "@/lib/mfa";
+import { ConcorrenteForm } from "./ConcorrenteForm";
+
+const PAPEL_LABEL: Record<string, string> = {
+  embaixador: "Embaixador",
+  advogado_responsavel: "Advogado responsável",
+  assistente_juridico: "Assistente jurídico",
+  coord_marketing: "Coord. de marketing",
+  redator_marketing: "Redator de marketing",
+  coord_campanha: "Coord. de campanha",
+  candidato: "Candidato",
+};
+
+const PAPEIS_QUE_EDITAM = new Set(["coord_campanha", "coord_marketing"]);
+
+export default async function ConcorrentesPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: eu } = await supabase
+    .from("usuarios_internos")
+    .select("papel, campanha_id, campanhas(nome_candidato)")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!eu) redirect("/onboarding");
+
+  const rotaMfa = await proximaRotaMfa(supabase, eu.papel);
+  if (rotaMfa) redirect(rotaMfa);
+
+  const podeEditar = PAPEIS_QUE_EDITAM.has(eu.papel);
+  const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
+
+  const { data: concorrentes } = await supabase
+    .from("concorrentes")
+    .select("id, nome, partido, pontos_fortes, pontos_fracos, promessas, created_at")
+    .order("created_at", { ascending: false });
+
+  return (
+    <div className="flex flex-col flex-1">
+      <AppHeader campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]} />
+
+      <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
+        <div>
+          <h1 className="text-lg font-semibold">Concorrentes</h1>
+          <p className="text-sm text-neutral-500">
+            Análise de oposição — nome, partido, pontos fortes/fracos e promessas de campanha.
+          </p>
+        </div>
+
+        {podeEditar && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Adicionar concorrente
+            </h2>
+            <ConcorrenteForm campanhaId={eu.campanha_id} />
+          </section>
+        )}
+
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Registrados
+          </h2>
+
+          {(concorrentes ?? []).length === 0 && (
+            <p className="text-sm text-neutral-400">Nenhum concorrente registrado ainda.</p>
+          )}
+
+          <ul className="space-y-2">
+            {(concorrentes ?? []).map((c) => (
+              <li key={c.id} className="rounded border border-neutral-200 p-3 space-y-1">
+                <p className="text-sm font-medium">
+                  {c.nome}
+                  {c.partido && <span className="text-neutral-500"> · {c.partido}</span>}
+                </p>
+                {c.pontos_fortes && (
+                  <p className="text-sm text-neutral-600">
+                    <span className="font-medium text-neutral-500">Pontos fortes: </span>
+                    {c.pontos_fortes}
+                  </p>
+                )}
+                {c.pontos_fracos && (
+                  <p className="text-sm text-neutral-600">
+                    <span className="font-medium text-neutral-500">Pontos fracos: </span>
+                    {c.pontos_fracos}
+                  </p>
+                )}
+                {c.promessas && (
+                  <p className="text-sm text-neutral-600">
+                    <span className="font-medium text-neutral-500">Promessas: </span>
+                    {c.promessas}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </main>
+    </div>
+  );
+}

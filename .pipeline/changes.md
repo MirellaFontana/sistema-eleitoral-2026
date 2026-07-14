@@ -150,6 +150,17 @@ Formato sugerido por entrada:
 
 ---
 
+## [2026-07-13] Concorrentes + Demandas observadas — migration 0010
+
+- **Arquivos alterados:** `supabase/migrations/0010_concorrentes_demandas.sql` (novo), `.pipeline/concorrentes_demandas_test.sql` (novo).
+- **Nota de ambiente:** Bash (via harness) parou de resolver PATH pra binários externos nesta sessão (ls/node/npx sumiram, só builtins funcionavam) — segui usando PowerShell pro resto da sessão, sem impacto no resultado.
+- **Decisão técnica:** `demandas_observadas` (não `demandas`) — nome deliberado pra não colidir com o futuro módulo formal de cidadão-relata/mandato-encaminha já previsto na especificação original. É nota de referência regional (região, cidade, tema, demanda), confirmado com o usuário.
+- **Testado real (7/7):** criação pelo papel liberado em ambas as tabelas, bloqueio de embaixador na criação de ambas, leitura liberada (embaixador lê concorrentes), isolamento cross-tenant nas duas.
+- **Desvio da spec:** nenhum.
+- **Pendências:** frontend ainda não construído; tema "Atual Conjuntura" ainda não criado.
+
+---
+
 ## [2026-07-13] Monitoramento (clipping) — migration 0007
 
 - **Arquivos alterados:** `supabase/migrations/0007_monitoramento.sql` (novo), `.pipeline/monitoramento_test.sql` (novo).

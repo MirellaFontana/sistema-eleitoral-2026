@@ -308,3 +308,17 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - **Escopo:** só frontend — nenhuma migration necessária.
 
 ---
+
+## [2026-07-13] Mais 3 bases de conhecimento — Atual Conjuntura, Concorrentes, Demandas
+
+- **Atual Conjuntura:** sem schema novo — é mais um tema dentro da base de conhecimento já existente (texto/PDF, igual "Legislação Eleitoral").
+- **Concorrentes:** tabela própria. Campos: nome, partido, pontos_fortes, pontos_fracos, promessas. Análise de oposição, não cabe no molde tema+item genérico (campos fixos, não texto livre).
+- **Demandas (observadas):** tabela própria. Campos: regiao, cidade, tema (texto livre — saúde, emprego, educação etc.), demanda (descrição). **Confirmado com o usuário: é nota de referência agora** ("esses são os temas que mais recebemos por região"), não o fluxo formal de cidadão-relata/mandato-encaminha já previsto na especificação original (esse continua planejado como módulo próprio, com status e encaminhamento, mais pra frente). Nome da tabela deliberadamente diferente de `demandas` puro pra não colidir quando o módulo de verdade for construído: `demandas_observadas`.
+- **Acesso:** mesmo padrão da base de conhecimento — leitura pra qualquer papel interno, edição só `coord_campanha`/`coord_marketing`.
+
+### Critérios de aceite
+- [ ] Tabelas `concorrentes` e `demandas_observadas` com RLS force-enabled, isolamento por campanha_id testado.
+- [ ] Leitura liberada a todos os papéis internos; edição só coord_campanha/coord_marketing.
+- [ ] Tema "Atual Conjuntura" criado na base de conhecimento existente.
+
+---
