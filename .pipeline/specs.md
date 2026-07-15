@@ -323,6 +323,75 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 
 ---
 
+## [2026-07-15] Módulo 3 — Jurídico: Conformidade e rotulagem IA (planejamento)
+
+- **Objetivo:** implementar a primeira das 3 partes do bloco jurídico (docs/especificacao-v1.md §Camada 3, item 1): registro de toda peça de conteúdo gerada ou significativamente alterada por IA, com rotulagem obrigatória aplicada antes de publicar e bloqueio automático de publicação de conteúdo sintético novo na janela de 72h antes / 24h depois do pleito (Regra de Ouro nº1, CLAUDE.md). Desbloqueia a pendência já registrada no Módulo 4: hoje `sugestoes_conteudo` não tem rotulagem porque isso foi explicitamente adiado para este módulo.
+- **Fora desta entrega (registrado, não esquecido):** escudo antideepfake (`evento_ameaca`) e matriz de alertas/encaminhamento formal (`alerta`) — partes 2 e 3 do mesmo bloco, ficam para specs seguintes.
+
+### Decisões confirmadas com o usuário
+
+1. **Janela de bloqueio (72h antes / 24h depois do pleito):** 1º turno é 04/10/2026. Bloqueio ativo de `2026-10-01 00:00` a `2026-10-05 00:00` (horário de Brasília), constante fixa em função SQL (`dentro_janela_bloqueio()`), não campo configurável por campanha — todas as campanhas do sistema disputam a mesma eleição geral. **Não cobre eventual 2º turno** (data ainda não definida) — fica para revisão quando/se houver 2º turno confirmado.
+2. **Quem aprova (rotulagem = revisão humana obrigatória):** `coord_marketing`/`redator_marketing`/`coord_campanha` criam a peça (rascunho). Aprovação (`rotulo_aplicado=true` + `aprovador_id` + liberar publicação) é de **`advogado_responsavel`, `assistente_juridico`, `coord_campanha` e `coord_marketing`** — usuário decidiu incluir `coord_marketing` no grupo de aprovação, não só o jurídico. `redator_marketing` fica de fora da aprovação (só autor).
+3. **Escopo desta entrega:** schema + RLS + testes reais **e frontend juntos** (usuário decidiu não segmentar como nos módulos anteriores) — tela de peças (criar rascunho, aprovar/rotular, publicar) entra nesta mesma tarefa.
+
+### Modelo de dados
+
+**`pecas_conteudo`**
+- `id` uuid pk
+- `campanha_id` uuid fk → campanhas.id, not null
+- `tipo` text check in ('post', 'whatsapp', 'carrossel', 'roteiro_video', 'audio', 'video', 'imagem', 'outro') — mesmo vocabulário de formato usado em `sugestoes_conteudo` (Módulo 4)
+- `usou_ia` boolean not null default false — cobre "gerado ou significativamente alterado por IA" como um único campo (simplificação; nota de decisão técnica se o Programador achar que precisa de dois campos)
+- `ferramenta` text nullable — nome da ferramenta/modelo de IA usado, quando `usou_ia = true`
+- `sugestao_conteudo_id` uuid fk → sugestoes_conteudo.id, nullable — rastreabilidade opcional para quando a peça nasce de uma sugestão do Módulo 4
+- `prompt` text nullable — contexto/prompt usado, quando aplicável
+- `rotulo_aplicado` boolean not null default false
+- `rotulo_texto` text nullable — snapshot do texto do rótulo exibido (auditável, não recalculado depois)
+- `aprovador_id` uuid fk → usuarios_internos.id, nullable — obrigatório antes de `status = 'publicado'`
+- `canal` text check in ('site', 'whatsapp', 'instagram', 'tiktok', 'facebook', 'radio', 'tv', 'outro')
+- `status` text check in ('rascunho', 'aprovado', 'publicado', 'bloqueado_janela') default 'rascunho'
+- `publicado_em` timestamptz nullable
+- `criado_por` uuid fk → usuarios_internos.id, not null
+- `criado_em` timestamptz default now()
+
+### Regras de trava (banco, não só validação de UI)
+
+1. **CHECK/trigger de rotulagem:** não permite transição para `status = 'publicado'` se `usou_ia = true` e `rotulo_aplicado = false`. Peça sem IA (`usou_ia = false`) não exige rótulo.
+2. **CHECK/trigger de aprovação:** não permite `status = 'publicado'` sem `aprovador_id` preenchido — revisão humana obrigatória, mesmo com rótulo aplicado.
+3. **Trigger de bloqueio de janela:** não permite `INSERT` ou transição para `status = 'publicado'` de uma peça nova com `usou_ia = true` enquanto `dentro_janela_bloqueio()` for verdadeiro. Peça já publicada antes da janela começar não é afetada retroativamente.
+4. **Separação de poder (RLS):** `redator_marketing` não pode gravar `rotulo_aplicado = true` nem `aprovador_id` (mesmo tentando via UPDATE direto) — só `advogado_responsavel`, `assistente_juridico`, `coord_campanha`, `coord_marketing`.
+
+### Acesso (RLS)
+
+- **Leitura:** todos os papéis internos da campanha (dossiê de defesa precisa ser consultável por todo mundo, especialmente jurídico).
+- **INSERT (rascunho):** `coord_marketing`, `redator_marketing`, `coord_campanha`.
+- **UPDATE de aprovação** (`rotulo_aplicado`, `rotulo_texto`, `aprovador_id`, `status→publicado`): `advogado_responsavel`, `assistente_juridico`, `coord_campanha`, `coord_marketing` apenas.
+- **UPDATE de conteúdo/rascunho** (antes de aprovado): mesmo conjunto do INSERT.
+- Isolamento por `campanha_id` no mesmo padrão testado nos módulos 1/2/4.
+
+### Critérios de aceite
+- [ ] RLS force-enabled, isolamento cross-tenant testado (mesmo padrão dos módulos anteriores).
+- [ ] `redator_marketing` cria rascunho mas não consegue setar `rotulo_aplicado`/`aprovador_id` diretamente.
+- [ ] `advogado_responsavel`/`assistente_juridico`/`coord_campanha`/`coord_marketing` conseguem aprovar (aplicar rótulo + publicar).
+- [ ] Peça com `usou_ia = true` e `rotulo_aplicado = false` não consegue ir para `status = 'publicado'` (trigger/CHECK bloqueia).
+- [ ] Peça com `usou_ia = true`, `rotulo_aplicado = true`, mas sem `aprovador_id` também não consegue publicar.
+- [ ] Dentro da janela de bloqueio (simular data), INSERT/publicação de peça nova com `usou_ia = true` falha; peça sem IA não é afetada.
+- [ ] Fora da janela, o mesmo fluxo funciona normalmente.
+- [ ] Frontend: tela lista peças da campanha (todos os papéis leem).
+- [ ] Frontend: `coord_marketing`/`redator_marketing`/`coord_campanha` conseguem criar rascunho de peça.
+- [ ] Frontend: `advogado_responsavel`/`assistente_juridico`/`coord_campanha`/`coord_marketing` veem ação de aprovar/rotular; `redator_marketing` não vê essa ação (ou vê e recebe erro de RLS, nunca contorna).
+- [ ] Frontend: peça publicada mostra o rótulo aplicado de forma visível (não é só um campo de banco).
+
+### Risco TSE/LGPD
+- Alto se a trava falhar: publicar conteúdo sintético sem rótulo, ou dentro da janela de silêncio, é a violação central que a Regra de Ouro nº1 existe para prevenir — risco de multa/cassação direto, não hipotético.
+- Trava precisa ser de banco (trigger/CHECK), não só de aplicação — mesmo padrão de defesa em profundidade já aplicado em `log_auditoria`/`consentimentos_lgpd` (Módulo 1), porque um bug de frontend não pode ser a única coisa entre o sistema e uma publicação ilegal.
+
+### Dependências
+- Reaproveita `current_campanha_id()`/`current_papel()` (Módulo 1) e papéis já existentes (`advogado_responsavel`, `assistente_juridico`, `coord_marketing`, `redator_marketing`, `coord_campanha` — migrations 0005/0006).
+- `sugestao_conteudo_id` referencia `sugestoes_conteudo` (Módulo 4, migration 0011) — já existe.
+- Decisões acima já confirmadas com o usuário — liberado para o Programador escrever a migration + frontend.
+
+---
+
 ## [2026-07-15] Módulo 4 — Marketing (planejamento)
 
 - **Escopo confirmado com o usuário:**

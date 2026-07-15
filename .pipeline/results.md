@@ -111,3 +111,41 @@ Execução real (não mais traço manual) contra Postgres/Supabase de verdade, t
 **Pendência para o Revisor:** decidir se a fixture órfã da rodada anterior (que eu limpei) e a falta de registro dela neste arquivo antes de hoje merecem uma nota de processo — o script de teste ficou responsável por limpar um resíduo que não era dele.
 
 ---
+
+## [2026-07-15] Módulo 3 — Jurídico: Conformidade e rotulagem IA — migration 0012 (ref. changes.md mesma data)
+
+- **Ambiente:** mesmo projeto Supabase de staging (`czrlvvdtpycbkbxsgvev`) já usado nos módulos anteriores. Docker local segue indisponível nesta máquina (mesmo bloqueio já documentado na entrada de 2026-07-12) — mas isso não impediu execução real, porque o CLI oferece `supabase db query --linked -f arquivo.sql`, que roda o SQL direto no banco remoto sem precisar de Postgres local. Access token de uso pontual, fornecido pelo usuário nesta sessão.
+
+- **Script de teste:** [.pipeline/pecas_conteudo_test.sql](pecas_conteudo_test.sql) — 12 testes, mesmo padrão de fixtures + `DO $$` com `SET LOCAL ROLE authenticated` + `set_config('request.jwt.claims', ...)` das rodadas anteriores.
+
+### Resultado — 12 de 12 passaram (execução real, não traço manual)
+1. `redator_marketing` cria rascunho com IA (positivo).
+2. `redator_marketing` NÃO consegue auto-aprovar (`rotulo_aplicado`/`aprovador_id`) — bloqueado pelo trigger de separação de poder.
+3. `advogado_responsavel` aprova e publica peça com IA + rótulo (positivo).
+4. Peça com `usou_ia=true` e `rotulo_aplicado=false` não publica — `CHECK publicacao_ia_exige_rotulo`.
+5. Peça rotulada mas sem `aprovador_id` não publica — `CHECK publicacao_exige_aprovador`.
+6. `coord_marketing` aprova peça sem IA (positivo) — valida a decisão do usuário de incluí-lo no grupo de aprovação, não só o jurídico.
+7. `aprovador_id` diferente do usuário autenticado é bloqueado (ninguém assina aprovação em nome de outro).
+8. Janela de bloqueio, testada forçando `dentro_janela_bloqueio()` para `true` temporariamente (`CREATE OR REPLACE FUNCTION` dentro do próprio script, restaurada ao final): (a) INSERT de peça nova com IA bloqueado; (b) peça sem IA não é afetada, mesmo com a janela forçada; (c) publicar peça com IA já existente também é bloqueado dentro da janela.
+9. Fora da janela (restaurada a função real, hoje é 2026-07-15), o mesmo fluxo de publicação funciona normalmente.
+10. Isolamento cross-tenant: `coord_campanha` de outra campanha vê 0 linhas.
+
+- **Verificação pós-teste (fora do script, checagem extra):** confirmei que `dentro_janela_bloqueio()` voltou ao texto original exato da migration (`pg_proc.prosrc`) depois do teste 8 — o truque de forçar a função para testar a janela mexe numa função compartilhada do banco de staging, risco real se a restauração falhar. Também confirmei 0 linhas de fixture (`Campanha Peças A/B`) remanescentes.
+
+### Frontend — testado no navegador (dev local `npm run dev`, contra staging)
+- Criei dois usuários de teste sem MFA (reset de senha do `redator_marketing` já existente + `advogado_responsavel` novo, via script pontual com `service_role`, apagado depois de usado) — evitou depender do TOTP do `coord_campanha` de teste, cujo secret não estava disponível nesta sessão.
+- **Fluxo ponta a ponta real:** login como `redator_marketing` → formulário de rascunho aparece, checkbox de IA revela campos de ferramenta/prompt → rascunho criado, aparece na lista, **sem** botão de aprovar (confirmado lendo a árvore de acessibilidade da página, não só visualmente). Logout, login como `advogado_responsavel` → **sem** formulário de criar rascunho (papel não tem esse poder), **com** botão "Aprovar e publicar" → confirmação inline (sem `window.confirm`) com texto de rótulo pré-preenchido → peça vira "Publicado", rótulo aparece como banner visível (não só campo de banco), data de publicação exibida.
+- Peça de teste removida do staging ao final (via `service_role`, já que a tabela não tem policy de DELETE por design).
+
+### Passou
+Todos os 12 testes de banco + o fluxo completo no navegador (criação, bloqueio de auto-aprovação, aprovação, rótulo visível, publicação).
+
+### Falhou
+Nada nesta rodada.
+
+### Veredito: **aprovado, sem ressalva**
+Execução real contra Postgres/Supabase de staging (não traço manual), 12/12 testes de banco passando, e o fluxo completo confirmado no navegador com troca de papel real (login/logout, não simulação). Staging confirmado limpo ao final (fixtures de teste e a peça de conteúdo de teste removidas, função de janela restaurada ao texto original).
+
+**Nota para o Revisor:** `sugestao_conteudo_id` (rastreabilidade com `sugestoes_conteudo` do Módulo 4) existe no schema mas não foi exercitado em nenhum teste nem exposto no formulário — é campo opcional, não bloqueante, mas fica registrado como não coberto por teste ainda.
+
+---
