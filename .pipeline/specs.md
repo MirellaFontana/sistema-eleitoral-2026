@@ -322,3 +322,31 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - [ ] Tema "Atual Conjuntura" criado na base de conhecimento existente.
 
 ---
+
+## [2026-07-15] Módulo 4 — Marketing (planejamento)
+
+- **Escopo confirmado com o usuário:**
+  1. Transformar propostas/diretrizes em sugestões de múltiplos formatos (post, WhatsApp, carrossel, roteiro de vídeo).
+  2. Analisar a campanha e identificar pontos cegos — cruzando propostas próprias com **concorrentes** e **demandas observadas** já cadastrados.
+  3. FAQs/perguntas recorrentes — **tabela própria** (pergunta + resposta), pra alimentar padrão de conteúdo.
+- **Decisão de escopo crítica (esclarecida pelo usuário):** a IA **não produz arte final nem publica** — só sugere texto/estrutura (ex.: "carrossel com este texto", "vídeo que transmita isso"). Quem executa a arte/vídeo e publica é humano. Por isso:
+  - **Sem rotulagem visível obrigatória nesta entrega** (isso é responsabilidade de quando o conteúdo é de fato publicado, papel do Módulo Jurídico).
+  - **Com registro de auditoria leve em toda chamada de IA** (modelo, prompt, quem pediu, quando) — satisfaz o espírito da Regra de Ouro nº1 sem construir o mecanismo pesado de bloqueio/rótulo agora.
+- **Provedor de IA:** Claude (Anthropic), via API key fornecida pelo usuário (conta própria, criada por ele em console.anthropic.com — fora do que a automação consegue fazer). Chave fica só server-side (Route Handler), nunca no client.
+- **Dependência bloqueante:** a geração de verdade (chamada à API) não liga sem a API key. Schema/telas seguem sendo construídos e testados sem ela.
+- **Nota sobre RAG/PDF:** propostas cadastradas como PDF anexado (padrão atual da base de conhecimento) não têm o texto extraído — não servem de contexto pra IA. Propostas que devem alimentar a geração de conteúdo precisam entrar como **texto digitado** no item (campo `descricao`), não só arquivo. Extração de texto de PDF fica fora do escopo desta entrega.
+
+### Modelo de dados
+- **`faqs`** — campanha_id, pergunta, resposta, criado_por, created_at. Edição: `coord_campanha`, `coord_marketing` **e `redator_marketing`** (diferente da base de conhecimento — FAQ é material de conteúdo do dia a dia, não fato institucional trancado a sênior). Leitura: todos os papéis internos.
+- **`sugestoes_conteudo`** — campanha_id, formato (`post`, `whatsapp`, `carrossel`, `roteiro_video`, `outro`), contexto_usado (texto — o que foi mandado como base pra IA, ex. a proposta selecionada), modelo_ia, sugestao (resposta da IA), solicitado_por, created_at.
+- **`analises_campanha`** — campanha_id, tipo (`pontos_cegos` por enquanto, extensível), analise (resposta da IA), modelo_ia, solicitado_por, created_at.
+- **Acesso de `sugestoes_conteudo`/`analises_campanha`:** criação (chamar a IA) por `coord_campanha`, `coord_marketing`, `redator_marketing`; leitura por todos os papéis internos (histórico é útil pra todo mundo ver o que já foi sugerido).
+
+### Critérios de aceite
+- [ ] RLS force-enabled + isolamento cross-tenant testado nas 3 tabelas novas, mesmo padrão já validado.
+- [ ] `redator_marketing` consegue criar FAQ (diferente do padrão de base de conhecimento).
+- [ ] Rota de geração de sugestão: autentica, monta contexto (proposta selecionada), chama Anthropic, grava em `sugestoes_conteudo` com metadado completo, retorna sugestão.
+- [ ] Rota de análise de pontos cegos: monta contexto de propostas + concorrentes + demandas_observadas da campanha, chama Anthropic, grava em `analises_campanha`.
+- [ ] UI deixa claro que é sugestão pra revisão humana, não conteúdo pronto pra publicar.
+
+---

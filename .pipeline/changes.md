@@ -171,6 +171,26 @@ Formato sugerido por entrada:
 
 ---
 
+## [2026-07-15] Módulo 4 — Marketing: schema (migration 0011)
+
+- **Arquivos alterados:** `supabase/migrations/0011_marketing_ia.sql` (novo), `.pipeline/marketing_ia_test.sql` (novo).
+- **Decisão técnica:** `sugestoes_conteudo`/`analises_campanha` sem policy de UPDATE/DELETE de propósito — é histórico de auditoria de chamada de IA, não deveria ser editável por ninguém. `faqs` é a única tabela deste módulo onde `redator_marketing` tem poder de escrita igual a `coord_marketing` (diferente do padrão da base de conhecimento).
+- **Testado real (7/7):** FAQ criada pelo papel liberado e lida por todos, embaixador bloqueado de criar FAQ/sugestão em ambas, sugestão de conteúdo e análise de campanha criadas pelos papéis certos, isolamento cross-tenant nas 3 tabelas.
+- **Desvio da spec:** nenhum.
+- **Pendências:** frontend (telas de FAQ, geração de sugestão, análise de pontos cegos) e a integração real com a API da Anthropic — bloqueada até o usuário fornecer a API key.
+
+---
+
+## [2026-07-15] Módulo 4 — Marketing: frontend + rotas de IA
+
+- **Arquivos alterados:** `lib/anthropic.ts` (client + prompts de sistema), `app/api/marketing/sugestao/route.ts`, `app/api/marketing/analise/route.ts`, `app/marketing/` (page + FaqForm + SugestaoForm + AnaliseButton), nav no `AppHeader`.
+- **Decisão técnica:** rotas retornam erro 400 com mensagem amigável quando `ANTHROPIC_API_KEY` não está configurada (`createAnthropicClient()` retorna `null` em vez de lançar erro de SDK) — permite testar toda a UI/permissão/persistência sem a key.
+- **Testado no navegador (sem API key ainda):** FAQ criada de ponta a ponta (insert real, aparece na lista). Botão "Analisar pontos cegos" dispara a rota de verdade, recebe 400, mostra a mensagem amigável na tela — confirma autenticação/autorização e o caminho de erro, só falta a geração de verdade.
+- **Desvio da spec:** nenhum.
+- **Pendências:** ligar a geração real assim que o usuário fornecer `ANTHROPIC_API_KEY`.
+
+---
+
 ## [2026-07-13] Monitoramento (clipping) — migration 0007
 
 - **Arquivos alterados:** `supabase/migrations/0007_monitoramento.sql` (novo), `.pipeline/monitoramento_test.sql` (novo).

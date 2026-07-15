@@ -7,6 +7,7 @@ const NAV = [
   { href: "/monitoramento", label: "Monitoramento" },
   { href: "/concorrentes", label: "Concorrentes" },
   { href: "/demandas-observadas", label: "Demandas" },
+  { href: "/marketing", label: "Marketing" },
 ];
 
 export function AppHeader({ campanhaNome, papel }: { campanhaNome?: string; papel?: string }) {
