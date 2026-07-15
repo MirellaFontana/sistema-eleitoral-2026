@@ -51,14 +51,19 @@ export async function POST() {
 
   const contexto = `PROPOSTAS DA CAMPANHA (base de conhecimento):\n${propostasTxt}\n\nCONCORRENTES:\n${concorrentesTxt}\n\nDEMANDAS OBSERVADAS:\n${demandasTxt}`;
 
-  const msg = await anthropic.messages.create({
-    model: MODELO_IA,
-    max_tokens: 1500,
-    system: SISTEMA_ANALISE_CAMPANHA,
-    messages: [{ role: "user", content: contexto }],
-  });
-
-  const analise = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").trim();
+  let analise: string;
+  try {
+    const msg = await anthropic.messages.create({
+      model: MODELO_IA,
+      max_tokens: 1500,
+      system: SISTEMA_ANALISE_CAMPANHA,
+      messages: [{ role: "user", content: contexto }],
+    });
+    analise = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").trim();
+  } catch (err) {
+    const mensagem = err instanceof Error ? err.message : "erro desconhecido ao chamar a Anthropic";
+    return NextResponse.json({ error: `Falha ao gerar análise: ${mensagem}` }, { status: 502 });
+  }
 
   const { data: row, error } = await supabase
     .from("analises_campanha")

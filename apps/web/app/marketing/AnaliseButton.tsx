@@ -14,17 +14,20 @@ export function AnaliseButton() {
     setResultado(null);
     setCarregando(true);
 
-    const res = await fetch("/api/marketing/analise", { method: "POST" });
-    const data = await res.json();
-    setCarregando(false);
-
-    if (!res.ok) {
-      setErro(data.error ?? "erro ao gerar análise");
-      return;
+    try {
+      const res = await fetch("/api/marketing/analise", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error ?? "erro ao gerar análise");
+        return;
+      }
+      setResultado(data.analise);
+      router.refresh();
+    } catch {
+      setErro("Falha de conexão ao gerar análise. Tente de novo.");
+    } finally {
+      setCarregando(false);
     }
-
-    setResultado(data.analise);
-    router.refresh();
   }
 
   return (

@@ -40,20 +40,23 @@ export function SugestaoForm({ propostas }: { propostas: Proposta[] }) {
     }
 
     setCarregando(true);
-    const res = await fetch("/api/marketing/sugestao", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ formato, contexto_usado: contexto }),
-    });
-    const data = await res.json();
-    setCarregando(false);
-
-    if (!res.ok) {
-      setErro(data.error ?? "erro ao gerar sugestão");
-      return;
+    try {
+      const res = await fetch("/api/marketing/sugestao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formato, contexto_usado: contexto }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error ?? "erro ao gerar sugestão");
+        return;
+      }
+      setResultado(data.sugestao);
+    } catch {
+      setErro("Falha de conexão ao gerar sugestão. Tente de novo.");
+    } finally {
+      setCarregando(false);
     }
-
-    setResultado(data.sugestao);
     router.refresh();
   }
 

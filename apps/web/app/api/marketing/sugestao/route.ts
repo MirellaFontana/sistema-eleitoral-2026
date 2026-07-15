@@ -38,19 +38,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const msg = await anthropic.messages.create({
-    model: MODELO_IA,
-    max_tokens: 1200,
-    system: SISTEMA_SUGESTAO_CONTEUDO,
-    messages: [
-      {
-        role: "user",
-        content: `Formato pedido: ${formato}\n\nBase/contexto fornecido pela campanha:\n${contexto_usado}`,
-      },
-    ],
-  });
-
-  const sugestao = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").trim();
+  let sugestao: string;
+  try {
+    const msg = await anthropic.messages.create({
+      model: MODELO_IA,
+      max_tokens: 1200,
+      system: SISTEMA_SUGESTAO_CONTEUDO,
+      messages: [
+        {
+          role: "user",
+          content: `Formato pedido: ${formato}\n\nBase/contexto fornecido pela campanha:\n${contexto_usado}`,
+        },
+      ],
+    });
+    sugestao = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").trim();
+  } catch (err) {
+    const mensagem = err instanceof Error ? err.message : "erro desconhecido ao chamar a Anthropic";
+    return NextResponse.json({ error: `Falha ao gerar sugestão: ${mensagem}` }, { status: 502 });
+  }
 
   const { data: row, error } = await supabase
     .from("sugestoes_conteudo")
