@@ -161,6 +161,16 @@ Formato sugerido por entrada:
 
 ---
 
+## [2026-07-15] Conteúdo real: 2 PDFs do Código Eleitoral cadastrados
+
+- **Não é mudança de schema/código** — é dado real cadastrado na campanha de staging, registrado aqui pelo mesmo padrão de rastreabilidade dos outros itens.
+- Usuário forneceu 2 PDFs (`Codigo_Eleitoral_2026_SEPRev30_OK__1_.pdf`, 1347 páginas, TSE 2026; `Codigo_eleitoral.pdf`, 130 páginas, Lei 4.737/1965 atualizada até abril/2023) pra virarem a base de conhecimento de legislação.
+- Upload direto pro Storage via API (service_role, escopo pontual) + insert nas tabelas via `.pipeline/seed_codigo_eleitoral.sql`, já que não dá pra dirigir o seletor nativo de arquivo do navegador nesta sessão de automação — mesmo padrão usado em testes anteriores.
+- Verificado: tamanho do arquivo no Storage bate exatamente com o original (9.476.313 bytes), item aparece corretamente na tela com o título e descrição certos.
+- **Pendência de sessão, não do produto:** a sessão MFA da conta de teste expirou entre turnos — precisei reconfirmar (mesmo padrão de sempre, secret já estava salvo no banco de staging desde o enrollment).
+
+---
+
 ## [2026-07-13] Monitoramento (clipping) — migration 0007
 
 - **Arquivos alterados:** `supabase/migrations/0007_monitoramento.sql` (novo), `.pipeline/monitoramento_test.sql` (novo).
