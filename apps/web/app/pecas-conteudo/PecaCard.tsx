@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Check, X } from "lucide-react";
+import { CheckCircle2, Check, X, Tag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -102,7 +102,8 @@ export function PecaCard({
 
       {peca.rotulo_aplicado && (
         <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          🏷️ {peca.rotulo_texto ?? ROTULO_PADRAO}
+          <Tag size={12} strokeWidth={2} aria-hidden="true" className="inline-block shrink-0 align-middle" />{" "}
+          {peca.rotulo_texto ?? ROTULO_PADRAO}
         </div>
       )}
 
