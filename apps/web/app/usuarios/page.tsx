@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { InviteUserForm } from "./InviteUserForm";
-import { TerritorioForm } from "./TerritorioForm";
 import { UsuariosTable } from "./UsuariosTable";
 import { CampanhaForm } from "./CampanhaForm";
 import { proximaRotaMfa } from "@/lib/mfa";
@@ -69,7 +68,7 @@ export default async function UsuariosPage() {
         {isCoordCampanha && campanha && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Dados da campanha
+              Cadastro de campanha
             </h2>
             <CampanhaForm
               dados={{
@@ -84,15 +83,6 @@ export default async function UsuariosPage() {
                 coligacao: campanha.coligacao ?? null,
               }}
             />
-          </section>
-        )}
-
-        {isCoordCampanha && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Territórios
-            </h2>
-            <TerritorioForm campanhaId={eu.campanha_id} />
           </section>
         )}
 

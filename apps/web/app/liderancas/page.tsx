@@ -7,6 +7,7 @@ import { LiderancaForm } from "./LiderancaForm";
 import { LiderancasTable } from "./LiderancasTable";
 import { MetaForm } from "./MetaForm";
 import { MetaDeleteButton } from "./MetaDeleteButton";
+import { TerritorioForm } from "./TerritorioForm";
 import { labelTerritorio } from "@/lib/territorio";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -148,6 +149,18 @@ export default async function LiderancasPage() {
             preenchidos de eleitores; a coordenação digita e atribui a ela.
           </p>
         </div>
+
+        {eu.papel === "coord_campanha" && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Territórios
+            </h2>
+            <p className="text-xs text-neutral-500">
+              Cadastre os bairros/cidades de atuação antes de vincular lideranças e metas a eles.
+            </p>
+            <TerritorioForm campanhaId={eu.campanha_id} />
+          </section>
+        )}
 
         {podeGerenciar && (
           <section className="space-y-3">
