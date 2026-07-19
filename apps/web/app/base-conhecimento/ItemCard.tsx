@@ -276,25 +276,28 @@ export function ItemCard({
               {podeEditar && confirmandoRemocaoArquivo !== a.id && (
                 <button
                   onClick={() => setConfirmandoRemocaoArquivo(a.id)}
-                  className="text-xs text-red-600 hover:text-red-800"
+                  className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800"
                 >
+                  <X size={11} strokeWidth={2} aria-hidden="true" />
                   remover
                 </button>
               )}
               {podeEditar && confirmandoRemocaoArquivo === a.id && (
-                <span className="flex items-center gap-2 text-xs">
+                <span className="flex items-center gap-1 text-xs">
                   <button
                     onClick={() => removerArquivo(a.id)}
                     disabled={carregando}
-                    className="font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                    className="flex items-center gap-1 rounded bg-red-600 px-2 py-0.5 font-medium text-white disabled:opacity-50"
                   >
-                    confirmar remoção
+                    <Trash2 size={11} strokeWidth={2} aria-hidden="true" />
+                    {carregando ? "…" : "Confirmar"}
                   </button>
                   <button
                     onClick={() => setConfirmandoRemocaoArquivo(null)}
-                    className="text-neutral-500 hover:text-neutral-900"
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-neutral-500 hover:bg-neutral-100"
                   >
-                    cancelar
+                    <X size={11} strokeWidth={2} aria-hidden="true" />
+                    Cancelar
                   </button>
                 </span>
               )}
