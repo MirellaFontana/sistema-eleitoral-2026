@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -172,14 +172,16 @@ export function AlertaCard({
             <button
               onClick={confirmarEncaminhamento}
               disabled={carregando}
-              className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
+              <Check size={14} strokeWidth={2} aria-hidden="true" />
               {carregando ? "Salvando…" : "Confirmar"}
             </button>
             <button
               onClick={() => setEncaminhando(false)}
-              className="rounded px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
+              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
             >
+              <X size={14} strokeWidth={2} aria-hidden="true" />
               Cancelar
             </button>
           </div>
