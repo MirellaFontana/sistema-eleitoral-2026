@@ -115,7 +115,7 @@ export function TerritorioForm({ campanhaId }: { campanhaId: string }) {
         type="button"
         onClick={buscarCoordenada}
         disabled={buscando}
-        className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 disabled:opacity-50"
+        className="flex items-center gap-1 rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 disabled:opacity-50"
       >
         <MapPin size={14} strokeWidth={2} aria-hidden="true" />
         {buscando ? "Buscando…" : "Buscar coordenada"}
