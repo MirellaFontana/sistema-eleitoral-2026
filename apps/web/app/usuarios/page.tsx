@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { InviteUserForm } from "./InviteUserForm";
 import { UsuariosTable } from "./UsuariosTable";
-import { CampanhaForm } from "./CampanhaForm";
 import { proximaRotaMfa } from "@/lib/mfa";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -26,7 +25,7 @@ export default async function UsuariosPage() {
 
   const { data: eu } = await supabase
     .from("usuarios_internos")
-    .select("papel, nome, campanha_id, campanhas(id, nome_candidato, cargo, uf, partido, numero_candidato, nome_urna, cnpj_campanha, coligacao)")
+    .select("papel, nome, campanha_id, campanhas(nome_candidato)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -65,27 +64,6 @@ export default async function UsuariosPage() {
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
-        {isCoordCampanha && campanha && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Cadastro de campanha
-            </h2>
-            <CampanhaForm
-              dados={{
-                campanhaId: campanha.id,
-                nomeCandidato: campanha.nome_candidato,
-                cargo: campanha.cargo,
-                uf: campanha.uf,
-                partido: campanha.partido,
-                numeroCandidato: campanha.numero_candidato ?? null,
-                nomeUrna: campanha.nome_urna ?? null,
-                cnpjCampanha: campanha.cnpj_campanha ?? null,
-                coligacao: campanha.coligacao ?? null,
-              }}
-            />
-          </section>
-        )}
-
         {isCoordCampanha && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">

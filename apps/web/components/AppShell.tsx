@@ -25,6 +25,7 @@ import {
   Search,
   CalendarClock,
   CalendarDays,
+  IdCard,
   Menu,
   X,
   type LucideIcon,
@@ -37,7 +38,10 @@ type NavGroup = { label: string; items: NavItem[] };
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Administração",
-    items: [{ href: "/usuarios", label: "Usuários", icon: UserCog }],
+    items: [
+      { href: "/campanha", label: "Cadastro de campanha", icon: IdCard },
+      { href: "/usuarios", label: "Usuários", icon: UserCog },
+    ],
   },
   {
     label: "Cadastros",
