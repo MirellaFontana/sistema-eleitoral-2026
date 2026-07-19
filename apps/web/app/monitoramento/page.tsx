@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
@@ -110,8 +111,9 @@ export default async function MonitoramentoPage() {
                   )}
                   <span className="text-neutral-400">{item.status}</span>
                   {item.hash_evidencia && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800">
-                      🔒 Evidência lacrada
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800">
+                      <Lock size={12} strokeWidth={2} aria-hidden="true" />
+                      Evidência lacrada
                     </span>
                   )}
                 </div>

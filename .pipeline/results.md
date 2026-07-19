@@ -545,3 +545,24 @@ Nada.
 **Nota para o Revisor:** ficaram de fora desta rodada (registrado em specs.md, não esquecido): emojis remanescentes em 6 arquivos e ícones em ações secundárias mais profundas (ex.: remover um arquivo específico dentro de um item da base de conhecimento). Nenhum dos dois é bloqueante — são só polimento visual que não chegou a ser coberto por tempo.
 
 ---
+
+## [2026-07-19] Módulo 3 Jurídico — limpeza dos emojis remanescentes (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging, servidor dev do usuário (porta 3000, já rodando), navegador embutido, sessão já autenticada. Cleanup via `supabase db query --linked` com token de acesso pontual fornecido pelo usuário.
+
+### Testes realizados
+1. `npx tsc --noEmit` (apps/web) — sem erro novo nos 3 arquivos alterados.
+2. `grep` de confirmação — 0 ocorrências de 🔒/⚠️/✅ restantes.
+3. Registro de item de teste em `/monitoramento` (ameaça jurídica, gravidade alta) — gerou 2 alertas automaticamente, confirmando que a mudança não quebrou o trigger existente.
+4. `/alertas` — inspeção de DOM confirmou `<svg class="lucide lucide-triangle-alert">` renderizado corretamente no lugar do emoji, sem erro de console.
+5. Badge `Lock` (evidência lacrada) e selo `CheckCircle2` (encaminhado) **não verificados visualmente** — exigiriam upload de arquivo (não dirigível pela ferramenta de navegador atual) e sessão como `advogado_responsavel` (usuário logado não tinha esse papel), respectivamente. Mudança sintaticamente idêntica a padrão já testado (`PecaCard.tsx`), mas fica registrado como verificação parcial.
+6. Cleanup do item de teste + 2 alertas confirmado por contagem SQL (`itens_restantes = 0`, `alertas_restantes = 0`).
+
+### Passou
+Typecheck limpo, emojis removidos, trigger de alertas intacto, `AlertTriangle` renderizado corretamente, cleanup confirmado.
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, com ressalva de verificação parcial** — `Lock`/`CheckCircle2` não confirmados visualmente (ver item 5), risco residual baixo por serem mudanças mecânicas idênticas a padrão já testado alhures.
+

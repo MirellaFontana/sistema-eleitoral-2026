@@ -498,3 +498,22 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** nenhuma bloqueante.
 
 ---
+
+## [2026-07-19] Módulo 3 Jurídico — limpeza dos emojis remanescentes (ref. specs.md mesma data)
+
+- **Arquivos alterados:** `app/monitoramento/page.tsx`, `app/dossie-juridico/page.tsx`, `app/alertas/AlertaCard.tsx`.
+- **Contexto:** usuário pediu para continuar o Módulo 3 Jurídico; dos itens pendentes documentados (matriz de alertas sem configuração, emojis remanescentes, WhatsApp sem credencial), escolheu emojis remanescentes.
+- **Mudanças:**
+  - `monitoramento/page.tsx`: badge "🔒 Evidência lacrada" vira `<Lock size={12} strokeWidth={2} aria-hidden="true" />` + texto, dentro de `flex items-center gap-1`.
+  - `dossie-juridico/page.tsx`: mesmo tratamento no badge "🔒 Lacrado em [data]".
+  - `alertas/AlertaCard.tsx`: os dois avisos "⚠️ ..." (WhatsApp não configurado / falha de envio) viram `<AlertTriangle>`; o selo "✅ Encaminhado à Justiça Eleitoral..." vira `<CheckCircle2>` — trocada a estrutura de `<div>` com texto solto por `<div className="flex items-start gap-1.5">` + ícone (`mt-0.5 shrink-0` pra alinhar com texto de múltiplas linhas) + `<span>` com o conteúdo, já que esse bloco pode ter 2-3 linhas (data + nome + nota opcional), diferente dos badges de uma linha só.
+- **Desvio da spec:** nenhum.
+- **Testado (typecheck + navegador real contra staging):**
+  1. `npx tsc --noEmit` na pasta `apps/web` — nenhum erro novo introduzido pelos 3 arquivos (o único erro presente, em `app/api/mensagens/enviar/route.ts`, é pré-existente e não foi tocado nesta entrega).
+  2. `grep` de confirmação: 0 ocorrências de 🔒/⚠️/✅ restantes nos 3 arquivos.
+  3. Navegador (staging, sessão já autenticada): registrei um item de teste em `/monitoramento` (categoria "Ameaça jurídica", gravidade "Alta", descrição `[TESTE] verificação visual de ícones — remover depois`) — gerou 2 alertas automaticamente (advogado_responsavel, coord_campanha), confirmando que o trigger da matriz de alertas continua funcionando. Em `/alertas`, inspecionei o DOM via JS e confirmei que o aviso "Envio por WhatsApp ainda não configurado" renderiza com `<svg class="lucide lucide-triangle-alert">` no lugar do emoji, layout (`flex items-center gap-1`) correto, sem erro de console.
+  4. **Não testado visualmente:** o badge `Lock`/"Evidência lacrada" (precisa de um arquivo anexado pra calcular `hash_evidencia`, e a ferramenta de navegador usada não consegue dirigir o seletor de arquivo nativo do SO) e o selo `CheckCircle2`/"Encaminhado" (precisa do papel `advogado_responsavel`, que o usuário logado no momento não tinha). Nos dois casos, a mudança é sintaticamente idêntica ao padrão já testado em `PecaCard.tsx`/no próprio `AlertTriangle` desta entrega — risco residual baixo, mas registrado por transparência em vez de presumido como testado.
+- **Limpeza:** item de teste e os 2 alertas gerados por ele foram removidos via `supabase db query --linked` (token de acesso fornecido pontualmente pelo usuário, uso único). Confirmado por contagem: `itens_restantes = 0`, `alertas_restantes = 0`. Usuário avisado para revogar o token.
+- **Pendências para o Testador:** os 2 pontos "não testado visualmente" acima — não bloqueantes, mas vale conferir com dado real (upload de arquivo, sessão de advogado) quando possível.
+
+---

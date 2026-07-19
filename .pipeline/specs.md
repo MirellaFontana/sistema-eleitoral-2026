@@ -825,3 +825,15 @@ Do Bloco Relacionamento, com essa decisão, resta como claramente pré-eleição
 - **Dependências:** nenhuma.
 
 ---
+
+## [2026-07-19] Módulo 3 Jurídico — limpeza dos emojis remanescentes
+
+- **Objetivo:** dos 6 arquivos com emoji remanescente listados na auditoria de UX/UI da entrada anterior, tratar aqui só os 3 que pertencem ao bloco Jurídico (usuário pediu explicitamente para continuar por esse módulo, não os 6 de uma vez): `monitoramento/page.tsx` (🔒), `dossie-juridico/page.tsx` (🔒), `alertas/AlertaCard.tsx` (⚠️ x2 — não estava na lista original, achado ao abrir o arquivo — e ✅, achado da mesma forma).
+- **Escopo:** troca mecânica de emoji por ícone lucide-react, mesmo padrão já estabelecido no resto do sistema (`size={12}`, `strokeWidth={2}`, `aria-hidden="true"`, dentro de um container `flex items-center gap-1`). Sem mudança de comportamento, cor ou texto.
+- **Ícones escolhidos:** `Lock` (evidência lacrada, nas duas telas — mesmo conceito, mesmo ícone), `AlertTriangle` (aviso de WhatsApp não configurado / falha de envio), `CheckCircle2` (confirmação de encaminhamento à Justiça Eleitoral — reaproveita o mesmo ícone já usado em `PecaCard.tsx` para "aprovar", mantendo o significado de "concluído/positivo" consistente entre módulos).
+- **Fora desta entrega:** os outros 3 arquivos com emoji (`ApoiadorForm.tsx`, `TerritorioForm.tsx`, `liderancas/page.tsx`) — pertencem a Relacionamento/Marketing, não Jurídico; ficam para quando o usuário pedir por esses módulos.
+- **Dados/tabelas afetadas:** nenhuma — mudança 100% frontend.
+- **Risco TSE/LGPD:** nenhum.
+- **Dependências:** nenhuma.
+
+---

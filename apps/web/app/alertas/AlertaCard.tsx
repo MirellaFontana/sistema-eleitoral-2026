@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -121,13 +122,17 @@ export function AlertaCard({
       )}
 
       {alerta.statusEnvio === "pendente_configuracao" && (
-        <p className="text-xs text-amber-700">
-          ⚠️ Envio por WhatsApp ainda não configurado — este alerta só existe dentro do sistema por
+        <p className="flex items-center gap-1 text-xs text-amber-700">
+          <AlertTriangle size={12} strokeWidth={2} aria-hidden="true" />
+          Envio por WhatsApp ainda não configurado — este alerta só existe dentro do sistema por
           enquanto.
         </p>
       )}
       {alerta.statusEnvio === "falhou" && (
-        <p className="text-xs text-red-700">⚠️ Falha ao enviar por WhatsApp.</p>
+        <p className="flex items-center gap-1 text-xs text-red-700">
+          <AlertTriangle size={12} strokeWidth={2} aria-hidden="true" />
+          Falha ao enviar por WhatsApp.
+        </p>
       )}
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -182,11 +187,16 @@ export function AlertaCard({
       )}
 
       {jaEncaminhado && (
-        <div className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          ✅ Encaminhado à Justiça Eleitoral em{" "}
-          {new Date(alerta.encaminhadoEm!).toLocaleString("pt-BR", { timeZone: "UTC" })}
-          {alerta.encaminhadoPorNome ? ` por ${alerta.encaminhadoPorNome}` : ""}.
-          {alerta.encaminhadoNota && <span className="block text-emerald-800">Nota: {alerta.encaminhadoNota}</span>}
+        <div className="flex items-start gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <CheckCircle2 size={14} strokeWidth={2} aria-hidden="true" className="mt-0.5 shrink-0" />
+          <span>
+            Encaminhado à Justiça Eleitoral em{" "}
+            {new Date(alerta.encaminhadoEm!).toLocaleString("pt-BR", { timeZone: "UTC" })}
+            {alerta.encaminhadoPorNome ? ` por ${alerta.encaminhadoPorNome}` : ""}.
+            {alerta.encaminhadoNota && (
+              <span className="block text-emerald-800">Nota: {alerta.encaminhadoNota}</span>
+            )}
+          </span>
         </div>
       )}
     </li>
