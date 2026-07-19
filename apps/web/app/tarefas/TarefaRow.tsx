@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const STATUS_OPCOES = [
@@ -88,23 +89,25 @@ export function TarefaRow({
             <button
               onClick={() => setConfirmando(true)}
               title="Excluir tarefa"
-              className="rounded px-1.5 py-0.5 text-xs text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+              className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
             >
-              🗑️
+              <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
             </button>
           ) : (
             <span className="flex items-center justify-end gap-1">
               <button
                 onClick={excluir}
                 disabled={carregando}
-                className="rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white disabled:opacity-50"
+                className="flex items-center gap-1 rounded bg-red-600 px-2 py-0.5 text-xs font-medium text-white disabled:opacity-50"
               >
+                <Trash2 size={12} strokeWidth={2} aria-hidden="true" />
                 {carregando ? "…" : "Excluir"}
               </button>
               <button
                 onClick={() => setConfirmando(false)}
-                className="rounded px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-100"
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-100"
               >
+                <X size={12} strokeWidth={2} aria-hidden="true" />
                 Cancelar
               </button>
             </span>

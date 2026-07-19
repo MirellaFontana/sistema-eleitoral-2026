@@ -74,7 +74,7 @@ export default function SignupPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
         </div>
 
@@ -89,7 +89,7 @@ export default function SignupPage() {
             minLength={8}
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
         </div>
 
@@ -98,7 +98,7 @@ export default function SignupPage() {
         <button
           type="submit"
           disabled={carregando}
-          className="w-full rounded bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {carregando ? "Criando…" : "Criar conta"}
         </button>

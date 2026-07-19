@@ -511,3 +511,37 @@ Primeira vez que o sistema compartilha um recurso entre tenants — feito de for
 **Nota para o Revisor:** se um dia a lei mudar e for preciso atualizar o PDF, isso precisa ser feito manualmente via `supabase storage cp` (sobrescrevendo o mesmo path) — não existe UI pra isso, é intencional (conteúdo de referência não é editável por ninguém via aplicação).
 
 ---
+
+## [2026-07-18] Auditoria de UX/UI — primeira rodada (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging, servidor dev do usuário (porta 3000).
+- **Testes realizados:** `getComputedStyle(document.body).fontFamily` confirmou `"Geist, ..."` (antes seria `"Arial, ..."`). `fetch('/icon.svg')` retornou `200`/`image/svg+xml`, confirmando o ícone novo sendo servido pela convenção de arquivo do Next.js. Sidebar (`/dashboard`) e cards do dashboard renderizados com ícone por item/métrica. `/cidadaos` e `/usuarios` confirmaram a bolinha de status nas duas variantes (botão clicável pra quem gerencia, `span` só-leitura pra quem não gerencia) — cor certa em "Ativo" (preto), "Inativo" (cinza) e "Revogado" (vermelho). Sem erro de console em nenhuma tela.
+- **Passou:** todos os itens do escopo.
+- **Falhou:** nada.
+- **Veredito: aprovado, sem ressalva.**
+
+---
+
+## [2026-07-19] Cor de destaque, ícones de ação e responsividade mobile (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging, servidor dev do usuário (porta 3000), navegador embutido em dois viewports (375×812 mobile, 1280×800 desktop).
+
+### Testes realizados
+1. **Cor de destaque:** `grep` de contagem confirmou 0 ocorrências restantes da classe antiga (`bg-neutral-900` no padrão de botão primário) depois do batch — os 28 arquivos migraram de fato, não só nos que testei visualmente.
+2. **Mobile — sidebar:** viewport 375×812, `/dashboard` — sidebar escondida, só um ícone de hambúrguer no topo. Cliquei nele: drawer abre com overlay escurecido atrás, item "Dashboard" destacado em indigo. Cliquei em "Eleitores": navegou pra `/cidadaos` **e** o drawer fechou sozinho (confirma o `useEffect` no `pathname`), sem precisar de segundo clique.
+3. **Mobile — formulário:** o formulário de eleitor (que tem 6 campos organizados em grids de 2/3 colunas no código) renderizou em coluna única, um campo embaixo do outro, sem nenhum corte ou overflow horizontal — antes dessa mudança teria ficado com campos espremidos lado a lado numa tela de 375px de largura.
+4. **Mobile — lista:** rolei até "Eleitores cadastrados" — botão "Editar" com ícone de lápis, badge de status com bolinha ("Inativo"), tudo legível e sem overflow horizontal na largura de celular.
+5. **Desktop (1280×800):** mesma página — sidebar de volta sempre visível, sem hambúrguer, formulário de volta em 2 colunas, lista com "Editar"/status lado a lado. Nenhuma regressão em relação ao layout anterior à mudança.
+6. Sem erro de console em nenhuma tela, em nenhum dos dois viewports.
+
+### Passou
+Cor de destaque aplicada de ponta a ponta e verificada por contagem (não só amostragem visual); drawer mobile funcional com fechamento automático; grids de formulário empilhando corretamente; nenhuma regressão no layout desktop.
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, sem ressalva**
+
+**Nota para o Revisor:** ficaram de fora desta rodada (registrado em specs.md, não esquecido): emojis remanescentes em 6 arquivos e ícones em ações secundárias mais profundas (ex.: remover um arquivo específico dentro de um item da base de conhecimento). Nenhum dos dois é bloqueante — são só polimento visual que não chegou a ser coberto por tempo.
+
+---

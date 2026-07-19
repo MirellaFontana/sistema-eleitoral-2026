@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 // "Embaixador" saiu das opções de convite (ref. specs.md [2026-07-15]) mas segue no banco como
@@ -98,8 +99,9 @@ export function UsuariosTable({
                   {podeGerenciar && (
                     <button
                       onClick={() => setEditandoId(l.id)}
-                      className="rounded border border-neutral-300 px-2.5 py-0.5 text-xs font-medium hover:bg-neutral-50"
+                      className="flex items-center gap-1 rounded border border-neutral-300 px-2.5 py-0.5 text-xs font-medium hover:bg-neutral-50"
                     >
+                      <Pencil size={12} strokeWidth={2} aria-hidden="true" />
                       Editar
                     </button>
                   )}
@@ -113,6 +115,7 @@ export function UsuariosTable({
                           : "rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 disabled:opacity-50"
                       }
                     >
+                      <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle opacity-70" />
                       {STATUS_LABEL[l.status] ?? l.status}
                     </button>
                   ) : (
@@ -124,6 +127,7 @@ export function UsuariosTable({
                       }
                       title={l.id === meuId ? "Não é possível revogar o próprio acesso por aqui" : undefined}
                     >
+                      <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle opacity-70" />
                       {STATUS_LABEL[l.status] ?? l.status}
                     </span>
                   )}
@@ -191,7 +195,7 @@ function UsuarioEditRow({
   return (
     <li className="rounded border border-neutral-300 bg-neutral-50 p-3">
       <form onSubmit={handleSalvar} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-neutral-500">Nome</label>
             <input
@@ -218,7 +222,7 @@ function UsuarioEditRow({
         </div>
 
         {precisaTerritorio && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="block text-xs font-medium text-neutral-500">Território</label>
               <select
@@ -256,15 +260,17 @@ function UsuarioEditRow({
           <button
             type="submit"
             disabled={salvando}
-            className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
+            <Check size={14} strokeWidth={2} aria-hidden="true" />
             {salvando ? "Salvando…" : "Salvar"}
           </button>
           <button
             type="button"
             onClick={onCancelar}
-            className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100"
+            className="flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100"
           >
+            <X size={14} strokeWidth={2} aria-hidden="true" />
             Cancelar
           </button>
         </div>

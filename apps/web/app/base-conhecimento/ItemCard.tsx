@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Arquivo = { id: string; arquivo_path: string; arquivo_nome_original: string | null };
@@ -159,8 +160,9 @@ export function ItemCard({
           <button
             onClick={salvarEdicao}
             disabled={carregando}
-            className="rounded bg-neutral-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-50"
+            className="flex items-center gap-1 rounded bg-indigo-600 px-3 py-1 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
           >
+            <Check size={13} strokeWidth={2} aria-hidden="true" />
             {carregando ? "Salvando…" : "Salvar"}
           </button>
           <button
@@ -170,8 +172,9 @@ export function ItemCard({
               setDescricao(item.descricao ?? "");
               setErro(null);
             }}
-            className="rounded border border-neutral-300 px-3 py-1 text-sm"
+            className="flex items-center gap-1 rounded border border-neutral-300 px-3 py-1 text-sm"
           >
+            <X size={13} strokeWidth={2} aria-hidden="true" />
             Cancelar
           </button>
         </div>
@@ -185,13 +188,25 @@ export function ItemCard({
         <p className="text-sm font-medium">{item.titulo}</p>
         {podeEditar && !confirmandoExclusaoItem && (
           <div className="flex shrink-0 gap-3 text-xs">
-            <button onClick={() => setAdicionandoInfo(true)} className="text-neutral-500 hover:text-neutral-900">
+            <button
+              onClick={() => setAdicionandoInfo(true)}
+              className="flex items-center gap-1 text-neutral-500 hover:text-neutral-900"
+            >
+              <Plus size={12} strokeWidth={2} aria-hidden="true" />
               Adicionar informação
             </button>
-            <button onClick={() => setEditando(true)} className="text-neutral-500 hover:text-neutral-900">
+            <button
+              onClick={() => setEditando(true)}
+              className="flex items-center gap-1 text-neutral-500 hover:text-neutral-900"
+            >
+              <Pencil size={12} strokeWidth={2} aria-hidden="true" />
               Editar
             </button>
-            <button onClick={() => setConfirmandoExclusaoItem(true)} className="text-red-600 hover:text-red-800">
+            <button
+              onClick={() => setConfirmandoExclusaoItem(true)}
+              className="flex items-center gap-1 text-red-600 hover:text-red-800"
+            >
+              <Trash2 size={12} strokeWidth={2} aria-hidden="true" />
               Excluir
             </button>
           </div>
@@ -229,8 +244,9 @@ export function ItemCard({
             <button
               onClick={adicionarInformacao}
               disabled={!novaInfo.trim() || carregando}
-              className="rounded bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+              className="flex items-center gap-1 rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
+              <Plus size={12} strokeWidth={2} aria-hidden="true" />
               {carregando ? "Adicionando…" : "Adicionar"}
             </button>
             <button

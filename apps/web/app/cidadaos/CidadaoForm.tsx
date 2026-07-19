@@ -90,7 +90,7 @@ export function CidadaoForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded border border-neutral-200 p-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Nome</label>
           <input
@@ -112,7 +112,7 @@ export function CidadaoForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">E-mail (opcional)</label>
           <input
@@ -189,7 +189,7 @@ export function CidadaoForm({
       <button
         type="submit"
         disabled={carregando}
-        className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
         {carregando ? "Cadastrando…" : "Cadastrar eleitor"}
       </button>

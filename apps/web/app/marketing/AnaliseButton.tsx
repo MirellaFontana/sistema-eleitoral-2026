@@ -35,7 +35,7 @@ export function AnaliseButton() {
       <button
         onClick={handleClick}
         disabled={carregando}
-        className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
         {carregando ? "Analisando…" : "Analisar pontos cegos"}
       </button>

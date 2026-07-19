@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -114,8 +115,9 @@ export function PecaCard({
       {podeMostrarAcaoAprovar && !aprovando && (
         <button
           onClick={() => setAprovando(true)}
-          className="rounded border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-50"
+          className="flex items-center gap-1 rounded border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-50"
         >
+          <CheckCircle2 size={12} strokeWidth={2} aria-hidden="true" />
           Aprovar e publicar
         </button>
       )}
@@ -138,8 +140,9 @@ export function PecaCard({
             <button
               onClick={handleAprovar}
               disabled={carregando}
-              className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
+              <Check size={14} strokeWidth={2} aria-hidden="true" />
               {carregando ? "Publicando…" : "Confirmar"}
             </button>
             <button
@@ -147,8 +150,9 @@ export function PecaCard({
                 setAprovando(false);
                 setErro(null);
               }}
-              className="rounded px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
+              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
             >
+              <X size={14} strokeWidth={2} aria-hidden="true" />
               Cancelar
             </button>
           </div>

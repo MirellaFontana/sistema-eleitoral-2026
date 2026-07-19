@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Users, Heart, Network, ListChecks, Bell, ClipboardList, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
@@ -64,13 +65,13 @@ export default async function DashboardPage() {
       contar(supabase.from("demandas_observadas").select("*", { count: "exact", head: true })),
     ]);
 
-  const cards = [
-    { label: "Eleitores", valor: eleitores },
-    { label: "Apoiadores ativos", valor: apoiadores },
-    { label: "Lideranças ativas", valor: liderancas },
-    { label: "Tarefas a fazer", valor: tarefasAFazer },
-    { label: "Alertas pendentes", valor: alertasPendentes },
-    { label: "Demandas registradas", valor: demandas },
+  const cards: { label: string; valor: number; icon: LucideIcon }[] = [
+    { label: "Eleitores", valor: eleitores, icon: Users },
+    { label: "Apoiadores ativos", valor: apoiadores, icon: Heart },
+    { label: "Lideranças ativas", valor: liderancas, icon: Network },
+    { label: "Tarefas a fazer", valor: tarefasAFazer, icon: ListChecks },
+    { label: "Alertas pendentes", valor: alertasPendentes, icon: Bell },
+    { label: "Demandas registradas", valor: demandas, icon: ClipboardList },
   ];
 
   return (
@@ -86,6 +87,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {cards.map((c) => (
             <div key={c.label} className="rounded-lg border border-neutral-200 bg-white p-4">
+              <c.icon size={16} strokeWidth={2} className="mb-2 text-neutral-400" aria-hidden="true" />
               <p className="text-xs text-neutral-500">{c.label}</p>
               <p className="text-2xl font-semibold">{c.valor}</p>
             </div>

@@ -84,7 +84,7 @@ export default function MfaVerifyPage() {
                 autoFocus
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
-                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-600"
               />
             </div>
 
@@ -93,7 +93,7 @@ export default function MfaVerifyPage() {
             <button
               type="submit"
               disabled={verificando}
-              className="w-full rounded bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="w-full rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {verificando ? "Verificando…" : "Confirmar"}
             </button>

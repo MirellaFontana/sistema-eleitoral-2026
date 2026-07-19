@@ -795,3 +795,33 @@ Do Bloco Relacionamento, com essa decisão, resta como claramente pré-eleição
 - **Dependências:** os 2 PDFs precisaram ser copiados manualmente pro prefixo `_global` via `supabase storage cp` (fora do SQL — storage não é manipulável por INSERT puro), reaproveitando os arquivos que o usuário já tinha subido na campanha de teste.
 
 ---
+
+## [2026-07-18] Auditoria de UX/UI — primeira rodada (fonte, ícone, ícones no app, status)
+
+- **Objetivo:** usuário pediu análise de UX/UI geral e visual mais moderno. Levantamento (ver auditoria completa na conversa) achou: (1) bug real — fonte Geist carregada via `next/font` mas nunca usada, `body` tinha `font-family: Arial` fixo no CSS; (2) zero ícones em todo o sistema; (3) paleta 100% cinza padrão do Tailwind, sem token de marca; (4) favicon/ícones em `public/` ainda eram os genéricos do Next.js; (5) zero estado de carregamento visual; (6) app essencialmente desktop-only (só 3 de 22 páginas usam qualquer classe responsiva). Usuário confirmou seguir a ordem recomendada: primeiro os itens grátis, depois ícones (maior impacto visual, mudança mecânica), decisão sobre mobile fica pra depois.
+- **Escopo desta entrada:**
+  1. Corrige `globals.css`: `body` passa a usar `var(--font-sans)` (Geist) com Arial como fallback, não mais Arial fixo.
+  2. Novo `app/icon.svg` (convenção do Next.js — vira favicon automaticamente): checkmark branco num quadrado arredondado escuro, mesma cor da sidebar. Remove o `favicon.ico` genérico do Next.js e os SVGs de exemplo não usados em `public/` (file/globe/next/vercel/window.svg).
+  3. Instala `lucide-react` (biblioteca de ícones leve, tree-shakeable) — primeira dependência de ícones do projeto.
+  4. Ícones em: todo item de navegação da sidebar (`AppShell.tsx`), botão "Sair", os 6 cards do dashboard, e um indicador visual (bolinha) nos badges de status (ativo/inativo/revogado) em eleitores, apoiadores, lideranças e usuários internos.
+- **Fora desta entrada (decisão explícita de escopo, não esquecido):** ícones em botões de ação individuais (Editar/Excluir por linha), paleta de cor de destaque própria, responsividade mobile — ficam pra rodadas seguintes, cada uma é uma decisão de escopo/design maior que o usuário ainda não confirmou.
+- **Dados/tabelas afetadas:** nenhuma — mudança 100% visual/frontend.
+- **Risco TSE/LGPD:** nenhum.
+- **Dependências:** nenhuma.
+
+---
+
+## [2026-07-19] Auditoria de UX/UI — segunda rodada (ícones de ação, cor de destaque, responsividade mobile)
+
+- **Objetivo:** usuário pediu explicitamente os 3 itens que tinham ficado em aberto na primeira rodada: ícones nos botões de ação, uma cor de destaque, e responsividade mobile de verdade.
+- **Decisão de cor — neutra em relação a partido:** escolhi **indigo** (`indigo-600`) como cor de destaque única do sistema. Justificativa registrada: partidos brasileiros têm cores muito fortes e disputadas (vermelho, azul, verde-amarelo já carregam associação partidária forte); indigo/violeta não é cor de nenhuma legenda relevante, e já é comum em SaaS profissional. Aplicado em: botões primários de formulário (todo "Salvar"/"Cadastrar"/"Criar"/"Convidar"/"Adicionar" do sistema — 28 arquivos, mesmo padrão de classe idêntico em todos), item ativo da sidebar, anel de foco de qualquer campo (`globals.css`, regra global — não precisou tocar cada input individualmente).
+- **Ícones em botões de ação:** `Pencil` (editar), `Check`/`X` (salvar/cancelar), `Trash2` (excluir), `Plus` (adicionar), `CheckCircle2` (aprovar) — aplicados nas 4 telas principais de cadastro (eleitores/apoiadores/lideranças/usuários), nos botões de excluir de tarefas/metas/base de conhecimento, e no fluxo de aprovação de peças de conteúdo. De quebra, troquei 2 emojis (🗑️ em `TarefaRow`/`MetaDeleteButton`) por ícone de verdade — inconsistente com o resto do sistema, que não usa emoji em lugar nenhum.
+- **Responsividade mobile:**
+  - `AppShell.tsx`: sidebar vira um drawer off-canvas abaixo do breakpoint `md` — escondida por padrão, abre com botão de hambúrguer no topo, tem overlay escurecido atrás, fecha sozinha ao clicar fora ou ao navegar pra outra página (via `useEffect` no `pathname`). Acima de `md`, comportamento idêntico ao anterior (sidebar sempre visível, sem hambúrguer).
+  - Todo grid de formulário de 2 ou 3 colunas (`grid-cols-2`/`grid-cols-3` sem nenhum prefixo responsivo — 32 ocorrências em 20 arquivos) passou a empilhar em 1 coluna abaixo do breakpoint `sm` e só vira grade a partir daí. Antes disso, qualquer formulário de 2-3 campos lado a lado ficava espremido numa tela de celular.
+- **Fora desta entrega (não esquecido, escopo deliberadamente cortado por tempo):** ícones em ações secundárias mais profundas (ex.: "remover" de arquivo individual dentro de um item da base de conhecimento); emojis remanescentes em `ApoiadorForm` (⚠️ aviso de doação), `AlertaCard`, `TerritorioForm` (📍), `liderancas/page.tsx` (🎯 metas), `monitoramento/page.tsx` e `dossie-juridico/page.tsx` (🔒 evidência lacrada) — não foram tocados, ficam como próxima rodada se o usuário quiser.
+- **Dados/tabelas afetadas:** nenhuma — mudança 100% frontend.
+- **Risco TSE/LGPD:** nenhum.
+- **Dependências:** nenhuma.
+
+---

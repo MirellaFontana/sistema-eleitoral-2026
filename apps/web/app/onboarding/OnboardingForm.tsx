@@ -67,7 +67,7 @@ export function OnboardingForm() {
           required
           value={nomeUsuario}
           onChange={(e) => setNomeUsuario(e.target.value)}
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
         />
       </div>
 
@@ -81,7 +81,7 @@ export function OnboardingForm() {
           placeholder="+55819..."
           value={telefone}
           onChange={(e) => setTelefone(e.target.value)}
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
         />
       </div>
 
@@ -94,11 +94,11 @@ export function OnboardingForm() {
           required
           value={nomeCandidato}
           onChange={(e) => setNomeCandidato(e.target.value)}
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <label htmlFor="cargo" className="block text-sm font-medium">
             Cargo
@@ -107,7 +107,7 @@ export function OnboardingForm() {
             id="cargo"
             value={cargo}
             onChange={(e) => setCargo(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             {CARGOS.map((c) => (
               <option key={c} value={c}>
@@ -125,7 +125,7 @@ export function OnboardingForm() {
             id="uf"
             value={uf}
             onChange={(e) => setUf(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
           >
             {UFS.map((u) => (
               <option key={u} value={u}>
@@ -145,7 +145,7 @@ export function OnboardingForm() {
           required
           value={partido}
           onChange={(e) => setPartido(e.target.value)}
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
         />
       </div>
 
@@ -157,7 +157,7 @@ export function OnboardingForm() {
           id="plano"
           value={planoContratado}
           onChange={(e) => setPlanoContratado(e.target.value)}
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
         />
       </div>
 
@@ -166,7 +166,7 @@ export function OnboardingForm() {
       <button
         type="submit"
         disabled={carregando}
-        className="w-full rounded bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="w-full rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
         {carregando ? "Criando…" : "Criar campanha"}
       </button>

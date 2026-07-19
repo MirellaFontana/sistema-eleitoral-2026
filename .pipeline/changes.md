@@ -460,3 +460,41 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** nenhuma bloqueante.
 
 ---
+
+## [2026-07-18] Auditoria de UX/UI — fonte, ícone próprio, ícones no app, status visual (ref. specs.md mesma data)
+
+- **Arquivos alterados:** `app/globals.css`, `app/icon.svg` (novo), `app/favicon.ico` (removido), `public/{file,globe,next,vercel,window}.svg` (removidos, não usados), `components/AppShell.tsx`, `components/SignOutButton.tsx`, `app/dashboard/page.tsx`, `app/cidadaos/CidadaoTable.tsx`, `app/apoiadores/ApoiadoresTable.tsx`, `app/liderancas/LiderancasTable.tsx`, `app/usuarios/UsuariosTable.tsx`, `package.json`/`package-lock.json` (lucide-react).
+- **Contexto:** usuário pediu análise de UX/UI e visual mais moderno; segui a ordem que recomendei (grátis → ícones → mobile fica pra decidir depois).
+- **Achado tratado como bug, não como decisão de design:** `globals.css` tinha `body { font-family: Arial, Helvetica, sans-serif }` fixo, apesar do `layout.tsx` já carregar Geist Sans/Mono via `next/font` e do `@theme inline` já mapear `--font-sans` pra essas variáveis — o CSS só nunca referenciava isso. Uma linha resolveu (`font-family: var(--font-sans), Arial, Helvetica, sans-serif`), sem custo de performance (fonte já vinha baixada).
+- **Ícone próprio:** `app/icon.svg` — checkmark branco num quadrado arredondado escuro (`#171717`, mesma cor da sidebar), seguindo a convenção de arquivo do Next.js (vira favicon automaticamente, sem precisar referenciar em `metadata`). Removidos o favicon genérico e os SVGs de exemplo do template padrão que não eram usados em lugar nenhum (confirmado por busca antes de apagar).
+- **Ícones em lucide-react** (nova dependência, ~instalada limpa):
+  - Todo item de nav da sidebar ganhou um ícone à esquerda, mapeado por significado (Eleitores=Users, Apoiadores=Heart, Lideranças=Network, Alertas=Bell, Dossiê jurídico=Scale, Código eleitoral=Gavel, etc.) — mesma ideia já mostrada no mockup que o usuário aprovou antes.
+  - Botão "Sair" ganhou ícone de logout.
+  - Os 6 cards do dashboard ganharam ícone por métrica, reaproveitando os mesmos ícones da sidebar (consistência visual).
+  - Badges de status (ativo/inativo/revogado) em eleitores, apoiadores, lideranças e usuários internos ganharam uma bolinha (`bg-current`, então herda a cor do texto/pill automaticamente — sem lógica de cor duplicada) antes do texto, tanto na versão clicável (toggle) quanto na versão só-leitura.
+- **Testado no navegador (contra staging):** `/dashboard` (ícones de sidebar + cards, fonte Geist confirmada via `getComputedStyle`), `/cidadaos` (bolinha de status "Inativo" em 2 registros de teste), `/usuarios` (bolinha em "Ativo" e em "Revogado", cor certa em cada). Confirmei o `icon.svg` sendo servido (`200`, `image/svg+xml`) direto por fetch. Sem erro de console em nenhuma tela.
+- **Desvio da spec:** nenhum.
+- **Fora desta entrega:** ícones em botões de ação por linha (Editar/Excluir), cor de destaque própria, responsividade mobile — aguardando decisão do usuário sobre escopo.
+- **Pendências para o Testador:** nenhuma bloqueante.
+
+---
+
+## [2026-07-19] Cor de destaque, ícones de ação e responsividade mobile (ref. specs.md mesma data)
+
+- **Arquivos alterados:** 28 arquivos de formulário/tabela (cor de destaque, batch via `sed` sobre uma classe idêntica confirmada por grep antes de aplicar), `components/AppShell.tsx` (reescrito — drawer mobile), `app/globals.css` (anel de foco global), `app/cidadaos/CidadaoTable.tsx`, `app/apoiadores/ApoiadoresTable.tsx`, `app/liderancas/LiderancasTable.tsx`, `app/usuarios/UsuariosTable.tsx` (ícones de ação), `app/tarefas/TarefaRow.tsx`, `app/liderancas/MetaDeleteButton.tsx`, `app/base-conhecimento/ItemCard.tsx`, `app/pecas-conteudo/PecaCard.tsx` (ícones + emoji trocado por ícone), mais 20 arquivos com grid de formulário (stacking mobile).
+- **Contexto:** conclusão da auditoria de UX/UI — usuário pediu os 3 itens que tinham ficado em aberto.
+- **Decisões técnicas:**
+  - **Cor de destaque (indigo):** antes de decidir, considerei que cores fortes (vermelho, azul, verde-amarelo) já são disputadas por legendas brasileiras — indigo evita qualquer leitura de "o sistema favorece o partido X". Troca feita via `sed` em 28 arquivos porque o botão primário usava a mesma string de classe **idêntica** em cada um (confirmado por `grep` antes de rodar, não assumido) — mudança mecânica de baixo risco, verificada depois com `grep` de contagem (0 ocorrências antigas restantes).
+  - **Anel de foco:** em vez de editar campo por campo em 20+ formulários, adicionei uma regra `:focus-visible` global em `globals.css` — cobre todo `input`/`select`/`textarea` que não já defina o próprio focus (só as telas de auth tinham foco customizado, essas eu troquei a cor separadamente).
+  - **Ícones:** só toquei os botões de ação mais usados (Editar/Salvar/Cancelar/Excluir/Adicionar/Aprovar nas 4 telas de cadastro principais + tarefas/metas/base de conhecimento/peças de conteúdo) — não persegui cada botão do sistema pra não estourar o escopo desta entrega; o que ficou de fora está listado em specs.md.
+  - **Mobile — sidebar:** `AppShell` ganhou estado `menuAberto` (só existe em telas pequenas — `md:` sempre mostra a sidebar fixa como antes). Drawer usa `fixed` + `-translate-x-full`/`translate-x-0` com transição, overlay `bg-black/40` fecha ao clicar fora, e um `useEffect` no `pathname` fecha o menu automaticamente ao trocar de rota (sem isso, o drawer ficaria aberto por cima da tela nova).
+  - **Mobile — formulários:** os 32 grids de 2/3 colunas sem nenhum prefixo responsivo (achado já registrado na primeira rodada da auditoria) viraram `grid-cols-1 ... sm:grid-cols-N` — mesma técnica de `sed` em massa, já que a string de classe também era idêntica nas 32 ocorrências.
+- **Testado no navegador (contra staging, viewport mobile 375×812 e desktop 1280×800):**
+  - Mobile: sidebar escondida por padrão, botão de hambúrguer abre o drawer com overlay, item ativo em indigo, clique em "Eleitores" navega **e** fecha o drawer sozinho. Formulário de eleitor renderizado em coluna única (nome/whatsapp/e-mail/bairro/temperatura/liderança, um embaixo do outro) — antes ficaria espremido em 2-3 colunas numa tela de 375px. Lista de eleitores com botão "Editar" (ícone de lápis) e badge de status com bolinha, sem overflow horizontal.
+  - Desktop: sidebar volta a ficar sempre visível, sem hambúrguer; grids voltam a 2/3 colunas. Nenhuma regressão visual em relação ao estado anterior.
+  - Sem erro de console em nenhuma tela, em nenhum dos dois viewports.
+- **Desvio da spec:** nenhum.
+- **Fora desta entrega:** emojis remanescentes em 6 arquivos (⚠️/📍/🎯/🔒) e ícones em ações secundárias mais profundas — registrados em specs.md, não esquecidos.
+- **Pendências para o Testador:** nenhuma bloqueante.
+
+---
