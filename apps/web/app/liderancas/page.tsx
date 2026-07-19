@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Target } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
@@ -164,7 +165,10 @@ export default async function LiderancasPage() {
         <section className="space-y-3 rounded border border-neutral-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold">🎯 Metas da campanha</h2>
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+                <Target size={14} strokeWidth={2} aria-hidden="true" />
+                Metas da campanha
+              </h2>
               <p className="text-xs text-neutral-500">
                 Defina metas de cadastros por liderança, território ou campanha geral.
               </p>

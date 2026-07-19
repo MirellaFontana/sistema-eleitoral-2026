@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelTerritorio } from "@/lib/territorio";
 
@@ -178,8 +179,9 @@ export function ApoiadorForm({
           ))}
         </div>
         {formasAjuda.includes("doacao_material") && (
-          <p className="text-xs text-amber-700">
-            ⚠️ Doação em espécie ou material pode ter que constar na prestação de contas eleitoral
+          <p className="flex items-start gap-1 text-xs text-amber-700">
+            <AlertTriangle size={12} strokeWidth={2} className="mt-0.5 shrink-0" aria-hidden="true" />
+            Doação em espécie ou material pode ter que constar na prestação de contas eleitoral
             (Lei 9.504/1997) — confirme com o jurídico antes de aceitar.
           </p>
         )}

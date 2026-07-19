@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export function TerritorioForm({ campanhaId }: { campanhaId: string }) {
@@ -116,7 +117,8 @@ export function TerritorioForm({ campanhaId }: { campanhaId: string }) {
         disabled={buscando}
         className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 disabled:opacity-50"
       >
-        {buscando ? "Buscando…" : "📍 Buscar coordenada"}
+        <MapPin size={14} strokeWidth={2} aria-hidden="true" />
+        {buscando ? "Buscando…" : "Buscar coordenada"}
       </button>
       <div className="space-y-1">
         <label className="block text-xs font-medium text-neutral-500">Lat</label>
