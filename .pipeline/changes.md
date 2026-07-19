@@ -535,3 +535,58 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** nenhuma bloqueante. Extender o chip colorido pra outras telas (eleitores/apoiadores/lideranças) fica pra quando o usuário pedir — não foi assumido aqui.
 
 ---
+
+## [2026-07-19] Calendário eleitoral com prazos TSE (ref. specs.md mesma data)
+
+- **Arquivos:** `supabase/migrations/0028_calendario_eleitoral.sql` (novo), `app/calendario-eleitoral/page.tsx` (novo), `components/AppShell.tsx` (item de menu no grupo Jurídico, ícone CalendarClock), `app/dashboard/page.tsx` (banner "Próximo prazo" — entregue junto com a reescrita do dashboard evolutivo, mesma tela).
+- **Decisões técnicas:**
+  - `prazos_eleitorais` sem `campanha_id`, SELECT gated por `current_papel() IS NOT NULL` (usuário revogado não passa — `current_papel()` exige `status='ativo'` desde a 0023). Nenhuma policy de escrita; seed na própria migration.
+  - Cálculo de "faltam N dias" feito em dias de calendário (parse manual de `YYYY-MM-DD` pra data local, não `new Date(iso)` direto — evita o clássico off-by-one de timezone com DATE puro).
+  - Datas de resolução anual seedadas com "CONFERIR" explícito na descrição — visível pro usuário final de propósito, não só em comentário de código.
+- **Desvio da spec:** banner do dashboard foi commitado junto com a entrega "Dashboard evolutivo" (mesmo arquivo) — conteúdo idêntico ao especificado.
+- **Pendências para o Testador:** migration 0028 ainda não aplicada em staging (aguardando token); conferência das datas de resolução anual contra a Resolução oficial do Calendário Eleitoral 2026 segue obrigatória (critério de aceite).
+
+---
+
+## [2026-07-19] Agenda de campanha — eventos territoriais (ref. specs.md mesma data)
+
+- **Arquivos:** `supabase/migrations/0029_agenda_campanha.sql` (novo — enums `tipo_evento_campanha`/`status_evento_campanha`, tabelas `eventos_campanha` + `eventos_liderancas`), `app/agenda/page.tsx`, `app/agenda/EventoForm.tsx`, `app/agenda/EventoCard.tsx` (novos), `components/AppShell.tsx` (item "Agenda" no grupo Gestão, entre Tarefas e Mapa, ícone CalendarDays).
+- **Decisões técnicas:**
+  - Junção `eventos_liderancas` herda o tenant via `EXISTS` no evento — toda policy passa pelo evento da própria campanha; escrita só `coord_campanha`, conforme spec.
+  - **Edição reconcilia lideranças por diff** (remove desmarcadas, insere novas) em vez de apagar tudo e recriar — preserva a presença (`compareceu`) já registrada de quem permanece no evento.
+  - Fluxo "marcar realizado": atualiza status + público estimado no evento e `compareceu` linha a linha na junção (updates sequenciais; sem RPC — volume por evento é pequeno).
+  - Avisos TSE no form e no card: ato de rua (caminhada/comício/carreata) antes de 16/08/2026 → aviso âmbar citando art. 36-A; tipo comício → lembrete de showmício vedado (art. 39 §7º). Não bloqueiam, conforme spec.
+  - Evento passado ainda planejado/confirmado ganha destaque âmbar "pendente de atualização".
+  - Filtros por status/território via form GET puro (server component, sem estado client).
+- **Desvio da spec:** nenhum.
+- **Pendências para o Testador:** migration 0029 não aplicada em staging; teste ponta-a-ponta (criar → vincular lideranças → marcar realizado com presença) pendente de navegador; isolamento cross-tenant e bloqueio de escrita pra papel não-coordenação pendentes de teste real.
+
+---
+
+## [2026-07-19] Dashboard evolutivo — painel executivo (ref. specs.md mesma data)
+
+- **Arquivos:** `app/dashboard/page.tsx` (reescrito — mantém os 6 cards e soma banner de prazo + 4 seções).
+- **Decisões técnicas:**
+  - Sem lib de gráfico: barras em divs com altura/largura por style inline; semanas sem cadastro mantêm a coluna com rótulo (barra zero, eixo íntegro — critério da spec).
+  - Agregação no server component: `cidadaos` traz `created_at, circulo, estagio, territorio_id` (uma consulta serve 3 seções); apoiadores/lideranças só `created_at >= início da janela de 8 semanas`. Sem RPC nova, conforme spec.
+  - Semana começa na segunda (padrão BR): `inicioSemana()` normaliza com `(getDay()+6)%7`.
+  - Cobertura por território cruza contagem de eleitores com `votos_disponiveis_estimados` (campo existente nunca usado até aqui) — mostra "% do alvo" só quando a estimativa existe; barra limitada visualmente a 100%.
+  - Cores das séries/temperatura (indigo/sky/emerald/rose/amber) são semântica interna de dado, não acento de marca — sem conflito com a régua de neutralidade partidária (nenhuma cor identifica legenda).
+  - Papéis sem SELECT numa tabela veem a seção zerada/vazia sem erro — mesmo contrato do dashboard antigo (RLS decide, tela não tem lógica por papel).
+- **Desvio da spec:** banner "Próximo prazo" (spec do calendário) entregue aqui por ser o mesmo arquivo.
+- **Pendências para o Testador:** validar os números contra SQL direto (critério da spec); testar sessão de `candidato`; o banner de prazo só aparece depois da 0028 aplicada.
+
+---
+
+## [2026-07-19] Busca global de pessoas (ref. specs.md mesma data)
+
+- **Arquivos:** `components/AppShell.tsx` (campo de busca no header — form controlado, submit navega pra `/busca?q=`), `app/busca/page.tsx` (novo, server component).
+- **Decisões técnicas:**
+  - Sanitização do termo antes do filtro `or(...ilike...)` do PostgREST: escapa `%`/`_` (curingas do ILIKE) e remove `,`/`(`/`)` (separadores da sintaxe do próprio `or()` — sem isso, termo com vírgula quebraria a query).
+  - Telefone: além do termo bruto, se houver ≥ 4 dígitos a busca compara a variante só-dígitos contra whatsapp/telefone. Limitação registrada: se o telefone foi salvo com espaços/máscara no meio, a variante só-dígitos não casa (PostgREST não permite normalizar a coluna no filtro sem RPC) — os telefones do sistema são salvos contínuos (`+5581...`), então o caso comum funciona.
+  - Nenhum log do termo de busca em lugar nenhum (atenção de LGPD registrada na spec — evitar trilha "quem procurou quem").
+  - Header mobile: o nome da campanha ficou `hidden sm:block` pra dar espaço ao campo de busca — desvio pequeno de layout, registrado aqui; se o usuário sentir falta, dá pra voltar com truncamento mais agressivo.
+- **Desvio da spec:** nenhum além do layout mobile acima.
+- **Pendências para o Testador:** teste com sessão real de papel restrito (embaixador) pra confirmar que a RLS filtra resultados; busca por telefone com e sem máscara.
+
+---

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   UserCog,
@@ -22,6 +22,9 @@ import {
   BookOpen,
   Gavel,
   Target,
+  Search,
+  CalendarClock,
+  CalendarDays,
   Menu,
   X,
   type LucideIcon,
@@ -48,6 +51,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Gestão",
     items: [
       { href: "/tarefas", label: "Tarefas", icon: ListChecks },
+      { href: "/agenda", label: "Agenda", icon: CalendarDays },
       { href: "/geolocalizacao", label: "Mapa", icon: MapPin },
     ],
   },
@@ -60,7 +64,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Jurídico",
-    items: [{ href: "/dossie-juridico", label: "Dossiê jurídico", icon: Scale }],
+    items: [
+      { href: "/dossie-juridico", label: "Dossiê jurídico", icon: Scale },
+      { href: "/calendario-eleitoral", label: "Calendário eleitoral", icon: CalendarClock },
+    ],
   },
   {
     label: "Marketing",
@@ -102,6 +109,37 @@ function NavLink({
       <Icon size={15} strokeWidth={2} className="shrink-0" aria-hidden="true" />
       {label}
     </Link>
+  );
+}
+
+function BuscaGlobalForm() {
+  const router = useRouter();
+  const [termo, setTermo] = useState("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const q = termo.trim();
+    if (q.length < 2) return;
+    router.push(`/busca?q=${encodeURIComponent(q)}`);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="relative min-w-0 flex-1 max-w-[180px] sm:max-w-xs">
+      <Search
+        size={14}
+        strokeWidth={2}
+        className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-neutral-400"
+        aria-hidden="true"
+      />
+      <input
+        type="search"
+        value={termo}
+        onChange={(e) => setTermo(e.target.value)}
+        placeholder="Buscar pessoa…"
+        aria-label="Buscar pessoa em eleitores, apoiadores e lideranças"
+        className="w-full rounded border border-neutral-200 bg-neutral-50 py-1.5 pl-7 pr-2 text-sm placeholder:text-neutral-400"
+      />
+    </form>
   );
 }
 
@@ -189,12 +227,13 @@ export function AppShell({
               <Menu size={20} strokeWidth={2} aria-hidden="true" />
             </button>
             {campanhaNome && (
-              <p className="truncate text-xs text-neutral-500">
+              <p className="hidden truncate text-xs text-neutral-500 sm:block">
                 {campanhaNome}
                 {papel ? ` · ${papel}` : ""}
               </p>
             )}
           </div>
+          <BuscaGlobalForm />
           <SignOutButton />
         </header>
 
