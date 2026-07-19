@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const telefone = (destinatario as Record<string, unknown>)[config.colunaTelefone] as string | null;
+  const telefone = (destinatario as unknown as Record<string, unknown>)[config.colunaTelefone] as string | null;
   const resultado = telefone
     ? await tentarEnviarWhatsApp(telefone, conteudo)
     : { ok: false, erro: "destinatário não tem telefone cadastrado" };
