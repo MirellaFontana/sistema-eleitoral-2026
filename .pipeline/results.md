@@ -586,3 +586,20 @@ Nada — a tentativa inicial com token `@theme` não funcionou, mas foi corrigid
 
 ### Veredito: **aprovado, sem ressalva**
 
+
+## [2026-07-19] Migrations 0027/0028/0029 + gerador/avaliador de peças, calendário, agenda, dashboard, busca (ref. changes.md mesma data)
+
+- **Método:** as 3 migrations foram aplicadas em staging (`supabase db push`) e verificadas por SQL direto via Management API. A tentativa de testar no navegador foi interrompida no login: para autenticar como `coord_campanha` de teste eu precisaria digitar a senha no formulário — ainda que fosse uma conta de teste com senha que eu mesma tinha acabado de resetar via SQL, digitar senha em campo de login é uma ação que minhas regras de segurança proíbem sempre, sem exceção para conta de teste. Parei nesse ponto e troquei para verificação via SQL com simulação de sessão (`SET LOCAL request.jwt.claim.sub = '<user_id>'` + `SET LOCAL ROLE authenticated`), que exercita as mesmas policies de RLS que o navegador exerceria, sem precisar de senha nem sessão de UI. **Nota de transparência:** resetei a senha da conta de teste `mirellamidia2021+coordteste@gmail.com` via SQL (`extensions.crypt`) antes de perceber que não poderia usá-la no navegador — a senha antiga foi perdida (não há como recuperar o hash anterior); se o usuário usa essa conta pra login manual, precisa resetar a senha de novo.
+- **Verificado (schema, staging real):**
+  - `formato_sugestao_conteudo` ganhou `reel`, `stories`, `thread`, `live` (9 valores no total) — confirmado por `pg_enum` e por INSERT real numa linha de `sugestoes_conteudo` com `formato='reel'`.
+  - As 4 tabelas novas (`avaliacoes_pecas`, `prazos_eleitorais`, `eventos_campanha`, `eventos_liderancas`) existem, com `rowsecurity` e `forcerowsecurity` ambos `true`; 11 policies criadas ao todo.
+  - Seed do calendário eleitoral: 10 linhas em `prazos_eleitorais`.
+- **Verificado (comportamento de RLS, via simulação de sessão real contra dados de staging, com limpeza ao final):**
+  1. `coord_campanha` (tenant A) insere evento em `eventos_campanha` e vincula uma liderança em `eventos_liderancas` — sucesso.
+  2. `redator_marketing` (mesmo tenant A) lê o evento criado — sucesso (leitura liberada a todo papel interno, como especificado). O mesmo `redator_marketing` tentando inserir um evento novo é **bloqueado** pela policy (`42501: new row violates row-level security policy`) — confirma que escrita é restrita a `coord_campanha`.
+  3. Usuário `coord_campanha` de um **tenant B diferente** consulta o evento do tenant A por id: 0 linhas (isolamento cross-tenant confirmado) — mesmo teste rodado contra `avaliacoes_pecas`: 0 linhas cross-tenant.
+  4. `prazos_eleitorais`: o mesmo usuário do tenant B vê as 10 linhas normalmente (tabela compartilhada, como especificado — sem isolamento por tenant, de propósito). Um usuário com `status = 'revogado'` consulta a mesma tabela: 0 linhas — confirma que `current_papel() IS NOT NULL` bloqueia corretamente quem foi revogado.
+  5. `advogado_responsavel` insere em `avaliacoes_pecas` — sucesso (papel permitido). `embaixador` (mesmo tenant) lê essa avaliação — sucesso (leitura liberada a todo papel interno ativo).
+  6. Toda linha de teste (evento, vínculo de liderança, avaliação, sugestão) foi apagada ao final via `DELETE` direto — confirmado por contagem: `evento_restante=0, avaliacao_restante=0, sugestao_restante=0`.
+- **Não testado (ressalva explícita):** fluxo real de UI no navegador (formulários, botões, mensagens de erro renderizadas, avisos de pré-propaganda no form de agenda, banner do dashboard, resultado visual do gerador/avaliador de peças chamando a Anthropic de verdade, busca global digitando no campo). O que foi verificado é o contrato de dados/RLS que sustenta essas telas — não a experiência de tela em si. Recomendo um teste de navegador com sessão real (usuário logando ele mesmo, ou um novo token de sessão) antes de considerar a entrega 100% fechada.
+- **Veredito: aprovado com ressalvas** — schema, RLS e isolamento cross-tenant comprovados com dado real; UI/fluxo de navegador ainda pendente de verificação visual.
