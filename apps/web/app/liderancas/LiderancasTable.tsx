@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Check, X } from "lucide-react";
+import { Eye, Pencil, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelTerritorio } from "@/lib/territorio";
 
@@ -35,6 +35,7 @@ export function LiderancasTable({
   const [busca, setBusca] = useState("");
   const [alterando, setAlterando] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [visualizandoId, setVisualizandoId] = useState<string | null>(null);
 
   const filtradas = linhas.filter((l) => {
     const q = busca.trim().toLowerCase();
@@ -77,6 +78,8 @@ export function LiderancasTable({
                   router.refresh();
                 }}
               />
+            ) : visualizandoId === l.id ? (
+              <LiderancaViewRow key={l.id} linha={l} onFechar={() => setVisualizandoId(null)} />
             ) : (
               <li key={l.id} className="rounded border border-neutral-200 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -89,6 +92,13 @@ export function LiderancasTable({
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setVisualizandoId(l.id)}
+                      className="flex items-center gap-1 rounded border border-neutral-300 px-2.5 py-0.5 text-xs font-medium hover:bg-neutral-50"
+                    >
+                      <Eye size={12} strokeWidth={2} aria-hidden="true" />
+                      Visualizar
+                    </button>
                     {podeGerenciar && (
                       <button
                         onClick={() => setEditandoId(l.id)}
@@ -132,6 +142,39 @@ export function LiderancasTable({
         </ul>
       )}
     </div>
+  );
+}
+
+function Campo({ label, valor }: { label: string; valor: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-neutral-500">{label}</p>
+      <p className="text-sm">{valor}</p>
+    </div>
+  );
+}
+
+function LiderancaViewRow({ linha, onFechar }: { linha: Linha; onFechar: () => void }) {
+  return (
+    <li className="rounded border border-neutral-300 bg-neutral-50 p-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Campo label="Nome" valor={linha.nome} />
+        <Campo label="Telefone" valor={linha.telefone ?? "não informado"} />
+        <Campo label="Bairro/território" valor={labelTerritorio(linha.bairro, linha.cidade)} />
+        <Campo label="Eleitores cadastrados" valor={linha.cadastros} />
+        {linha.metaAlvo !== null && <Campo label="Meta alvo" valor={linha.metaAlvo} />}
+        {linha.progressoPct !== null && <Campo label="Progresso" valor={`${linha.progressoPct}%`} />}
+        <Campo label="Status" valor={linha.status === "ativa" ? "Ativa" : "Inativa"} />
+      </div>
+      <button
+        type="button"
+        onClick={onFechar}
+        className="mt-3 flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100"
+      >
+        <X size={14} strokeWidth={2} aria-hidden="true" />
+        Fechar
+      </button>
+    </li>
   );
 }
 
