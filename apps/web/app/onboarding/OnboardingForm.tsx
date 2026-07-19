@@ -161,6 +161,11 @@ export function OnboardingForm() {
         />
       </div>
 
+      <p className="text-xs text-neutral-400">
+        Número do candidato, nome de urna, CNPJ da campanha e coligação podem ser
+        preenchidos depois em Administração → Usuários.
+      </p>
+
       {erro && <p className="text-sm text-red-600">{erro}</p>}
 
       <button
