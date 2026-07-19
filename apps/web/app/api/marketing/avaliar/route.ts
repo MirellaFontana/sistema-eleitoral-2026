@@ -1,0 +1,125 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAnthropicClient, MODELO_IA, SISTEMA_AVALIADOR_PECAS } from "@/lib/anthropic";
+
+const PAPEIS_QUE_AVALIAM = new Set([
+  "coord_campanha",
+  "coord_marketing",
+  "redator_marketing",
+  "advogado_responsavel",
+  "assistente_juridico",
+]);
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const { formato, canal, descricao_peca } = body as {
+    formato: string;
+    canal: string;
+    descricao_peca: string;
+  };
+
+  if (!formato || !canal || !descricao_peca?.trim()) {
+    return NextResponse.json(
+      { error: "formato, canal e descricao_peca são obrigatórios" },
+      { status: 400 }
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "não autenticado" }, { status: 401 });
+  }
+
+  const { data: eu } = await supabase
+    .from("usuarios_internos")
+    .select(
+      "papel, campanha_id, campanhas(nome_candidato, cargo, uf, partido, numero_candidato, nome_urna, coligacao)"
+    )
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!eu || !PAPEIS_QUE_AVALIAM.has(eu.papel)) {
+    return NextResponse.json(
+      { error: "seu papel não pode solicitar avaliação de peças" },
+      { status: 403 }
+    );
+  }
+
+  const anthropic = createAnthropicClient();
+  if (!anthropic) {
+    return NextResponse.json(
+      { error: "ANTHROPIC_API_KEY não configurada — peça pro administrador configurar." },
+      { status: 400 }
+    );
+  }
+
+  const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
+  const identidadeCtx = campanha
+    ? [
+        `Candidato: ${campanha.nome_candidato ?? "–"}`,
+        `Nome de urna: ${campanha.nome_urna ?? "–"}`,
+        `Número: ${campanha.numero_candidato ?? "–"}`,
+        `Cargo: ${campanha.cargo ?? "–"} – ${campanha.uf ?? "–"}`,
+        `Partido: ${campanha.partido ?? "–"}`,
+        `Coligação: ${campanha.coligacao ?? "–"}`,
+      ].join("\n")
+    : "(identidade da campanha não cadastrada)";
+
+  const mensagemUsuario = [
+    `IDENTIDADE DA CAMPANHA:\n${identidadeCtx}`,
+    `FORMATO DA PEÇA: ${formato}`,
+    `CANAL DE PUBLICAÇÃO: ${canal}`,
+    `DESCRIÇÃO / TEXTO DA PEÇA:\n${descricao_peca.trim()}`,
+  ].join("\n\n");
+
+  let raw: string;
+  try {
+    const msg = await anthropic.messages.create({
+      model: MODELO_IA,
+      max_tokens: 1800,
+      system: SISTEMA_AVALIADOR_PECAS,
+      messages: [{ role: "user", content: mensagemUsuario }],
+    });
+    raw = msg.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim();
+  } catch (err) {
+    const m = err instanceof Error ? err.message : "erro desconhecido";
+    return NextResponse.json({ error: `Falha ao avaliar peça: ${m}` }, { status: 502 });
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    const clean = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim();
+    parsed = JSON.parse(clean);
+  } catch {
+    return NextResponse.json(
+      { error: "O modelo retornou um formato inesperado. Tente novamente." },
+      { status: 502 }
+    );
+  }
+
+  const { data: row, error } = await supabase
+    .from("avaliacoes_pecas")
+    .insert({
+      campanha_id: eu.campanha_id,
+      formato,
+      canal,
+      descricao_peca: descricao_peca.trim(),
+      avaliacao_json: parsed,
+      modelo_ia: MODELO_IA,
+      solicitado_por: user.id,
+    })
+    .select("id, avaliacao_json, created_at")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json(row);
+}

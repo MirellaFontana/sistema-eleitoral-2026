@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { FaqForm } from "./FaqForm";
 import { SugestaoForm } from "./SugestaoForm";
+import { AvaliacaoForm } from "./AvaliacaoForm";
 import { AnaliseButton } from "./AnaliseButton";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -16,14 +17,36 @@ const PAPEL_LABEL: Record<string, string> = {
   candidato: "Candidato",
 };
 
-const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
+const PAPEIS_QUE_GERAM  = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
+const PAPEIS_QUE_AVALIAM = new Set([
+  "coord_campanha", "coord_marketing", "redator_marketing",
+  "advogado_responsavel", "assistente_juridico",
+]);
 
 const FORMATO_LABEL: Record<string, string> = {
   post: "Post",
   whatsapp: "WhatsApp",
   carrossel: "Carrossel",
   roteiro_video: "Roteiro de vídeo",
+  reel: "Reel",
+  stories: "Stories",
+  thread: "Thread",
+  live: "Live",
   outro: "Outro",
+};
+
+const DECISAO_LABEL: Record<string, { label: string; cls: string }> = {
+  aprovar:             { label: "Aprovado",          cls: "bg-green-100 text-green-800" },
+  aprovar_com_ajustes: { label: "Com ajustes",       cls: "bg-yellow-100 text-yellow-800" },
+  reprovar:            { label: "Reprovado",          cls: "bg-red-100 text-red-800" },
+};
+
+type AvaliacaoJson = {
+  legislacao?: { veredicto?: string };
+  praticas_midia?: { veredicto?: string };
+  viralidade?: { nota?: number };
+  clareza?: { nota?: number };
+  sintese?: { decisao?: string; recomendacoes?: string[] };
 };
 
 export default async function MarketingPage() {
@@ -45,16 +68,12 @@ export default async function MarketingPage() {
   const rotaMfa = await proximaRotaMfa(supabase, eu.papel);
   if (rotaMfa) redirect(rotaMfa);
 
-  const podeGerar = PAPEIS_QUE_GERAM.has(eu.papel);
+  const podeGerar  = PAPEIS_QUE_GERAM.has(eu.papel);
+  const podeAvaliar = PAPEIS_QUE_AVALIAM.has(eu.papel);
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const [faqsRes, propostasRes, sugestoesRes, analisesRes] = await Promise.all([
+  const [faqsRes, sugestoesRes, analisesRes] = await Promise.all([
     supabase.from("faqs").select("id, pergunta, resposta").order("created_at", { ascending: false }),
-    supabase
-      .from("base_conhecimento_itens")
-      .select("id, titulo, descricao")
-      .not("descricao", "is", null)
-      .order("titulo"),
     supabase
       .from("sugestoes_conteudo")
       .select("id, formato, sugestao, created_at")
@@ -67,23 +86,40 @@ export default async function MarketingPage() {
       .limit(5),
   ]);
 
+  const avaliacoes = podeAvaliar
+    ? (
+        await supabase
+          .from("avaliacoes_pecas")
+          .select("id, formato, canal, avaliacao_json, created_at")
+          .order("created_at", { ascending: false })
+          .limit(10)
+      ).data ?? []
+    : [];
+
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-10 px-4 py-8">
         <div>
           <h1 className="text-lg font-semibold">Marketing</h1>
           <p className="text-sm text-neutral-500">
-            Sugestões de conteúdo, análise de pontos cegos e FAQs — a IA sugere estrutura e texto
-            de referência; quem faz a arte final e publica é sempre humano.
+            Ferramentas de IA para sugestão e avaliação de peças eleitorais. A arte final e a
+            publicação são sempre responsabilidade de um humano da equipe.
           </p>
         </div>
 
+        {/* ── GERADOR DE PEÇAS ─────────────────────────────────────── */}
         {podeGerar && (
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Gerar sugestão de conteúdo
-            </h2>
-            <SugestaoForm propostas={propostasRes.data ?? []} />
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Gerar sugestão de peça
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                A IA sugere texto, roteiro e estrutura — com identidade da campanha carregada
+                automaticamente da base de conhecimento.
+              </p>
+            </div>
+            <SugestaoForm />
           </section>
         )}
 
@@ -106,6 +142,65 @@ export default async function MarketingPage() {
           </ul>
         </section>
 
+        {/* ── AVALIADOR DE PEÇAS ───────────────────────────────────── */}
+        {podeAvaliar && (
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Avaliar peça do marketing
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Cole ou descreva uma peça que a equipe produziu. A IA avalia em 4 dimensões:
+                legislação eleitoral, boas práticas de mídia, viralidade e clareza.
+              </p>
+            </div>
+            <AvaliacaoForm />
+          </section>
+        )}
+
+        {podeAvaliar && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Histórico de avaliações
+            </h2>
+            {avaliacoes.length === 0 && (
+              <p className="text-sm text-neutral-400">Nenhuma peça avaliada ainda.</p>
+            )}
+            <ul className="space-y-2">
+              {avaliacoes.map((a) => {
+                const av = a.avaliacao_json as unknown as AvaliacaoJson;
+                const decisao = av.sintese?.decisao ? DECISAO_LABEL[av.sintese.decisao] : null;
+                return (
+                  <li key={a.id} className="rounded border border-neutral-200 p-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium">
+                        {FORMATO_LABEL[a.formato] ?? a.formato}
+                      </span>
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium">
+                        {a.canal}
+                      </span>
+                      {decisao && (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${decisao.cls}`}>
+                          {decisao.label}
+                        </span>
+                      )}
+                      <span className="ml-auto text-xs text-neutral-400">
+                        {new Date(a.created_at).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                    {av.sintese?.recomendacoes?.[0] && (
+                      <p className="text-xs text-neutral-500 line-clamp-2">
+                        {av.sintese.recomendacoes[0]}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        {/* ── ANÁLISE DE PONTOS CEGOS ──────────────────────────────── */}
         {podeGerar && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
@@ -134,6 +229,7 @@ export default async function MarketingPage() {
           </ul>
         </section>
 
+        {/* ── FAQs ─────────────────────────────────────────────────── */}
         {podeGerar && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
