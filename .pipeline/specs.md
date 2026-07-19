@@ -890,3 +890,132 @@ Do Bloco Relacionamento, com essa decisão, resta como claramente pré-eleição
 - `ANTHROPIC_API_KEY` já configurada (usada por todo o Módulo 4) — sem bloqueio novo.
 
 ---
+
+## [2026-07-19] Calendário eleitoral com prazos TSE
+
+- **Objetivo:** dar visibilidade aos prazos do calendário eleitoral 2026 dentro do sistema. Hoje o sistema *trava* a janela de silêncio nas peças de conteúdo, mas nenhuma tela *mostra* os prazos chegando (início da propaganda 16/08, registro de candidatura 15/08, eleição 04/10). Proposto por mim no balanço de produto, aprovado pelo usuário junto com outras 3 specs.
+
+### Decisões do Planejador (registradas, não perguntadas)
+1. **Tabela compartilhada entre campanhas** (`prazos_eleitorais`, sem `campanha_id`) — segunda exceção deliberada ao isolamento por tenant, mesmo precedente do Código Eleitoral compartilhado (specs.md 2026-07-18): o calendário é lei federal pública, idêntico pra qualquer campanha. Leitura liberada a qualquer usuário interno ativo; **sem policy de INSERT/UPDATE/DELETE** — conteúdo mantido por migration/seed, exatamente como o Código Eleitoral.
+2. **Sem envio de alerta (WhatsApp) nesta entrega** — a matriz de alertas existente é acoplada a `monitoramento_itens` e o WhatsApp segue sem credencial. Aviso é **visual**: banner no dashboard. Integração com alertas fica registrada como evolução futura.
+3. **Datas com marcação de origem:** as fixadas pela Lei 9.504/1997 (convenções 20/07–05/08, registro até 15/08, propaganda a partir de 16/08, eleição no 1º domingo de outubro = 04/10, 2º turno no último domingo = 25/10) entram com `fonte = 'Lei 9.504/1997'`. As definidas por resolução anual (prestação de contas parcial, datas de rádio/TV, pesquisas) entram com `fonte = 'Resolução TSE — calendário eleitoral 2026'` e **precisam ser conferidas contra a resolução oficial antes do seed final** — critério de aceite explícito pro Testador.
+
+### Modelo de dados (migration nova)
+- `prazos_eleitorais`: id UUID pk, `data` DATE NOT NULL, `titulo` TEXT NOT NULL, `descricao` TEXT, `categoria` TEXT NOT NULL CHECK IN ('convencoes','registro','propaganda','financeiro','votacao','outro'), `fonte` TEXT NOT NULL, created_at. Índice em `data`.
+- RLS force-enabled: SELECT pra `authenticated` com `current_papel() IS NOT NULL` (garante usuário interno ativo — mesmo gate do conteúdo `_global`); nenhuma policy de escrita. `REVOKE ALL FROM anon`.
+- Seed na própria migration com os prazos de 2026.
+
+### Frontend
+- **`/calendario-eleitoral`** (grupo Jurídico do menu, ícone `CalendarClock`): lista agrupada por mês; cada prazo com badge de estado — "passou" (neutro), "próximos 7 dias" (âmbar), "futuro" (indigo) — e contagem de dias restantes. Sem filtro nesta entrega (são ~15-20 linhas, filtro é excesso).
+- **Dashboard:** banner "Próximo prazo: [título] — faltam N dias" acima dos cards, âmbar quando N ≤ 7, indigo caso contrário. Nada aparece se não houver prazo futuro.
+
+### Critérios de aceite
+- [ ] Qualquer papel interno ativo de qualquer campanha vê os mesmos prazos; usuário revogado não vê nada.
+- [ ] Nenhuma rota da aplicação consegue inserir/editar/apagar prazo.
+- [ ] Datas de resolução anual conferidas contra a Resolução TSE do calendário 2026 antes do seed ser dado como final.
+- [ ] Banner do dashboard mostra o próximo prazo futuro correto e some quando não há nenhum.
+
+### Risco TSE/LGPD
+- Nenhum — dado público de lei federal, sem PII. Risco real é **informacional**: data errada no seed induz a campanha a erro de prazo; por isso a conferência contra a resolução oficial é critério de aceite, não sugestão.
+
+### Dependências
+- Nenhuma credencial. Migration nova (numeração após a 0027, que ainda aguarda aplicação em staging).
+
+---
+
+## [2026-07-19] Busca global (eleitores, apoiadores, lideranças)
+
+- **Objetivo:** um campo de busca única no topo do app — hoje, achar uma pessoa exige entrar em Eleitores, depois Apoiadores, depois Lideranças e procurar em cada lista. Proposto no balanço de produto, aprovado pelo usuário.
+
+### Decisões do Planejador (registradas, não perguntadas)
+1. **Busca server-side via página `/busca?q=`** (server component), não endpoint JSON + dropdown client-side: reaproveita o padrão de página do sistema inteiro, funciona sem JS extra e a RLS da sessão filtra naturalmente — embaixador/papéis restritos só encontram o que as policies já deixam ver, sem lógica nova por papel.
+2. **Campos pesquisados** (confirmados no schema real): `cidadaos` (nome, whatsapp, email), `apoiadores` (nome, telefone, bairro), `liderancas` (nome, telefone, bairro). `ILIKE '%q%'` com `%`/`_` escapados; mínimo 2 caracteres; limite 20 resultados por grupo.
+3. **Telefone com normalização leve:** se o termo tiver ≥ 4 dígitos, a busca também compara só-dígitos contra as colunas de telefone — acha "+5581 9..." digitando "81 9" ou "819".
+4. **Resultado leva à lista do módulo, não a um registro:** as telas atuais são listas com edição in-line, não há página por registro. O resultado mostra os dados essenciais in-line (nome, telefone, bairro/círculo, badge do tipo) + link pro módulo. Deep-link com destaque de linha fica registrado como evolução futura, não bloqueia.
+
+### Frontend
+- `AppShell.tsx`: campo de busca no header (entre o nome da campanha e o botão Sair; no mobile, ícone `Search` que expande). Submit navega pra `/busca?q=...` (GET puro).
+- **`/busca`**: três seções (Eleitores / Apoiadores / Lideranças) com contagem, resultados in-line e link "ver no módulo". Estado vazio claro ("nada encontrado pra 'x'"). Sem paginação (limite 20 por grupo cobre o caso de uso "achar uma pessoa").
+
+### Dados/tabelas afetadas
+- Nenhuma migration. Só leitura via sessão do usuário (chave anon + RLS, como todo o frontend).
+
+### Critérios de aceite
+- [ ] Busca por nome parcial, por trecho de telefone (com e sem máscara) e por bairro retorna a pessoa certa no grupo certo.
+- [ ] Papel com acesso restrito (ex.: embaixador) só vê resultados que as policies já permitem — verificado com sessão real, não presumido.
+- [ ] Termo com `%` ou `_` não quebra nem vira curinga.
+- [ ] `q` com menos de 2 caracteres não dispara consulta.
+
+### Risco TSE/LGPD
+- Médio-baixo: a busca expõe PII **já acessível** nas listas dos módulos — não abre dado novo, a RLS continua sendo o guarda. Atenção do Programador: nunca logar o termo de busca com resultados em lugar nenhum (evitar trilha de "quem procurou quem" fora do necessário).
+
+### Dependências
+- Nenhuma.
+
+---
+
+## [2026-07-19] Dashboard evolutivo (painel executivo)
+
+- **Objetivo:** o dashboard hoje é 6 contagens estáticas. Com dados que já existem, passar a responder "a campanha está crescendo?": evolução semanal de cadastros, temperatura da base, funil e cobertura por território. É também a primeira entrega que dá ao papel `candidato` uma visão executiva de verdade. Proposto no balanço, aprovado pelo usuário.
+
+### Decisões do Planejador (registradas, não perguntadas)
+1. **Sem biblioteca de gráfico** — barras em divs/SVG puro com Tailwind. Coerente com a decisão de stack ("sem framework de UI pesado") e suficiente pra barras semanais e de distribuição. Se um dia precisar de linha/série complexa, a decisão de lib é tomada aí.
+2. **Sem RPC/função SQL nova** — as agregações são feitas no server component a partir de selects enxutos (`created_at` das últimas 8 semanas; `circulo`; `estagio`; `territorio_id`). Em escala de campanha (milhares de linhas) isso é barato; se crescer, migrar pra RPC agregada é otimização futura documentada.
+3. **RLS decide o que cada papel vê** — mesmo padrão do dashboard atual: papel sem SELECT numa tabela vê aquela seção vazia/zerada, sem lógica por papel na tela.
+
+### Seções novas (abaixo dos 6 cards atuais)
+1. **Crescimento semanal** — barras das últimas 8 semanas de novos eleitores, apoiadores e lideranças (`created_at`), com total da semana corrente destacado.
+2. **Temperatura da base** — barra segmentada por `circulo` (frio/morno/quente) dos eleitores, com contagem e %.
+3. **Funil de conversão** — contagens por `estagio` (estagio_funil) dos eleitores + razão eleitores → apoiadores → lideranças.
+4. **Cobertura por território** — top 5 territórios por nº de eleitores; onde `votos_disponiveis_estimados > 0`, mostra % de cobertura (eleitores/estimativa). Territórios sem estimativa mostram só a contagem.
+
+### Dados/tabelas afetadas
+- Nenhuma migration — só leitura.
+
+### Critérios de aceite
+- [ ] Números das seções batem com contagens SQL diretas nas mesmas janelas de tempo (verificação real do Testador, não visual).
+- [ ] Sessão de `candidato` renderiza o painel sem erro (agregados que a RLS permitir; seções sem acesso aparecem vazias, não quebradas).
+- [ ] Semana sem cadastro aparece como barra zero, não some do eixo.
+- [ ] Mobile: seções empilham em 1 coluna sem overflow horizontal.
+
+### Risco TSE/LGPD
+- Baixo: só agregados, nenhum dado nominal novo exposto. Candidato segue sem acesso a PII bruta — esta tela reforça o desenho original (candidato vê agregado, não lista).
+
+### Dependências
+- Nenhuma.
+
+---
+
+## [2026-07-19] Agenda de campanha (eventos territoriais)
+
+- **Objetivo:** registrar e acompanhar os atos de campanha — caminhadas, reuniões, comícios, carreatas, entrevistas, agendas internas — com data, território, lideranças envolvidas e presença. Era o "módulo de apoio: agenda territorial" previsto desde a definição de escopo (specs.md 2026-07-13) sem dono; entra agora como a maior lacuna funcional apontada no balanço, aprovado pelo usuário.
+
+### Decisões do Planejador (registradas, não perguntadas)
+1. **Edição restrita a `coord_campanha`; leitura pra todos os papéis internos** — agenda é operação central da coordenação. Ampliar edição (ex.: coord_marketing) é mudança de uma linha de policy se o usuário pedir; começo restrito, que é o reversível.
+2. **Vínculo de pessoas só com lideranças** (tabela de junção com presença) — não com eleitores/apoiadores nominais: presença de eleitor em evento é dado sensível de opinião política que o sistema não precisa guardar (LGPD art. 5º II); público geral entra como `publico_estimado` numérico no evento realizado.
+3. **Lista, não grade de calendário** — MVP é lista agrupada por dia (próximos primeiro), que resolve "o que temos essa semana". Visão mensal em grade fica registrada como evolução.
+4. **Aviso TSE de pré-propaganda, sem bloqueio:** evento de rua (caminhada/comício/carreata) com data antes de 16/08/2026 mostra aviso "antes do início da propaganda eleitoral (16/08) — confirme o enquadramento legal do ato". Não bloqueia: reunião interna e agenda de contato são lícitas antes; quem responde pelo enquadramento é humano. Showmício é vedado em qualquer data (Lei 9.504 art. 39 §7º) — nota no formulário quando tipo = comício.
+
+### Modelo de dados (migration nova, dupla enum+tabela no padrão 0014/0015)
+- Enums: `tipo_evento_campanha` ('caminhada','reuniao','comicio','carreata','entrevista','agenda_interna','outro'); `status_evento_campanha` ('planejado','confirmado','realizado','cancelado').
+- `eventos_campanha`: id, campanha_id NOT NULL FK, titulo TEXT NOT NULL, tipo NOT NULL, status NOT NULL default 'planejado', data_inicio TIMESTAMPTZ NOT NULL, data_fim TIMESTAMPTZ nullable CHECK (data_fim > data_inicio), territorio_id nullable FK, local_texto TEXT, descricao TEXT, publico_estimado INTEGER nullable CHECK (>= 0), criado_por FK usuarios_internos, created_at. Índice (campanha_id, data_inicio).
+- `eventos_liderancas`: evento_id FK ON DELETE CASCADE, lideranca_id FK ON DELETE CASCADE, compareceu BOOLEAN nullable (null = ainda não marcado), PK composta.
+- RLS force-enabled nas duas: SELECT `campanha_id = current_campanha_id()` (na junção, via join com eventos da campanha); INSERT/UPDATE/DELETE só `coord_campanha`. Grants correspondentes; revoke de anon.
+
+### Frontend
+- **`/agenda`** no grupo Gestão (ícone `CalendarDays`), entre Tarefas e Mapa: lista agrupada por dia com badge de tipo e status; filtros por status e território; form de criar/editar (título, tipo, data/hora início e fim, território, local, descrição, lideranças vinculadas); ação "marcar como realizado" que abre público estimado + presença das lideranças vinculadas.
+- Eventos passados não realizados ficam com destaque âmbar ("pendente de atualização") — agenda que ninguém atualiza vira lixo silencioso; o destaque é o empurrão.
+
+### Critérios de aceite
+- [ ] Isolamento cross-tenant testado nas duas tabelas (sessões de campanhas diferentes).
+- [ ] Papel não-coordenação lê a agenda mas não cria/edita/apaga (403/erro de policy, verificado com sessão real).
+- [ ] Vincular lideranças, marcar realizado com presença e público estimado funciona ponta a ponta.
+- [ ] Aviso de pré-propaganda aparece pra evento de rua antes de 16/08 e não aparece pra reunião interna.
+- [ ] Mobile: lista e formulário empilham sem overflow.
+
+### Risco TSE/LGPD
+- TSE: o sistema **registra** atos, não os legitima — avisos de pré-propaganda e showmício são lembretes, a responsabilidade legal é da campanha (mesma régua "sistema informa, humano decide" dos módulos de IA).
+- LGPD: nenhum dado nominal de eleitor vinculado a evento (decisão 2 acima) — só lideranças já cadastradas e número agregado de público.
+
+### Dependências
+- Nenhuma credencial. Migration nova na sequência (após 0027 e o calendário eleitoral, conforme ordem de implementação).
