@@ -517,3 +517,21 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** os 2 pontos "não testado visualmente" acima — não bloqueantes, mas vale conferir com dado real (upload de arquivo, sessão de advogado) quando possível.
 
 ---
+
+## [2026-07-19] Auditoria de UX/UI — terceira rodada: grafite mais claro na sidebar + chips coloridos no dashboard (ref. specs.md mesma data)
+
+- **Arquivos alterados:** `components/AppShell.tsx` (cor da sidebar), `app/dashboard/page.tsx` (chip colorido nos cards), `app/globals.css` (tentativa de token customizado adicionada e depois revertida — ver nota abaixo).
+- **Contexto:** usuário achou o sistema visualmente simples e perguntou minha opinião sobre grafite + azul-marinho. Expliquei o risco partidário do azul-marinho (PSDB) e sugeri grafite + manter indigo; montei um artifact de mockup comparativo (Atual/Proposta) antes de mexer em código, ajustei o tom (usuário pediu "um ou dois tons mais claro") e só então implementei, depois de aprovação explícita ("Agora sim ficou mais elegante").
+- **Mudanças técnicas:**
+  - Sidebar: `border-neutral-800 bg-neutral-900` → `border-[#3a414d] bg-[#232830]`; hover de item de nav e do botão de fechar (mobile) de `neutral-800/60`/`neutral-800` → `[#2c323c]/60`/`[#2c323c]`. Cores exatas herdadas do mockup aprovado no artifact.
+  - **Achado técnico durante a implementação:** a primeira tentativa foi registrar essas cores como tokens novos em `@theme inline` no `globals.css` (`--color-graphite-950` etc.), pra poder usar classes nomeadas (`bg-graphite-950`). Não funcionou sem reiniciar o servidor dev — confirmei por JS no navegador (`document.styleSheets`) que nenhuma regra `.bg-graphite-950` existia depois do hot-reload. Em vez de reiniciar o servidor do usuário só por isso, troquei pra valores arbitrários do Tailwind (`bg-[#232830]`), que funcionam imediatamente via JIT sem precisar de registro prévio no tema — removi a tentativa de token customizado do `globals.css` pra não deixar código morto.
+  - Dashboard: cards passam de `rounded-lg border border-neutral-200 bg-white p-4` (ícone solto em `text-neutral-400`) pra `rounded-xl border border-neutral-200/70 bg-white p-4 shadow-sm shadow-neutral-900/5`, com o ícone dentro de um chip (`h-8 w-8 rounded-lg`) tintado — `bg-indigo-50 text-indigo-600` em 5 dos 6 cards, `bg-amber-50 text-amber-700` só em "Alertas pendentes" (cor semântica de atenção, não o acento do sistema — mesma lógica de separação já usada no resto do app entre indigo/acento e amber/aviso).
+- **Desvio da spec:** nenhum, além do ajuste técnico já descrito (token customizado → valor arbitrário).
+- **Testado (typecheck + navegador real contra staging):**
+  1. `npx tsc --noEmit` — sem erro novo (mesmo erro pré-existente de sempre em `mensagens/enviar/route.ts`, não tocado).
+  2. Navegador: confirmei por `getComputedStyle` que `aside` renderiza `rgb(35, 40, 48)` (= `#232830`) depois da correção do token pra valor arbitrário; `border-radius` do card = `12px` (`rounded-xl`); chip com `background-color`/`color` tintados presentes no DOM.
+  3. Screenshot em 1280×800: sidebar grafite visível, item "Dashboard" ativo em indigo, 6 cards com chip colorido (5 indigo, 1 âmbar em "Alertas pendentes"), sombra suave, sem regressão de layout.
+  4. Sem erro de console.
+- **Pendências para o Testador:** nenhuma bloqueante. Extender o chip colorido pra outras telas (eleitores/apoiadores/lideranças) fica pra quando o usuário pedir — não foi assumido aqui.
+
+---

@@ -65,13 +65,13 @@ export default async function DashboardPage() {
       contar(supabase.from("demandas_observadas").select("*", { count: "exact", head: true })),
     ]);
 
-  const cards: { label: string; valor: number; icon: LucideIcon }[] = [
-    { label: "Eleitores", valor: eleitores, icon: Users },
-    { label: "Apoiadores ativos", valor: apoiadores, icon: Heart },
-    { label: "Lideranças ativas", valor: liderancas, icon: Network },
-    { label: "Tarefas a fazer", valor: tarefasAFazer, icon: ListChecks },
-    { label: "Alertas pendentes", valor: alertasPendentes, icon: Bell },
-    { label: "Demandas registradas", valor: demandas, icon: ClipboardList },
+  const cards: { label: string; valor: number; icon: LucideIcon; tint: "indigo" | "amber" }[] = [
+    { label: "Eleitores", valor: eleitores, icon: Users, tint: "indigo" },
+    { label: "Apoiadores ativos", valor: apoiadores, icon: Heart, tint: "indigo" },
+    { label: "Lideranças ativas", valor: liderancas, icon: Network, tint: "indigo" },
+    { label: "Tarefas a fazer", valor: tarefasAFazer, icon: ListChecks, tint: "indigo" },
+    { label: "Alertas pendentes", valor: alertasPendentes, icon: Bell, tint: "amber" },
+    { label: "Demandas registradas", valor: demandas, icon: ClipboardList, tint: "indigo" },
   ];
 
   return (
@@ -86,8 +86,17 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {cards.map((c) => (
-            <div key={c.label} className="rounded-lg border border-neutral-200 bg-white p-4">
-              <c.icon size={16} strokeWidth={2} className="mb-2 text-neutral-400" aria-hidden="true" />
+            <div
+              key={c.label}
+              className="rounded-xl border border-neutral-200/70 bg-white p-4 shadow-sm shadow-neutral-900/5"
+            >
+              <div
+                className={`mb-3 flex h-8 w-8 items-center justify-center rounded-lg ${
+                  c.tint === "amber" ? "bg-amber-50 text-amber-700" : "bg-indigo-50 text-indigo-600"
+                }`}
+              >
+                <c.icon size={16} strokeWidth={2} aria-hidden="true" />
+              </div>
               <p className="text-xs text-neutral-500">{c.label}</p>
               <p className="text-2xl font-semibold">{c.valor}</p>
             </div>

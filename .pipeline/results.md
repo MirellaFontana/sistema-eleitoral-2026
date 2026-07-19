@@ -566,3 +566,23 @@ Nada.
 
 ### Veredito: **aprovado, com ressalva de verificação parcial** — `Lock`/`CheckCircle2` não confirmados visualmente (ver item 5), risco residual baixo por serem mudanças mecânicas idênticas a padrão já testado alhures.
 
+
+## [2026-07-19] Auditoria de UX/UI — terceira rodada: grafite mais claro na sidebar + chips coloridos no dashboard (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging, servidor dev do usuário (porta 3000, já rodando), navegador embutido, sessão já autenticada, viewport 1280×800.
+
+### Testes realizados
+1. `npx tsc --noEmit` — sem erro novo introduzido.
+2. `getComputedStyle` do `<aside>` confirmou `rgb(35, 40, 48)` (`#232830`) depois de trocar o token customizado (que não funcionou sem reiniciar o servidor) por valor arbitrário Tailwind.
+3. `border-radius` do card do dashboard confirmado em `12px` (`rounded-xl`); chip do ícone com `background-color`/`color` tintados presentes.
+4. Screenshot 1280×800: sidebar grafite, item ativo "Dashboard" em indigo, 6 cards com chip colorido (indigo em 5, âmbar em "Alertas pendentes"), sombra suave, layout íntegro.
+5. Sem erro de console.
+
+### Passou
+Cor da sidebar aplicada corretamente após correção do método (arbitrário em vez de token de tema); cards com chip colorido e sombra sem regressão visual; typecheck limpo.
+
+### Falhou
+Nada — a tentativa inicial com token `@theme` não funcionou, mas foi corrigida na mesma entrega (não ficou como pendência).
+
+### Veredito: **aprovado, sem ressalva**
+

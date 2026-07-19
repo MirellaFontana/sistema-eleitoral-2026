@@ -18,6 +18,7 @@ import {
   Scale,
   Megaphone,
   FileText,
+  Reply,
   BookOpen,
   Gavel,
   Target,
@@ -48,7 +49,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/tarefas", label: "Tarefas", icon: ListChecks },
       { href: "/geolocalizacao", label: "Mapa", icon: MapPin },
-      { href: "/demandas-observadas", label: "Demandas", icon: ClipboardList },
     ],
   },
   {
@@ -60,14 +60,13 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Jurídico",
-    items: [
-      { href: "/monitoramento", label: "Monitoramento", icon: Eye },
-      { href: "/dossie-juridico", label: "Dossiê jurídico", icon: Scale },
-    ],
+    items: [{ href: "/dossie-juridico", label: "Dossiê jurídico", icon: Scale }],
   },
   {
     label: "Marketing",
     items: [
+      { href: "/monitoramento", label: "Monitoramento", icon: Eye },
+      { href: "/respostas", label: "Respostas", icon: Reply },
       { href: "/marketing", label: "Marketing", icon: Megaphone },
       { href: "/pecas-conteudo", label: "Peças de conteúdo", icon: FileText },
     ],
@@ -78,6 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/base-conhecimento", label: "Base de conhecimento", icon: BookOpen },
       { href: "/base-conhecimento#tema-codigo-eleitoral", label: "Código eleitoral", icon: Gavel },
       { href: "/concorrentes", label: "Concorrentes", icon: Target },
+      { href: "/demandas-observadas", label: "Demandas", icon: ClipboardList },
     ],
   },
 ];
@@ -96,7 +96,7 @@ function NavLink({
       className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm transition-colors ${
         active
           ? "bg-indigo-600 text-white"
-          : "text-neutral-400 hover:bg-neutral-800/60 hover:text-white"
+          : "text-neutral-400 hover:bg-[#2c323c]/60 hover:text-white"
       }`}
     >
       <Icon size={15} strokeWidth={2} className="shrink-0" aria-hidden="true" />
@@ -134,7 +134,7 @@ export function AppShell({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col gap-6 border-r border-neutral-800 bg-neutral-900 px-3 py-5 transition-transform duration-200 md:static md:w-56 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col gap-6 border-r border-[#3a414d] bg-[#232830] px-3 py-5 transition-transform duration-200 md:static md:w-56 md:translate-x-0 ${
           menuAberto ? "translate-x-0" : ""
         }`}
       >
@@ -142,7 +142,7 @@ export function AppShell({
           <p className="text-sm font-semibold text-white">Sistema Eleitoral 2026</p>
           <button
             onClick={() => setMenuAberto(false)}
-            className="rounded p-1 text-neutral-400 hover:bg-neutral-800 hover:text-white md:hidden"
+            className="rounded p-1 text-neutral-400 hover:bg-[#2c323c] hover:text-white md:hidden"
             aria-label="Fechar menu"
           >
             <X size={18} strokeWidth={2} aria-hidden="true" />

@@ -837,3 +837,56 @@ Do Bloco Relacionamento, com essa decisão, resta como claramente pré-eleição
 - **Dependências:** nenhuma.
 
 ---
+
+## [2026-07-19] Auditoria de UX/UI — terceira rodada: grafite mais claro na sidebar + chips coloridos no dashboard
+
+- **Objetivo:** usuário achou o visual ainda simples e pediu opinião sobre grafite + azul-marinho pra dar mais modernidade. Recomendei grafite (neutro, sem risco partidário) em vez de azul-marinho puro (associado ao PSDB no imaginário eleitoral brasileiro) — manter indigo como já validado, só aprofundar a base. Montei mockup comparativo (Atual/Proposta) antes de tocar código; usuário aprovou depois de pedir o grafite um pouco mais claro (dois tons).
+- **Decisões confirmadas com o usuário:** grafite claro na sidebar (não azul-marinho), manter indigo como único acento (sem mudança), gostou especificamente dos ícones em chip colorido nos cards do dashboard (Alertas, Lideranças, Tarefas etc.).
+- **Escopo:**
+  1. Sidebar (`AppShell.tsx`): fundo de `neutral-900`/`neutral-800` pra grafite com leve viés frio — `#232830` (fundo), `#3a414d` (borda), `#2c323c` (hover). Implementado com valor arbitrário Tailwind (`bg-[#232830]` etc.) em vez de token customizado em `@theme` — a primeira tentativa via `@theme inline` no `globals.css` não gerou a utilidade sem reiniciar o servidor dev (confirmado via inspeção de `document.styleSheets`, nenhuma regra `.bg-graphite-950` existia); revertido pra manter simples.
+  2. Dashboard (`dashboard/page.tsx`): os 6 cards ganham um chip colorido atrás do ícone (`bg-indigo-50 text-indigo-600` na maioria, `bg-amber-50 text-amber-700` só no card "Alertas pendentes" — cor semântica de atenção, não o acento do sistema), cantos maiores (`rounded-xl`) e sombra suave (`shadow-sm shadow-neutral-900/5`) no lugar da borda plana.
+- **Fora desta entrega:** ícones em chip nas outras telas de tabela (eleitores/apoiadores/lideranças) — só o dashboard foi pedido/mostrado no mockup; se o usuário gostar do resultado real, extends pra outras telas fica pra rodada seguinte, não assumido aqui.
+- **Dados/tabelas afetadas:** nenhuma — mudança 100% frontend.
+- **Risco TSE/LGPD:** nenhum. Nota de neutralidade partidária: grafite/indigo mantidos deliberadamente por não terem associação com legenda brasileira relevante (documentado desde a escolha original do indigo); azul-marinho foi descartado exatamente por esse motivo.
+- **Dependências:** nenhuma.
+
+---
+
+## [2026-07-19] Reorganização de menu (Demandas, Monitoramento) + novo sistema Respostas (Marketing)
+
+- **Objetivo:** três pedidos do usuário, registrados numa mensagem anterior e agora autorizados a implementar: (1) mover "Demandas" pra dentro do grupo Conhecimento, (2) mover "Monitoramento" pra dentro do grupo Marketing, (3) criar um sistema novo "Respostas" dentro de Marketing — a pessoa cola uma pergunta recebida nas redes sociais e o sistema sugere uma resposta usando o conhecimento já cadastrado na campanha + copywriting/neuromarketing político/persuasão.
+
+### Reorganização de menu (decisão do usuário, não peço confirmação de detalhe)
+- `AppShell.tsx` `NAV_GROUPS`: "Demandas" sai de Gestão e entra em Conhecimento (fica: Base de conhecimento, Código eleitoral, Concorrentes, Demandas). "Monitoramento" sai de Jurídico e entra em Marketing. Isso deixa o grupo Jurídico só com "Dossiê jurídico" (grupo de 1 item já existe hoje em Administração/Usuários, não é um problema estrutural). Grupo Marketing fica, em ordem de fluxo de trabalho: Monitoramento (detectar menção/pergunta) → Respostas (responder) → Marketing (planejar conteúdo) → Peças de conteúdo (produzir/aprovar).
+- **Nota de desvio de decisão anterior:** `specs.md` [2026-07-18] tinha registrado Monitoramento dentro de Jurídico como decisão minha (não pedida). O usuário agora pediu explicitamente pra mudar — não é engano, é revisão de uma decisão anterior.
+
+### Sistema "Respostas" — decisões de escopo (autonomia técnica concedida pelo usuário, documentada aqui)
+1. **Página própria** (`/respostas`, não uma seção dentro de `/marketing`) — mesmo padrão de "Peças de conteúdo" (que também é página própria dentro do grupo Marketing), porque o usuário chamou de "um sistema", não um recurso a mais dentro da página existente.
+2. **Reaproveita o padrão de `sugestoes_conteudo`** (Módulo 4): tabela de histórico append-only (sem UPDATE/DELETE — é registro de auditoria de chamada de IA, não conteúdo editável), leitura liberada a todo papel interno ativo da campanha, criação por `coord_campanha`/`coord_marketing`/`redator_marketing` (mesmo conjunto de papéis que já gera sugestão de conteúdo).
+3. **Contexto pra IA puxado de verdade da Base de Conhecimento** — em vez de depender só de copy-paste manual (como `sugestoes_conteudo` faz hoje), a rota busca todos os `base_conhecimento_itens` (título+descrição) da campanha do usuário (a mesma consulta que `/marketing` já faz pra alimentar a lista de propostas do `SugestaoForm`) e manda como contexto de fundo pra IA, complementado por um campo opcional "contexto adicional" caso a pessoa queira acrescentar algo pontual que não esteja na base. Isso é o ponto central do pedido ("baseado no conhecimento adquirido no sistema").
+4. **Canal de origem reaproveita o enum `canal_peca_conteudo`** já existente (sem migration de tipo novo) — na UI de Respostas só ofereço o subconjunto que faz sentido pra "pergunta recebida em rede social" (instagram, facebook, tiktok, whatsapp, outro — omito rádio/tv/site do formulário, embora o enum completo continue existindo no banco).
+5. **Prompt de sistema novo** (`SISTEMA_RESPOSTA_REDES` em `lib/anthropic.ts`), com instrução explícita de copywriting + neuromarketing político + persuasão, mas com as mesmas salvaguardas já usadas em `SISTEMA_SUGESTAO_CONTEUDO`: não inventar fatos/números, não difamar concorrente, nunca fingir ser um eleitor/pessoa real, e deixar claro que é sugestão pra revisão humana antes de postar. **Isto é só uma sugestão de rascunho — o sistema não posta nada sozinho em rede social nenhuma**, mesma régua de "IA sugere, humano publica" já usada em todo o Módulo 4.
+6. **Sem rotulagem/aprovação formal tipo `pecas_conteudo`** — é uma ferramenta de rascunho interno (como `sugestoes_conteudo`), não o conteúdo final publicado. Se a pessoa decidir usar a resposta sugerida literalmente como uma peça pública (ex.: responder um comentário publicamente como "post"), essa peça nasceria em `pecas_conteudo` com `usou_ia=true` e seguiria a rotulagem já obrigatória de lá — não duplico essa lógica aqui.
+
+### Modelo de dados (migration 0025)
+- `respostas_redes_sociais`: id, campanha_id, pergunta TEXT NOT NULL, canal_origem `canal_peca_conteudo` NOT NULL default 'outro', contexto_adicional TEXT nullable, resposta_sugerida TEXT NOT NULL, modelo_ia TEXT NOT NULL, solicitado_por FK usuarios_internos nullable, created_at.
+- RLS: force enabled. SELECT liberado a `campanha_id = current_campanha_id()` (qualquer papel interno ativo — `current_papel()` já exige `status='ativo'` desde a correção da migration 0023). INSERT só `coord_campanha`/`coord_marketing`/`redator_marketing`. Sem policy de UPDATE/DELETE.
+
+### Frontend
+- **`/respostas`:** form (pergunta, canal de origem, contexto adicional opcional) + botão "Gerar resposta sugerida" + resultado com aviso "sugestão gerada por IA — revisão humana obrigatória antes de postar" (mesmo texto/padrão do `SugestaoForm`). Histórico de respostas já geradas abaixo (mesma lista simples de `sugestoes_conteudo`/`analises_campanha`).
+- Rota `POST /api/marketing/resposta`: valida papel (espelha RLS), busca `base_conhecimento_itens` da campanha via sessão do próprio usuário (RLS já filtra por tenant), monta prompt com pergunta+canal+contexto_adicional+conhecimento, chama Anthropic, grava e retorna.
+
+### Critérios de aceite
+- [ ] RLS force-enabled + isolamento cross-tenant testado.
+- [ ] `redator_marketing` gera resposta (positivo); `advogado_responsavel`/`assistente_juridico` não conseguem (trigger/policy bloqueia via API — 403).
+- [ ] Leitura do histórico liberada a todo papel interno ativo (mesmo padrão de sugestões).
+- [ ] Sem `ANTHROPIC_API_KEY` configurada, a rota retorna erro claro (mesmo padrão já usado em `/api/marketing/sugestao`) — não finge que gerou.
+- [ ] Menu: Demandas aparece em Conhecimento, Monitoramento aparece em Marketing, ambos navegam pra rota certa (rotas não mudam, só o agrupamento visual).
+
+### Risco TSE/LGPD
+- Baixo: é uma ferramenta de rascunho/sugestão interna (mesma régua já usada em `sugestoes_conteudo`/`analises_campanha`) — não publica nada sozinha, não interage com o eleitor, não inventa fatos (restrita ao conhecimento cadastrado + instrução explícita contra invenção). O maior cuidado é o prompt não incentivar desinformação ou ataque a concorrente — mitigado pelas mesmas salvaguardas já usadas no resto do Módulo 4.
+
+### Dependências
+- `ANTHROPIC_API_KEY` já configurada (usada por todo o Módulo 4) — sem bloqueio novo.
+
+---

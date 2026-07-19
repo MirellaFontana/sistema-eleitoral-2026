@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Check, X } from "lucide-react";
+import { Eye, Pencil, Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelTerritorio } from "@/lib/territorio";
 
@@ -44,6 +44,7 @@ export function CidadaoTable({
   const supabase = createClient();
   const [busca, setBusca] = useState("");
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [visualizandoId, setVisualizandoId] = useState<string | null>(null);
   const [alterandoStatusId, setAlterandoStatusId] = useState<string | null>(null);
 
   const filtradas = linhas.filter((l) => {
@@ -89,6 +90,8 @@ export function CidadaoTable({
                 router.refresh();
               }}
             />
+          ) : visualizandoId === l.id ? (
+            <CidadaoViewRow key={l.id} linha={l} onFechar={() => setVisualizandoId(null)} />
           ) : (
             <li key={l.id} className="rounded border border-neutral-200 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -100,6 +103,13 @@ export function CidadaoTable({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setVisualizandoId(l.id)}
+                    className="flex items-center gap-1 rounded border border-neutral-300 px-2.5 py-0.5 text-xs font-medium hover:bg-neutral-50"
+                  >
+                    <Eye size={12} strokeWidth={2} aria-hidden="true" />
+                    Visualizar
+                  </button>
                   {podeGerenciar && (
                     <button
                       onClick={() => setEditandoId(l.id)}
@@ -141,6 +151,40 @@ export function CidadaoTable({
         )}
       </ul>
     </div>
+  );
+}
+
+function Campo({ label, valor }: { label: string; valor: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-neutral-500">{label}</p>
+      <p className="text-sm">{valor}</p>
+    </div>
+  );
+}
+
+function CidadaoViewRow({ linha, onFechar }: { linha: Linha; onFechar: () => void }) {
+  return (
+    <li className="rounded border border-neutral-300 bg-neutral-50 p-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Campo label="Nome" valor={linha.nome} />
+        <Campo label="WhatsApp" valor={linha.whatsapp} />
+        <Campo label="E-mail" valor={linha.email ?? "não informado"} />
+        <Campo label="Temperatura do voto" valor={CIRCULO_LABEL[linha.circulo] ?? linha.circulo} />
+        <Campo label="Bairro/território" valor={linha.territorioLabel} />
+        <Campo label="Liderança" valor={linha.liderancaNome ?? "nenhuma"} />
+        <Campo label="Status" valor={linha.status === "ativo" ? "Ativo" : "Inativo"} />
+        <Campo label="Cadastrado em" valor={formatarData(linha.createdAt)} />
+      </div>
+      <button
+        type="button"
+        onClick={onFechar}
+        className="mt-3 flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100"
+      >
+        <X size={14} strokeWidth={2} aria-hidden="true" />
+        Fechar
+      </button>
+    </li>
   );
 }
 
