@@ -255,8 +255,9 @@ export function ItemCard({
                 setNovaInfo("");
                 setErro(null);
               }}
-              className="rounded border border-neutral-300 px-3 py-1 text-xs"
+              className="flex items-center gap-1 rounded border border-neutral-300 px-3 py-1 text-xs"
             >
+              <X size={12} strokeWidth={2} aria-hidden="true" />
               Cancelar
             </button>
           </div>
