@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 
 type Territorio = { id: string; nome_bairro: string | null };
 
+// "Embaixador" saiu das opções: liderança de campo não tem mais login — vira registro em
+// /liderancas (ref. specs.md [2026-07-15] "Remodelagem do campo"). O papel segue no banco
+// só como legado.
 const PAPEIS = [
-  { value: "embaixador", label: "Embaixador" },
   { value: "advogado_responsavel", label: "Advogado responsável" },
   { value: "assistente_juridico", label: "Assistente jurídico" },
   { value: "coord_marketing", label: "Coord. de marketing" },
@@ -21,7 +23,8 @@ export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
-  const [papel, setPapel] = useState("embaixador");
+  const [telefone, setTelefone] = useState("");
+  const [papel, setPapel] = useState("redator_marketing");
   const [territorioId, setTerritorioId] = useState("");
   const [expiraEm, setExpiraEm] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -47,6 +50,7 @@ export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
       body: JSON.stringify({
         email,
         nome,
+        telefone: telefone.trim(),
         papel,
         territorio_id: precisaTerritorio ? territorioId : null,
         exige_mfa: MFA_OBRIGATORIO.has(papel),
@@ -64,6 +68,7 @@ export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
     setSucesso(`Convite enviado para ${email}.`);
     setEmail("");
     setNome("");
+    setTelefone("");
     router.refresh();
   }
 
@@ -86,6 +91,21 @@ export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-neutral-500">
+            Telefone (WhatsApp)
+          </label>
+          <input
+            required
+            placeholder="+55819..."
+            value={telefone}
+            onChange={(e) => setTelefone(e.target.value)}
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
         </div>

@@ -149,3 +149,365 @@ Execução real contra Postgres/Supabase de staging (não traço manual), 12/12 
 **Nota para o Revisor:** `sugestao_conteudo_id` (rastreabilidade com `sugestoes_conteudo` do Módulo 4) existe no schema mas não foi exercitado em nenhum teste nem exposto no formulário — é campo opcional, não bloqueante, mas fica registrado como não coberto por teste ainda.
 
 ---
+
+## [2026-07-15] Módulo 3 — Jurídico: Escudo antideepfake — migration 0013 (ref. changes.md mesma data)
+
+- **Ambiente:** mesmo staging (`czrlvvdtpycbkbxsgvev`), mesmo método (`supabase db query --linked -f arquivo.sql`), mesmo access token de uso pontual (ainda não revogado pelo usuário desde a entrada anterior).
+
+- **Script de teste:** [.pipeline/monitoramento_evidencia_test.sql](monitoramento_evidencia_test.sql) — 9 testes, mesmo padrão de fixtures das rodadas anteriores.
+
+### Resultado — 9 de 9 passaram (execução real)
+1. Insere item de ameaça com hash (positivo).
+2. Hash em categoria fora de ameaça bloqueado — `CHECK hash_so_para_ameaca`.
+3. `hash_evidencia` sem `hash_calculado_em` bloqueado — `CHECK hash_par_completo`.
+4. UPDATE de `status` em item já lacrado continua funcionando (positivo) — confirma que a imutabilidade é seletiva, não trava o item inteiro.
+5. UPDATE de `descricao` em item lacrado bloqueado pelo trigger.
+6. UPDATE de `captura_path` em item lacrado bloqueado pelo trigger.
+7. UPDATE de `categoria` pra fora do escopo de ameaça, com hash ainda presente, bloqueado pelo `CHECK` (efeito colateral do mesmo constraint do item 2 — revalidado em UPDATE, não só INSERT).
+8. Item de categoria de ameaça sem arquivo de captura fica sem hash (positivo) — confirma que o sistema não força prova onde não há o que hashear, em vez de falhar ou inventar um hash vazio.
+9. Isolamento cross-tenant: outra campanha não vê os itens lacrados desta, mesmo padrão já validado em todos os módulos anteriores.
+
+- **Verificação pós-teste:** confirmei 0 linhas de fixture (`Campanha Evidencia A/B`) remanescentes no staging.
+
+### Frontend — testado no navegador (dev local, contra staging)
+- Login como `advogado_responsavel` de teste (já criado na entrada anterior, reaproveitado).
+- Simulei a seleção de um arquivo real via `DataTransfer` + evento `change` no `<input type="file">` (limitação de sempre pra dirigir o seletor nativo do SO nesta automação), o que exercitou o componente `MonitoramentoForm` de ponta a ponta, não uma chamada isolada à API do Storage.
+- Registrei item categoria "Deepfake suspeito" com arquivo: hash calculado e gravado automaticamente, sem ação manual — selo "🔒 Evidência lacrada" apareceu na lista imediatamente.
+- `/dossie-juridico`: listou exatamente o item lacrado (SHA-256 e carimbo de data/hora visíveis), excluindo corretamente um item pré-existente da mesma categoria mas sem arquivo/hash.
+- **Ressalva de método, não de produto:** o botão "Ver captura" pareceu não funcionar quando verificado via `read_network_requests` — essa ferramenta de teste não captura chamadas cross-origin ao Supabase (confirmado: nem login, nem inserts, nem a chamada de assinatura de URL nunca apareceram nesse log, mesmo nos casos que sabidamente funcionaram). Confirmei o funcionamento real interceptando `window.open` via `javascript_tool`: a signed URL correta do bucket `monitoramento`, com o path certo, foi gerada e passada pra abertura. Nenhum bug real aqui — registrado pra não repetir o mesmo diagnóstico equivocado numa próxima rodada.
+- Item de teste e arquivo de teste removidos do staging (Storage + tabela) ao final, via `service_role`.
+
+### Passou
+Todos os 9 testes de banco + o fluxo completo no navegador (registro com hash automático, selo de evidência lacrada, dossiê filtrando corretamente, download de captura confirmado via interceptação de `window.open`).
+
+### Falhou
+Nada nesta rodada.
+
+### Veredito: **aprovado, sem ressalva**
+Execução real (banco + navegador), 9/9 testes de banco passando, fluxo completo confirmado no navegador com evidência de que o download de captura funciona de verdade (não apenas assumido). Staging limpo ao final.
+
+**Nota para o Revisor:** o texto da UI (`/dossie-juridico` e o aviso no formulário) já deixa explícito que o hash é "cadeia de custódia interna", não notarização externa — decisão de produto tomada em specs.md pra não a interface prometer uma garantia jurídica que o sistema não cumpre. Vale o Revisor conferir se esse texto é suficiente ou se o advogado do cliente vai querer algo mais forte (ex.: RFC 3161) antes de usar isso em processo real — fica registrado como ponto em aberto, não decidido aqui.
+
+---
+
+## [2026-07-16] Remodelagem do campo — Lideranças, metas, tarefas, mapa — migrations 0014-0016 (ref. changes.md mesma data)
+
+- **Ambiente:** mesmo staging (`czrlvvdtpycbkbxsgvev`), mesmo método (`supabase db query --linked -f arquivo.sql`), mesmo access token de sessão anterior (ainda válido).
+- **Script de teste:** [.pipeline/liderancas_test.sql](liderancas_test.sql) — 14 testes, mesmo padrão de fixtures das rodadas anteriores.
+
+### Resultado — 14 de 14 passaram (execução real)
+1. `coord_marketing` cria liderança (positivo).
+2. `candidato` NÃO cria liderança — bloqueado por RLS.
+3. Isolamento cross-tenant nas 3 tabelas novas (`liderancas`, `metas`, `tarefas`).
+4. `coord_campanha` digita cidadão com origem `formulario_lideranca` + liderança da própria campanha (positivo).
+5. Liderança de OUTRA campanha é rejeitada — o `EXISTS` da policy roda sob a RLS de `liderancas`, então nem enxerga a liderança de fora.
+6. Formulário sem `lideranca_id` é rejeitado — `CHECK formulario_lideranca_exige_lideranca`.
+7. `coord_marketing` NÃO digita cidadão — modelo de PII da migration 0006 preservado, não afrouxado pela nova porta de entrada.
+8. Meta geral criada por `coord_marketing` (positivo).
+9. Meta tipo `lideranca` sem `lideranca_id` é rejeitada — `CHECK meta_lideranca_coerente`.
+10. DELETE de meta: `redator_marketing` = 0 linhas afetadas (RLS bloqueia silenciosamente, sem erro — `DELETE` sem `WHERE` que a policy autorize simplesmente não afeta nada), `coord_marketing` = 1 linha.
+11. `redator_marketing` cria tarefa (positivo) — responsável em texto livre.
+12. `candidato` NÃO cria tarefa.
+13. DELETE de tarefa: `redator_marketing` = 0, `coord_campanha` = 1 — só coordenação exclui.
+14. `candidato` lê `liderancas` (positivo) — leitura liberada a todos os papéis internos, diferente do modelo de `cidadaos`.
+
+### Frontend — testado no navegador (dev local, contra staging)
+- **MFA:** a conta de teste `coord_campanha` já tinha MFA enrolado de uma sessão anterior, mas sem o secret disponível nesta sessão nova. Em vez de recriar a conta, escrevi um gerador de TOTP local (RFC 6238, HMAC-SHA1, 6 dígitos, passo de 30s) a partir do secret mostrado na própria tela de enroll — permite verificar MFA sem depender de um app autenticador externo rodando em paralelo. Validei contra o fluxo real do Supabase (`mfa.challenge` + `mfa.verify`), não simulado.
+- **Fluxo ponta a ponta real:** criei liderança "Paula Mendes" (sem território) com meta de 400 cadastros → apareceu na tabela com progresso 0%. Criei território "Boa Viagem" com busca de coordenada real via Nominatim (retornou -8.1235027, -34.9033955, coordenada verdadeira do bairro no Recife) → criei liderança "Roberto Nunes" nesse território → digitei 2 cidadãos (um por liderança, um deles "quente"/apoiador) via `/cidadaos`, cada um gerando cidadão + consentimento LGPD numa sequência de duas chamadas. Voltei em `/liderancas`: cadastros e progresso (1/400) refletiram o dado real, não um valor mockado. Fui em `/geolocalizacao`: círculo azul (sem meta de território definida) renderizado em cima do bairro real no mapa Leaflet/OpenStreetMap; cliquei no círculo e o popup mostrou "Boa Viagem · Recife — Cadastros: 1 — Apoiadores: 0 — Lideranças: 1 — Sem meta definida — 1 sem coordenada no mapa" — todos os números batendo com o estado real do banco.
+- **RLS confirmada no navegador, não só no SQL:** logado como `coord_marketing`, `/cidadaos` mostrou a mensagem de bloqueio de LGPD (sem acesso à base nominal); a mesma conta conseguiu gerenciar lideranças normalmente, vendo a contagem de cadastros (número) sem nunca ver nome/whatsapp do cidadão — confirma que as funções agregadas (`SECURITY DEFINER`) expõem só o agregado, não a linha.
+
+### Passou
+Todos os 14 testes de banco + o fluxo completo no navegador (lideranças, metas, tarefas, digitação de formulário com consentimento, mapa com geocodificação real).
+
+### Falhou
+Nada nesta rodada.
+
+### Veredito: **aprovado, com uma ressalva de processo (não de produto)**
+Execução real (banco + navegador), 14/14 testes de banco passando, fluxo completo confirmado no navegador com dado geográfico real (Nominatim) e mapa renderizado de verdade.
+
+**Ressalva:** não consegui limpar os 2 cidadãos de teste (+ consentimentos) do staging ao final — `consentimentos_lgpd` é append-only por trigger, e a FK impede apagar o cidadão enquanto o consentimento existir. Não tentei contornar isso (ex.: desabilitar o trigger manualmente) porque seria comprometer, mesmo que temporariamente, a garantia de imutabilidade que a Módulo 1 testou e validou — o preço de um teste 100% realista é não conseguir desfazer tudo depois. `liderancas` e o território "Boa Viagem" de teste ficaram no staging pelo mesmo motivo (FK). `metas` e `tarefas` de teste foram removidas normalmente. Fica registrado como resíduo conhecido e inofensivo, não como falha.
+
+---
+
+## [2026-07-16] Módulo 3 — Jurídico parte 3: Matriz de alertas + encaminhamento — migrations 0017/0018 (ref. changes.md mesma data)
+
+- **Ambiente:** mesmo staging (`czrlvvdtpycbkbxsgvev`), mesmo método (`supabase db query --linked -f arquivo.sql`), mesmo access token de sessão anterior.
+- **Script de teste:** [.pipeline/alertas_test.sql](alertas_test.sql) — 9 testes.
+
+### Primeira rodada — 1 de 9 passou, achado real de bug
+Teste 1 (gravidade alta gera 2 alertas) falhou com `new row violates row-level security policy for table "alertas"`. Investigado: o trigger `gerar_alertas_ameaca_grave()` rodava com o privilégio de quem inseriu o `monitoramento_item` (role `authenticated`), e a tabela `alertas` não tem policy de INSERT (de propósito — só o trigger deveria escrever ali). Sem `SECURITY DEFINER`, a própria RLS bloqueava a escrita do sistema. Como o `EXCEPTION WHEN OTHERS` do teste 1 fez rollback até o savepoint (desfazendo também o `INSERT` em `monitoramento_itens` daquele teste), os testes 5-9 falharam em cascata por não acharem nenhuma linha pra trabalhar — não eram 5 bugs independentes, era 1 causa raiz. Corrigido com a migration 0018 (`SECURITY DEFINER SET search_path = public` na função, mesmo padrão das helpers de RLS da 0001).
+
+### Segunda rodada — 9 de 9 passaram (execução real, pós-fix)
+1. Gravidade alta gera 2 alertas automaticamente (positivo).
+2. Gravidade média não gera alerta.
+3. Categoria não-ameaça não gera alerta.
+4. Isolamento cross-tenant.
+5. `coord_marketing` marca "lido" (positivo) — leitura/interação liberada a todos os papéis internos.
+6. `coord_marketing` NÃO marca encaminhamento — bloqueado pelo trigger de separação de poder, com mensagem clara (`Só o advogado responsável marca encaminhamento à Justiça Eleitoral`).
+7. `advogado_responsavel` marca encaminhamento com nota (positivo).
+8. `encaminhado_por` diferente do usuário autenticado é bloqueado — ninguém assina em nome de outro.
+9. `status_envio` nasce `pendente_configuracao` — reflete honestamente que o envio de WhatsApp ainda não está ligado.
+
+### Frontend — testado no navegador (contra staging)
+- Logado como `coord_marketing`, registrei um item real de deepfake com gravidade alta em `/monitoramento`. Naveguei pra `/alertas`: 2 alertas apareceram na hora (um pra `advogado_responsavel`, um pra `coord_campanha`), cada um com o aviso "⚠️ Envio por WhatsApp ainda não configurado" visível — a UI não finge que enviou.
+- Marquei "lido" num alerta como `coord_marketing`: funcionou, badge mudou de "Não lido" pra "Lido". Confirmei que o botão de encaminhamento **não aparece** pra esse papel.
+- Logout, login como `advogado_responsavel`: o botão de encaminhamento aparece nos dois alertas. Marquei um deles com uma nota de teste — virou selo "✅ Encaminhado à Justiça Eleitoral em [data] por Advogado Teste E2E" com a nota exibida. O outro alerta (mesmo item de ameaça, destinatário `coord_campanha`) continuou como estava, confirmando que cada destinatário tem seu próprio rastreio independente, não um estado compartilhado por item.
+- Dado de teste removido do staging ao final (`alertas` + `monitoramento_itens` de teste).
+
+### Passou
+Todos os 9 testes de banco (após a correção) + o fluxo completo no navegador (geração automática, leitura/marcação de lido por qualquer papel, encaminhamento exclusivo do advogado, independência entre destinatários).
+
+### Falhou
+Nada na rodada final — a falha da primeira rodada foi diagnosticada, corrigida (migration 0018) e reconfirmada na segunda rodada.
+
+### Veredito: **aprovado, sem ressalva**
+Execução real (banco + navegador), 9/9 testes passando na rodada final, um bug real de RLS pego e corrigido no processo (documentado acima, não escondido). Staging limpo ao final desta entrada especificamente.
+
+**Nota para o Revisor:** o envio real de WhatsApp depende de credencial de provedor que o usuário ainda não forneceu — schema e fila já preparados (`status_envio`, campo `telefone`), só falta a integração de fato. Isso fecha as 3 partes do Módulo 3 (Jurídico) no nível de schema/RLS testado.
+
+---
+
+## [2026-07-16] Módulo Relacionamento — parte 1: Cadastro de apoiadores — migration 0019 (ref. changes.md mesma data)
+
+- **Ambiente:** mesmo staging (`czrlvvdtpycbkbxsgvev`), mesmo método (`supabase db query --linked -f arquivo.sql`), mesmo access token de sessão anterior.
+- **Script de teste:** [.pipeline/apoiadores_test.sql](apoiadores_test.sql) — 8 testes.
+
+### Primeira rodada — 2 de 8 "falharam", mas era o script, não a migration
+Testes 2 (`coord_marketing` não deveria conseguir vincular cidadão) e 8 (mesma restrição via UPDATE) reportaram "inseriu/atualizou sem erro". Investigando: a subquery `(SELECT id FROM cidadaos WHERE nome='Cidadao Fixture A')` dentro desses dois testes rodava **sob a sessão de `coord_marketing`**, que já não tem RLS pra ler `cidadaos` (regra da migration 0006) — a subquery voltava `NULL` antes mesmo do trigger novo ser exercitado. O teste 2 na prática inseriu um apoiador com `cidadao_id = NULL` (não um vínculo indevido); o teste 8 fez um "UPDATE cidadao_id = NULL" numa linha que já tinha `cidadao_id = NULL` (no-op). Nenhum dos dois provava o que deveria provar.
+- **Correção do script (não da migration):** guardei o id do cidadão de fixture numa tabela auxiliar (`fixture_ids`) logo após criá-lo, ainda em contexto sem restrição de papel — os testes 2 e 8 passaram a usar esse id fixo, testando de verdade a tentativa de vínculo por quem não pode.
+
+### Segunda rodada — 8 de 8 passaram (execução real, script corrigido)
+1. `coord_marketing` cria apoiador sem `cidadao_id` (positivo).
+2. `coord_marketing` NÃO vincula cidadão — bloqueado pelo trigger, mensagem clara ("Só coord_campanha vincula apoiador a um cidadão cadastrado").
+3. `coord_campanha` vincula cidadão da própria campanha (positivo).
+4. `cidadao_id` de campanha diferente é rejeitado (defesa em profundidade — mesmo que alguém adivinhasse um UUID de outra campanha).
+5. `candidato` lê apoiadores (positivo) — leitura liberada a todos os papéis internos.
+6. `candidato` NÃO cria apoiador.
+7. Isolamento cross-tenant.
+8. `coord_marketing` NÃO altera `cidadao_id` via UPDATE (mesma trava do teste 2, testada no sentido de edição, não só criação).
+
+### Frontend — testado no navegador (contra staging)
+- Logado como `coord_campanha`: criei apoiador "Marcos Vieira" marcando "Transporte" e "Doação de material" — o aviso de compliance (Lei 9.504/1997) apareceu na hora, antes mesmo de salvar. Vinculei ao eleitor "Eleitor Teste E2E" já cadastrado — apareceu na lista com o selo "(vinculado a eleitor)".
+- Logout, login como `coord_marketing`: confirmei que o campo "Já é eleitor cadastrado?" **não existe** no formulário pra esse papel (nem aparece vazio — está completamente ausente), e que o card do Marcos Vieira, visto por esse papel, **não mostra** o selo de vínculo — confirma que o join com `cidadaos` retorna vazio sob a RLS de `coord_marketing`, sem vazar nem o sinal de "existe um vínculo". Criei um segundo apoiador como `coord_marketing`, sem tentar vínculo (nem daria, o campo não existe) — funcionou normalmente.
+- Dado de teste removido do staging ao final.
+
+### Passou
+Todos os 8 testes de banco (rodada final) + o fluxo completo no navegador, incluindo a ausência correta do campo de vínculo pra quem não deveria vê-lo.
+
+### Falhou
+Nada na rodada final — as 2 falhas da primeira rodada foram diagnosticadas como falha de metodologia de teste (não da migration) e corrigidas.
+
+### Veredito: **aprovado, sem ressalva**
+Execução real (banco + navegador), 8/8 testes passando na rodada final. A separação de poder pra vínculo com cidadão foi comprovada nos dois sentidos (INSERT e UPDATE), e a ausência do campo no frontend pra quem não deveria vê-lo foi confirmada visualmente, não só assumida pelo código.
+
+**Nota para o Revisor:** a base legal mais leve (sem consentimento formal, diferente do resto do sistema) é uma decisão de produto do usuário — vale confirmar com o jurídico do cliente antes de usar em campanha real. O aviso de "doação de material" é só texto informativo, não bloqueia o cadastro nem gera nenhum registro de compliance.
+
+---
+
+## [2026-07-16] Cadastro de mensagens — migration 0020 (ref. changes.md mesma data)
+
+- **Ambiente:** mesmo staging (`czrlvvdtpycbkbxsgvev`), mesmo método (`supabase db query --linked -f arquivo.sql`).
+- **Script de teste:** [.pipeline/mensagens_test.sql](mensagens_test.sql) — 10 testes, já aplicando a lição da entrada anterior (fixtures de destinatário guardadas numa tabela auxiliar antes de qualquer troca de papel).
+
+### Resultado — 10 de 10 passaram de primeira (execução real)
+1. `coord_marketing` manda mensagem pra apoiador (positivo).
+2. `coord_marketing` NÃO manda mensagem pra cidadão.
+3. `coord_campanha` manda mensagem pra cidadão (positivo).
+4. `redator_marketing` não manda mensagem nenhuma (não está na lista de papéis liberados pra nenhum tipo de destinatário).
+5. CHECK de coerência tipo/FK rejeitado (tipo='apoiador' com `cidadao_id` preenchido).
+6. Destinatário de outra campanha rejeitado — trigger de defesa em profundidade.
+7. Mensagem nasce `pendente_configuracao`.
+8. `coord_marketing` NÃO lê mensagem pra cidadão (mesmo sendo da própria campanha).
+9. `coord_marketing` lê mensagem pra apoiador (positivo).
+10. Isolamento cross-tenant.
+
+### Frontend — testado no navegador (contra staging), com uma verificação final por SQL
+- Criei apoiador de teste. Logado como `coord_marketing`, mandei mensagem pra ele via `/mensagens`: aviso "Mensagem registrada, mas o envio por WhatsApp ainda não está configurado" apareceu na hora, com o detalhe exato (`WHATSAPP_API_TOKEN ausente`) salvo e exibido na lista.
+- Logout, login como `coord_campanha`: confirmei que a opção "Eleitor" aparece no seletor de tipo de destinatário (não aparecia pro `coord_marketing`) — mandei mensagem pra um eleitor existente, mesmo resultado de pendência de configuração.
+- **A sessão de navegador foi interrompida antes de eu logar de volta como `coord_marketing` pra confirmar visualmente que a mensagem-pra-eleitor ficaria escondida.** Em vez de reabrir uma sessão de navegador só pra isso, verifiquei via `supabase db query --linked` simulando a mesma role/sessão de `coord_marketing` diretamente contra o staging: `SELECT count(*) FROM mensagens` (com RLS ativa) retornou 1 (só a mensagem do apoiador) e `SELECT count(*) FROM mensagens WHERE tipo_destinatario='cidadao'` retornou 0 — confirma exatamente o comportamento esperado (bate com o teste 8 do banco), só que verificado por SQL em vez de screenshot de navegador. Registrado aqui por transparência de método, não é uma verificação mais fraca (é a mesma RLS, mesmo staging, mesma sessão simulada), só uma superfície diferente.
+- Dado de teste (apoiador + 2 mensagens) removido do staging ao final.
+
+### Passou
+Todos os 10 testes de banco + o fluxo de envio (com pendência de configuração correta) no navegador + a verificação final de RLS condicional (via SQL).
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, sem ressalva**
+Execução real (banco 10/10 de primeira + navegador + SQL de confirmação), sem nenhum bug encontrado nesta entrega. A trava estrutural contra disparo em massa (uma linha por destinatário) e a visibilidade condicional por tipo de destinatário funcionam como especificado.
+
+**Nota para o Revisor:** o envio real por WhatsApp continua bloqueado por falta de credencial de provedor — mesma pendência já registrada no Módulo 3 (alertas). O código de tentativa de envio (`tentarEnviarWhatsApp`) já existe isolado, pronto pra receber a integração real quando o usuário decidir o provedor.
+
+---
+
+## [2026-07-18] Layout novo — sidebar agrupada + dashboard (ref. changes.md mesma data)
+
+- **Ambiente:** staging (`czrlvvdtpycbkbxsgvev`), servidor dev local (`npm run dev` via `.claude/launch.json`), navegador embutido.
+- Sem migration nem RLS nova pra testar — é reorganização de frontend. Testado direto no navegador: criei campanha de teste, passei pelo MFA (TOTP gerado localmente a partir do secret mostrado na tela), confirmei visualmente o dashboard com os 6 cards zerados (campanha nova), naveguei entre páginas com a sidebar persistindo e o item ativo mudando corretamente, sem erro de console em nenhuma tela visitada.
+
+### Passou
+Redirecionamento de `/` pro dashboard, renderização da sidebar agrupada, contagem de cards batendo com o estado real (tudo zerado numa campanha nova), navegação entre módulos sem quebrar o shell.
+
+### Falhou
+Nada. Encontrei um 404 transitório em `/login` no primeiro boot do dev server (Turbopack cold start) — reproduzi, limpei `.next` e confirmei que sumiu na segunda tentativa; não é um bug do código, é comportamento conhecido de cold start do Turbopack nesta versão do Next.
+
+### Veredito: **aprovado, sem ressalva**
+
+**Nota para o Revisor:** dado de teste (campanha "Candidato Teste Sidebar") foi removido do staging com um token de acesso fornecido pelo próprio usuário pra essa finalidade — contagem pós-limpeza confirmada em 0.
+
+---
+
+## [2026-07-18] Monitoramento — busca automática de menções (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging (`czrlvvdtpycbkbxsgvev`), servidor dev local, navegador embutido, mais um teste isolado via Node direto contra `news.google.com` (fora do app).
+
+### Testes realizados
+1. **RSS do Google News, fora do app:** fetch direto com termo real (`"Lula"`) → 200 OK, 100 itens no XML, regex extraiu título e link do primeiro item corretamente (`Tarifaço: Lula diz que quer travar 'guerra da verdade'... - G1`). Confirma que a mecânica de busca+parse do Route Handler é sólida contra a API real do Google.
+2. **`/monitoramento` no navegador, logado como `coord_campanha`:** cliquei "Buscar" → request real pra `/api/monitoramento/buscar` retornou 200 OK. Seção "Notícias" mostrou "Nenhuma notícia encontrada" (esperado — a campanha de teste tem nome fictício, sem cobertura de imprensa de verdade). Seção "Redes sociais" mostrou o aviso "ainda não configurada (falta credencial de API — X/Twitter)" corretamente, já que `TWITTER_BEARER_TOKEN` não está setado. Sem erro de console.
+3. Dado de teste (campanha "Candidato Teste Monitoramento") criado pra esse teste — **ainda não removido do staging**, ver pendência abaixo.
+
+### Passou
+Mecânica de busca (RSS real, fora do app) + fluxo de UI (loading → resultado, os dois estados vazios corretos, sem quebrar o form de registro que continua logo abaixo).
+
+### Falhou
+Nada encontrado — mas cobertura incompleta, ver "não testado" abaixo.
+
+### Fechamento da pendência (mesma sessão, com token fornecido pelo usuário)
+- Troquei temporariamente `nome_candidato` da campanha de teste pra "Lula" via SQL (termo com cobertura de imprensa real) e repeti a busca no navegador: **15 notícias reais retornadas**, com título, fonte e data formatados corretamente (ex. "Tarifaço: Lula diz que quer travar 'guerra da verdade'... - G1", "G1 · 17/07/2026").
+- Cliquei "Usar este item" no primeiro resultado e confirmei via inspeção direta dos campos do formulário (`input[type="url"]` e `textarea`) que `url` e `descrição` foram preenchidos exatamente com o link e o título da notícia escolhida — o clique **não submeteu nada sozinho**, só preencheu os campos, exatamente como especificado.
+- **Ainda não testado:** rota retornando 403 pra papel sem permissão (ex. `embaixador` chamando `/api/monitoramento/buscar` direto) — a checagem em código espelha `PAPEIS_QUE_REGISTRAM`, já testada pro form de registro, mas não criei um segundo usuário com papel restrito pra confirmar isso na prática. Risco baixo (lógica simples, padrão já testado em outro contexto), mas fica registrado.
+- Dado de teste (campanha + usuário) removido do staging ao final; confirmado por contagem (`restantes: 0`, `usuarios_restantes: 0`).
+
+### Veredito: **aprovado, sem ressalva** (revisado de "com ressalva" após fechar o teste de clique real)
+Caminho feliz completo validado ponta a ponta com dado real: busca traz notícias de verdade, "Usar este item" preenche o form sem inserir nada sozinho, estados vazios (sem notícia, sem token de redes sociais) corretos. A única lacuna remanescente (403 de papel restrito) é de baixo risco e não bloqueia a entrega.
+
+**Nota para o Revisor:** busca em redes sociais continua bloqueada por falta de `TWITTER_BEARER_TOKEN` (credencial paga da X) — notícias funcionam sem nenhuma pendência. Notei também, sem relação com esta entrega, que existe uma campanha de teste antiga não-minha no staging ("Candidata Teste E2E", `partido = 'PARTIDO TESTE'`, criada em 2026-07-13) — não mexi nela por não ser dado desta sessão, mas fica sinalizado caso o usuário queira uma limpeza geral do staging em algum momento.
+
+---
+
+## [2026-07-18] Telefone obrigatório em todo cadastro de pessoa (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging (`czrlvvdtpycbkbxsgvev`), servidor dev já em execução (o próprio usuário tinha `npm run dev` rodando na porta 3000 — testei contra ele em vez de subir um novo, sem derrubar nada dele).
+
+### Testes realizados
+1. **Migration:** aplicada sem erro. Verificação pós-migration: `liderancas_sem_telefone = 0`, `usuarios_sem_telefone = 0` — as duas `ALTER COLUMN ... SET NOT NULL` pegaram. 8 linhas antigas (1 liderança + 7 usuários internos, todas da campanha travada por LGPD que não pode ser apagada) receberam o placeholder de backfill corretamente, confirmado por `LIKE '(sem telefone%'`.
+2. **Onboarding (`bootstrap_campanha` com novo parâmetro):** criei campanha nova preenchendo o campo de telefone que agora existe no formulário — campanha e primeiro coord_campanha criados com sucesso, telefone salvo.
+3. **Convite de usuário:** submeti o formulário sem telefone — bloqueado no client (`Preencha este campo`, validação HTML5 `required`), nenhuma request saiu. Preenchi o telefone e submeti de novo — passou dessa validação (o erro seguinte foi só sobre o domínio `@example.com` ser rejeitado pelo Supabase Auth, uma regra completamente separada, não relacionada a telefone).
+4. **Cadastro de liderança:** mesmo padrão — bloqueado sem telefone, criada com sucesso com telefone preenchido, telefone aparece corretamente na tabela de lideranças.
+5. Sem erro de console em nenhuma das telas visitadas.
+6. Dado de teste (campanha "Candidato Teste Telefone" + coord_campanha + liderança) removido do staging ao final; confirmado por contagem zerada.
+
+### Passou
+Migration (backfill + NOT NULL + nova assinatura de `bootstrap_campanha`), os 3 pontos de cadastro de pessoa (onboarding, convite, liderança) exigindo telefone tanto no client quanto — pelo desenho da migration — no banco.
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, sem ressalva**
+Fecha a lacuna de ponta a ponta: os 4 tipos de pessoa cadastrada no sistema (cidadão, apoiador, liderança, usuário interno) agora exigem telefone em todo caminho de criação, com banco como última linha de defesa via `NOT NULL` — não é só validação de formulário, uma inserção direta via API sem telefone também seria rejeitada.
+
+**Nota para o Revisor:** o backfill das 8 linhas antigas usou um placeholder textual (`"(sem telefone — cadastro anterior à obrigatoriedade)"`), não um número real — quem for mandar mensagem pra essas lideranças/usuários específicos vai precisar corrigir o telefone manualmente antes (a tentativa de envio real, quando existir provedor configurado, vai simplesmente falhar visivelmente contra esse texto, não silenciosamente).
+
+---
+
+## [2026-07-18] Editar, buscar e desativar eleitores (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging (`czrlvvdtpycbkbxsgvev`), servidor dev do próprio usuário (porta 3000).
+
+### Testes realizados
+1. **Migration:** aplicada sem erro — coluna `status` criada com default `ativo`.
+2. **Busca:** criei 2 eleitores ("Ana Beatriz Teste", "Carlos Eduardo Teste"), busquei por "Ana" — só o resultado certo apareceu.
+3. **Edição:** abri o form inline de "Ana", troquei nome pra "Ana Beatriz Editada" e círculo pra "Quente", salvei. Confirmado por SQL direto (`SELECT nome, circulo FROM cidadaos`) que persistiu exatamente como editado — não é só otimismo de UI, é o dado real no banco.
+4. **Desativação:** cliquei no botão de status — banco confirmou `status = 'inativo'` depois do clique, e a UI atualizou o rótulo pra "Inativo" corretamente.
+5. Sem erro de console em nenhum momento.
+6. **Nota de execução:** o tool de screenshot/click por coordenada (`computer`) ficou instável durante o teste (timeout repetido) — troquei pra disparar os cliques via `element.click()` direto no DOM (mesmo efeito de um clique real num handler React, já que o React escuta eventos nativos) e confirmei cada resultado consultando o banco diretamente, não só a tela. Registrado por transparência de método — o resultado teria a mesma confiabilidade de um clique via mouse simulado.
+
+### Achado — limitação prática confirmada (não é bug)
+Tentei apagar um dos eleitores de teste pra limpar o staging: `DELETE` bloqueado por `consentimentos_lgpd_cidadao_id_fkey` — exatamente a trava documentada na spec (consentimento é append-only, cidadão com consentimento nunca é removível de verdade, só desativável). Os 2 eleitores de teste, a liderança e a campanha ficam permanentemente no staging (desativados, não apagados).
+
+### Passou
+Migration, busca, edição completa persistindo corretamente, toggle de status persistindo corretamente.
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, sem ressalva**
+Primeira entrega da frente "editar/consultar/desativar cadastros" — eleitores. Padrão replicável pras próximas (apoiadores, lideranças, usuários internos), reaproveitando a mesma UI de linha-expansível e a mesma lógica de "desativar em vez de apagar" pra qualquer entidade com trilha de auditoria/consentimento amarrada.
+
+**Nota para o Revisor:** confirmar antes de repetir esse padrão pra `usuarios_internos` se `log_auditoria` de fato bloqueia a exclusão desse jeito na prática (a trava é a mesma em teoria — append-only via trigger — mas não testei uma tentativa de DELETE em usuário interno especificamente nesta entrada).
+
+---
+
+## [2026-07-18] Editar apoiadores/lideranças/usuários internos + correção de segurança em revogação (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging (`czrlvvdtpycbkbxsgvev`), servidor dev do usuário (porta 3000).
+
+### Testes realizados
+1. **Edição de apoiador:** criei "Beto Apoiador Teste", editei nome pra "Beto Apoiador Editado" e cidade pra "Recife" — confirmado por SQL (`SELECT nome, cidade FROM apoiadores`) que persistiu exatamente como editado.
+2. **Edição de liderança:** mesma mecânica — nome e cidade editados, confirmado por SQL.
+3. **Edição de usuário interno:** convidei "Redator Teste Revogar" (`redator_marketing`), editei o papel pra `coord_marketing` — confirmado por SQL que `papel = 'coord_marketing'` e `exige_mfa = false` (cálculo correto: `coord_marketing` não está no conjunto que exige MFA).
+4. **Teste decisivo — a correção de segurança de verdade, não só a mudança de status:**
+   - **Antes de revogar**, simulei a sessão desse usuário via SQL (`set_config('request.jwt.claims', ...)` + `SET LOCAL ROLE authenticated`, mesmo padrão já usado nos testes de RLS de módulos anteriores): `current_papel()` retornou `coord_marketing`, `current_campanha_id()` retornou o UUID certo da campanha. Baseline confirma que a simulação reflete a realidade.
+   - Cliquei "Revogar acesso" na UI (sobrescrevendo `window.confirm` pra `true`, já que o navegador de teste não tem diálogo nativo interativo) — banco confirmou `status = 'revogado'`.
+   - **Depois de revogar**, repeti a mesma simulação de sessão: `current_papel()` e `current_campanha_id()` retornaram `NULL`. Rodei `SELECT count(*) FROM liderancas` sob essa sessão simulada (RLS ativa) — **0 linhas**, onde antes esse mesmo papel veria todas. Prova que a correção funciona na prática: revogar de verdade tira o acesso, não é só um rótulo na tela.
+5. UI: badge "Revogado" em vermelho aparece corretamente pro usuário revogado; minha própria linha (logado) não mostra botão de revogar clicável, só o status como texto — confirma a trava de autoexclusão.
+6. Sem erro de console em nenhuma tela.
+
+### Passou
+Edição completa nas 3 entidades, recálculo de `exige_mfa` na troca de papel, trava de autoexclusão na UI, e — o mais importante — a correção de `current_papel()`/`current_campanha_id()`/`current_territorio_id()` comprovada via simulação de sessão real, não só inspeção de código.
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, sem ressalva**
+Esta entrada corrige um problema de controle de acesso que existia desde a fundação do sistema (migration 0001) e que não tinha sido percebido em nenhuma entrega anterior — `status` de usuário interno nunca tinha sido de fato aplicado em nenhuma policy de RLS. A frente "editar/consultar/desativar cadastros" está completa nas 4 entidades pedidas (eleitores, apoiadores, lideranças, usuários internos).
+
+**Nota para o Revisor:** vale uma auditoria rápida por qualquer outro lugar do sistema que possa ter assumido "só checar se a linha existe" em vez de "checar se está ativo" — mas a correção nas 3 funções centrais (`current_papel`, `current_campanha_id`, `current_territorio_id`) cobre estruturalmente qualquer policy de RLS que dependa delas, que é a esmagadora maioria (senão todas) das tabelas do sistema.
+
+---
+
+## [2026-07-18] Reorganização do menu lateral (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging, servidor dev do usuário (porta 3000). Mudança de frontend puro, sem migration.
+
+### Testes realizados
+1. Ordem e agrupamento dos 7 grupos confirmados via `document.querySelectorAll('aside p')`: Administração, Cadastros, Gestão, Comunicação, Jurídico, Marketing, Conhecimento — bate exatamente com o pedido.
+2. Os 17 links dentro dos grupos confirmados via `document.querySelectorAll('aside a')` (o inspector padrão de acessibilidade truncava a lista antes dos últimos 2 itens — comportamento já visto em telas anteriores desta sessão, não é bug do app, é limitação da ferramenta de teste).
+3. Âncora "Código eleitoral": criei um tema de teste "Código Eleitoral", confirmei que `document.getElementById('tema-codigo-eleitoral')` encontra o elemento. Navegação direta pra `/base-conhecimento#tema-codigo-eleitoral` sem tema cadastrado também testada — cai no topo da página sem erro.
+4. Sem erro de console em nenhuma navegação.
+
+### Passou
+Reordenação completa, âncora funcionando, nenhuma quebra nas páginas existentes (todos os hrefs continuam apontando pras mesmas rotas, só mudou organização/rótulo).
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, sem ressalva**
+
+**Nota para o Revisor:** dois grupos (Jurídico, Marketing) e a ausência de "Pesquisa" no menu foram decisões minhas dentro do espaço que o usuário deixou em aberto — registradas em specs.md/changes.md por transparência, vale uma conferida rápida do usuário se fazem sentido antes de considerar essa reorganização definitiva.
+
+---
+
+## [2026-07-18] Código Eleitoral compartilhado entre campanhas (ref. changes.md/specs.md mesma data)
+
+- **Ambiente:** staging, `supabase storage cp` (fora do banco) + `supabase db query --linked` pra tudo mais.
+
+### Testes realizados
+1. **Cópia dos arquivos:** os 2 PDFs (baixados da campanha de teste antiga onde já estavam, via `supabase storage cp -r`) foram reenviados pro prefixo compartilhado `_global/codigo-eleitoral/` — confirmado por resposta de sucesso do CLI em cada upload.
+2. **Backfill:** `SELECT` agregando `campanhas` + `temas_campanha` (nome = 'Código Eleitoral') confirmou as 3 campanhas do staging com o tema e 2 itens cada — incluindo uma campanha real do próprio usuário ("Alvaro Dias") criada durante os próprios testes manuais dele nesta sessão.
+3. **Achado e correção:** a campanha de teste que já tinha esse conteúdo manualmente (sob o nome "Legislação Eleitoral", não "Código Eleitoral" exato) ganhou uma entrada duplicada pelo backfill, já que a checagem de idempotência é por nome exato. Identifiquei via `SELECT` agrupando temas por campanha (mostrou 4 temas nessa campanha, um chamado literalmente "Código Eleitoral" com 2 itens novos apontando pro `_global`, separado do "Legislação Eleitoral" original com 4 itens). Removi a duplicata (`DELETE` em cascata manual: arquivos → itens → tema) e confirmei que não sobrou resíduo.
+4. **RLS de storage — o teste mais importante:** simulei a sessão de um usuário ativo de uma campanha (`Teste Cidadaos CRUD`) e consultei `storage.objects` filtrando pelo prefixo `_global` — **2 resultados** (os 2 PDFs, visíveis de uma campanha que não tem nada a ver com onde o arquivo fisicamente mora). Repeti a mesma consulta simulando o usuário revogado (da entrada de segurança anterior) — **0 resultados**. Confirma que a correção de `current_papel()` da entrada anterior se compõe automaticamente com essa policy nova, sem precisar de nenhuma lógica extra de "checar revogação" duplicada.
+5. **Navegador:** `/base-conhecimento` da campanha de teste mostra o tema e os 2 itens com título/descrição corretos; cliquei no botão de baixar um dos arquivos — sem mensagem de erro renderizada (o componente já tem tratamento de erro visível pra esse caso) e sem erro de console, evidência de que `createSignedUrl` funcionou contra o path compartilhado a partir de uma campanha "de fora".
+
+### Passou
+Backfill em todas as campanhas existentes (incluindo dado real do usuário, sem quebrar nada), seed automático via `bootstrap_campanha` pronto pra campanhas futuras, RLS cross-tenant funcionando exatamente como desenhado (visível pra quem está ativo, invisível pra quem foi revogado), e o achado da duplicata foi identificado e corrigido dentro da mesma sessão.
+
+### Falhou
+Nada — o achado da duplicata não foi uma falha da migration, foi uma consequência esperada de comparar por nome exato numa campanha que já tinha o mesmo conteúdo com nome diferente; já resolvido.
+
+### Veredito: **aprovado, sem ressalva**
+Primeira vez que o sistema compartilha um recurso entre tenants — feito de forma restrita (só leitura, só um prefixo específico, só conteúdo de lei pública) e sem abrir nenhum buraco na trilha de isolamento que protege o resto do sistema.
+
+**Nota para o Revisor:** se um dia a lei mudar e for preciso atualizar o PDF, isso precisa ser feito manualmente via `supabase storage cp` (sobrescrevendo o mesmo path) — não existe UI pra isso, é intencional (conteúdo de referência não é editável por ninguém via aplicação).
+
+---

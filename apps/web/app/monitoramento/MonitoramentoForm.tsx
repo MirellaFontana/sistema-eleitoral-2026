@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,6 +16,16 @@ const CATEGORIAS = [
 ];
 
 const CATEGORIAS_COM_GRAVIDADE = new Set(["ameaca_juridica", "deepfake_suspeito", "gestao_crise"]);
+// Mesmas 3 categorias recebem hash de evidência (escudo antideepfake) — .pipeline/specs.md [2026-07-15].
+const CATEGORIAS_COM_EVIDENCIA = CATEGORIAS_COM_GRAVIDADE;
+
+async function calcularHashSha256(arquivo: File): Promise<string> {
+  const buffer = await arquivo.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 const GRAVIDADES = [
   { value: "baixa", label: "Baixa" },
@@ -23,7 +33,15 @@ const GRAVIDADES = [
   { value: "alta", label: "Alta" },
 ];
 
-export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
+export function MonitoramentoForm({
+  campanhaId,
+  prefillUrl,
+  prefillDescricao,
+}: {
+  campanhaId: string;
+  prefillUrl?: string;
+  prefillDescricao?: string;
+}) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -36,6 +54,13 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
+  // Item escolhido no painel de busca automática — só preenche, não registra sozinho.
+  useEffect(() => {
+    if (prefillUrl === undefined && prefillDescricao === undefined) return;
+    setUrl(prefillUrl ?? "");
+    setDescricao(prefillDescricao ?? "");
+  }, [prefillUrl, prefillDescricao]);
+
   const precisaGravidade = CATEGORIAS_COM_GRAVIDADE.has(categoria);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -45,6 +70,8 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
     setCarregando(true);
 
     let capturaPath: string | null = null;
+    let hashEvidencia: string | null = null;
+    let hashCalculadoEm: string | null = null;
 
     if (arquivo) {
       const caminho = `${campanhaId}/${Date.now()}-${arquivo.name}`;
@@ -58,6 +85,14 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
         return;
       }
       capturaPath = caminho;
+
+      // Escudo antideepfake: categoria de ameaça + arquivo captura o hash de evidência
+      // automaticamente, sem ação manual — prova de cadeia de custódia (não substitui
+      // notarização externa se for exigida em processo judicial).
+      if (CATEGORIAS_COM_EVIDENCIA.has(categoria)) {
+        hashEvidencia = await calcularHashSha256(arquivo);
+        hashCalculadoEm = new Date().toISOString();
+      }
     }
 
     const { error } = await supabase.from("monitoramento_itens").insert({
@@ -67,6 +102,8 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
       url: url.trim() || null,
       descricao,
       captura_path: capturaPath,
+      hash_evidencia: hashEvidencia,
+      hash_calculado_em: hashCalculadoEm,
     });
 
     setCarregando(false);
@@ -149,10 +186,16 @@ export function MonitoramentoForm({ campanhaId }: { campanhaId: string }) {
         <label className="block text-xs font-medium text-neutral-500">Print/captura (opcional)</label>
         <input
           type="file"
-          accept="image/*,application/pdf"
+          accept="image/*,video/*,audio/*,application/pdf"
           onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
           className="w-full text-sm"
         />
+        {CATEGORIAS_COM_EVIDENCIA.has(categoria) && (
+          <p className="text-xs text-neutral-500">
+            Categoria de ameaça: anexar arquivo aqui calcula um hash de evidência automaticamente
+            e lacra o registro (descrição/captura não podem mais ser editadas depois).
+          </p>
+        )}
       </div>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}

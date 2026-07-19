@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
-import { MonitoramentoForm } from "./MonitoramentoForm";
+import { MonitoramentoWorkspace } from "./MonitoramentoWorkspace";
 import { VerCapturaButton } from "./VerCapturaButton";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -64,13 +64,11 @@ export default async function MonitoramentoPage() {
 
   const { data: itens } = await supabase
     .from("monitoramento_itens")
-    .select("id, url, descricao, categoria, gravidade, status, captura_path, created_at")
+    .select("id, url, descricao, categoria, gravidade, status, captura_path, hash_evidencia, created_at")
     .order("created_at", { ascending: false });
 
   return (
-    <div className="flex flex-col flex-1">
-      <AppHeader campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]} />
-
+    <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
         <div>
           <h1 className="text-lg font-semibold">Monitoramento</h1>
@@ -85,7 +83,7 @@ export default async function MonitoramentoPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
               Registrar item
             </h2>
-            <MonitoramentoForm campanhaId={eu.campanha_id} />
+            <MonitoramentoWorkspace campanhaId={eu.campanha_id} />
           </section>
         )}
 
@@ -111,6 +109,11 @@ export default async function MonitoramentoPage() {
                     </span>
                   )}
                   <span className="text-neutral-400">{item.status}</span>
+                  {item.hash_evidencia && (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800">
+                      🔒 Evidência lacrada
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm">{item.descricao}</p>
                 <div className="flex gap-3">
@@ -131,6 +134,6 @@ export default async function MonitoramentoPage() {
           </ul>
         </section>
       </main>
-    </div>
+    </AppShell>
   );
 }

@@ -9,17 +9,18 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 // falharia clicando direto no banco.
 export async function POST(request: Request) {
   const body = await request.json();
-  const { email, nome, papel, territorio_id, exige_mfa, expira_em } = body as {
+  const { email, nome, telefone, papel, territorio_id, exige_mfa, expira_em } = body as {
     email: string;
     nome: string;
+    telefone: string | null;
     papel: string;
     territorio_id: string | null;
     exige_mfa: boolean;
     expira_em: string | null;
   };
 
-  if (!email || !nome || !papel) {
-    return NextResponse.json({ error: "email, nome e papel são obrigatórios" }, { status: 400 });
+  if (!email || !nome || !papel || !telefone) {
+    return NextResponse.json({ error: "email, nome, telefone e papel são obrigatórios" }, { status: 400 });
   }
 
   const supabase = await createServerClient();
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
     campanha_id: quemChamou.campanha_id,
     papel,
     nome,
+    telefone: telefone || null,
     territorio_id: territorio_id || null,
     exige_mfa: !!exige_mfa,
     expira_em: expira_em || null,

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { FaqForm } from "./FaqForm";
 import { SugestaoForm } from "./SugestaoForm";
@@ -68,9 +68,7 @@ export default async function MarketingPage() {
   ]);
 
   return (
-    <div className="flex flex-col flex-1">
-      <AppHeader campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]} />
-
+    <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-10 px-4 py-8">
         <div>
           <h1 className="text-lg font-semibold">Marketing</h1>
@@ -162,6 +160,6 @@ export default async function MarketingPage() {
           </ul>
         </section>
       </main>
-    </div>
+    </AppShell>
   );
 }

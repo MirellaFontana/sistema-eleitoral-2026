@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { TemaForm } from "./TemaForm";
 import { ItemForm } from "./ItemForm";
@@ -17,6 +17,17 @@ const PAPEL_LABEL: Record<string, string> = {
 };
 
 const PAPEIS_QUE_EDITAM = new Set(["coord_campanha", "coord_marketing"]);
+
+// Slug do nome do tema vira âncora — permite o menu linkar direto pra um tema (ex.: "Código
+// eleitoral") sem precisar saber o UUID dele, que é diferente por campanha.
+function slugTema(nome: string) {
+  return nome
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 export default async function BaseConhecimentoPage() {
   const supabase = await createClient();
@@ -57,9 +68,7 @@ export default async function BaseConhecimentoPage() {
   const proximaOrdem = (temas?.length ?? 0) + 1;
 
   return (
-    <div className="flex flex-col flex-1">
-      <AppHeader campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]} />
-
+    <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
         <div>
           <h1 className="text-lg font-semibold">Base de conhecimento da campanha</h1>
@@ -99,7 +108,7 @@ export default async function BaseConhecimentoPage() {
           {(temas ?? []).map((tema) => {
             const itensDoTema = (itens ?? []).filter((i) => i.tema_id === tema.id);
             return (
-              <div key={tema.id} className="space-y-2">
+              <div key={tema.id} id={`tema-${slugTema(tema.nome)}`} className="scroll-mt-6 space-y-2">
                 <h3 className="text-sm font-semibold">{tema.nome}</h3>
                 {itensDoTema.length === 0 ? (
                   <p className="text-sm text-neutral-400">Nenhum item neste tema ainda.</p>
@@ -121,6 +130,6 @@ export default async function BaseConhecimentoPage() {
           })}
         </section>
       </main>
-    </div>
+    </AppShell>
   );
 }

@@ -16,5 +16,5 @@ export default async function Home() {
     .eq("id", user.id)
     .maybeSingle();
 
-  redirect(usuarioInterno ? "/usuarios" : "/onboarding");
+  redirect(usuarioInterno ? "/dashboard" : "/onboarding");
 }

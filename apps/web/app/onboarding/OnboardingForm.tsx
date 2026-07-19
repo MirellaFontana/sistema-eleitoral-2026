@@ -20,6 +20,7 @@ export function OnboardingForm() {
   const [partido, setPartido] = useState("");
   const [planoContratado, setPlanoContratado] = useState("");
   const [nomeUsuario, setNomeUsuario] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -35,6 +36,7 @@ export function OnboardingForm() {
       p_partido: partido,
       p_plano_contratado: planoContratado,
       p_nome_usuario: nomeUsuario,
+      p_telefone: telefone.trim(),
     });
 
     setCarregando(false);
@@ -65,6 +67,20 @@ export function OnboardingForm() {
           required
           value={nomeUsuario}
           onChange={(e) => setNomeUsuario(e.target.value)}
+          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="telefone" className="block text-sm font-medium">
+          Seu telefone (WhatsApp)
+        </label>
+        <input
+          id="telefone"
+          required
+          placeholder="+55819..."
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
         />
       </div>

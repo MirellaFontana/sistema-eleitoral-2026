@@ -1,15 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell } from "@/components/AppShell";
 import { InviteUserForm } from "./InviteUserForm";
 import { TerritorioForm } from "./TerritorioForm";
+import { UsuariosTable } from "./UsuariosTable";
 import { proximaRotaMfa } from "@/lib/mfa";
-
-// expira_em é data (sem hora) — formatar em UTC evita que o fuso local jogue pro dia anterior.
-function formatarDataUTC(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
-}
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -44,8 +39,21 @@ export default async function UsuariosPage() {
 
   const { data: usuarios } = await supabase
     .from("usuarios_internos")
-    .select("id, nome, papel, status, expira_em, exige_mfa, territorios(nome_bairro)")
+    .select("id, nome, papel, status, expira_em, territorio_id, territorios(nome_bairro)")
     .order("nome");
+
+  const linhas = (usuarios ?? []).map((u) => {
+    const territorio = Array.isArray(u.territorios) ? u.territorios[0] : u.territorios;
+    return {
+      id: u.id,
+      nome: u.nome,
+      papel: u.papel,
+      status: u.status,
+      expiraEm: u.expira_em,
+      territorioId: u.territorio_id,
+      territorioNome: territorio?.nome_bairro ?? null,
+    };
+  });
 
   const { data: territorios } = await supabase
     .from("territorios")
@@ -55,12 +63,7 @@ export default async function UsuariosPage() {
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
   return (
-    <div className="flex flex-col flex-1">
-      <AppHeader
-        campanhaNome={campanha?.nome_candidato ?? undefined}
-        papel={PAPEL_LABEL[eu.papel]}
-      />
-
+    <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
         {isCoordCampanha && (
           <section className="space-y-3">
@@ -84,46 +87,14 @@ export default async function UsuariosPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
             Usuários da campanha
           </h2>
-          <div className="overflow-x-auto rounded border border-neutral-200">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50 text-left text-xs uppercase text-neutral-500">
-                <tr>
-                  <th className="px-3 py-2">Nome</th>
-                  <th className="px-3 py-2">Papel</th>
-                  <th className="px-3 py-2">Território</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Expira em</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {(usuarios ?? []).map((u) => {
-                  const territorio = Array.isArray(u.territorios) ? u.territorios[0] : u.territorios;
-                  return (
-                    <tr key={u.id}>
-                      <td className="px-3 py-2">{u.nome}</td>
-                      <td className="px-3 py-2">{PAPEL_LABEL[u.papel] ?? u.papel}</td>
-                      <td className="px-3 py-2 text-neutral-500">
-                        {territorio?.nome_bairro ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 text-neutral-500">{u.status}</td>
-                      <td className="px-3 py-2 text-neutral-500">
-                        {u.expira_em ? formatarDataUTC(u.expira_em) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {(usuarios ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-neutral-400">
-                      Nenhum usuário ainda.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <UsuariosTable
+            linhas={linhas}
+            territorios={territorios ?? []}
+            podeGerenciar={isCoordCampanha}
+            meuId={user.id}
+          />
         </section>
       </main>
-    </div>
+    </AppShell>
   );
 }

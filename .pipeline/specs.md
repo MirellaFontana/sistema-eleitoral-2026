@@ -419,3 +419,379 @@ Princípio geral: toda tabela com `campanha_id` tem RLS **habilitada e forçada*
 - [ ] UI deixa claro que é sugestão pra revisão humana, não conteúdo pronto pra publicar.
 
 ---
+
+## [2026-07-15] Módulo 3 — Jurídico: Escudo antideepfake (planejamento)
+
+- **Objetivo:** implementar a segunda das 3 partes do bloco jurídico (docs/especificacao-v1.md §Camada 3, item 2): "monitora, detecta conteúdo fabricado contra o candidato, arquiva com carimbo de data/hora (prova de existência mesmo após remoção), monta o dossiê técnico."
+- **Decisão de arquitetura (confirmada com o usuário):** **não** criar a tabela `evento_ameaca` separada que a especificação original desenha. Em vez disso, **estender `monitoramento_itens`** (já existente, migration 0007/0008) com os campos forenses que faltam. Motivo: o próprio registro de quando `monitoramento_itens` foi construído já deixou anotado que o encaminhamento formal "é responsabilidade do Módulo Jurídico quando for construído" — ou seja, a intenção sempre foi o jurídico evoluir em cima do mesmo registro, não duplicar a mesma menção em duas tabelas (uma vista pelo marketing, outra pelo jurídico).
+- **Trade-off aceito:** desvia da especificação original (que trata `evento_ameaca` como entidade própria) em troca de não ter duas tabelas rastreando a mesma menção. Registrado aqui porque contradiz o texto de origem — mesma prática já usada na entrada de reorganização de papéis.
+- **Fora desta entrega:** matriz de alertas + encaminhamento formal à Justiça Eleitoral (parte 3 do bloco) — continua depois desta.
+
+### Decisões confirmadas com o usuário
+
+1. **Categorias que recebem hash de evidência + imutabilidade:** as 3 categorias de ameaça que já têm campo `gravidade` hoje — `deepfake_suspeito`, `ameaca_juridica`, `gestao_crise`. As demais (menções de sentimento, oportunidade de marketing, outro) não geram prova forense.
+2. **Cálculo do hash SHA-256:** **client-side**, via Web Crypto (`crypto.subtle.digest`) no navegador, no momento do registro do item — antes/durante o upload da captura. Decisão minha (usuário pediu para eu decidir): mais simples, não muda a arquitetura de upload direto do cliente pro Storage já usada em todo o resto do sistema. **Limitação a documentar na UI/dossiê, não esconder:** isso é prova de "cadeia de custódia" (chain of custody) — hash calculado por um usuário interno autenticado, no mesmo nível de confiança do resto do sistema — **não é** um carimbo de tempo de autoridade externa (RFC 3161) nem prova criptográfica à prova de um usuário interno mal-intencionado. Suficiente para montar o dossiê técnico e dar ao advogado uma trilha defensável; se for necessário para submissão judicial formal, pode exigir notarização externa — fora do escopo desta entrega.
+3. **Escopo desta entrega:** schema + frontend juntos (mesmo padrão da parte 1 — conformidade e rotulagem IA).
+
+### Modelo de dados (alteração em `monitoramento_itens`, migration 0013)
+
+- **`hash_evidencia`** TEXT nullable — SHA-256 hex (64 caracteres) do arquivo de captura, calculado no cliente no momento do registro.
+- **`hash_calculado_em`** TIMESTAMPTZ nullable — quando o hash foi calculado (carimbo de data/hora local à inserção, não uma autoridade externa).
+- **CHECK `hash_so_para_ameaca`:** `hash_evidencia IS NULL OR categoria IN ('deepfake_suspeito', 'ameaca_juridica', 'gestao_crise')` — trava estrutural que impede hash em categoria fora do escopo de ameaça (e, como efeito colateral, impede também "esvaziar" a prova trocando a categoria depois, porque o CHECK é revalidado em todo UPDATE da linha).
+- **CHECK `hash_par_completo`:** `(hash_evidencia IS NULL) = (hash_calculado_em IS NULL)` — os dois campos existem juntos ou nenhum dos dois.
+- Só computa hash quando há arquivo de captura (`captura_path IS NOT NULL`) — item de ameaça só com texto/descrição (sem captura) não tem o que hashear; fica sem prova forense, o que é uma limitação honesta, não um bug.
+
+### Regra de imutabilidade (trigger, não só CHECK)
+
+Uma vez que `hash_evidencia` é preenchido (evidência "lacrada"), um trigger `BEFORE UPDATE` bloqueia qualquer alteração posterior em `descricao`, `url`, `captura_path`, `hash_evidencia` ou `hash_calculado_em` — é a garantia de "prova de existência mesmo após remoção" do conteúdo original (a linha do banco vira a prova, e ela não pode ser adulterada depois de lacrada). `status` e `gravidade` continuam editáveis livremente (o item pode evoluir de "novo" pra "em_analise"/"resolvido" sem tocar na evidência em si). Mesmo padrão de defesa em profundidade já usado em `log_auditoria`/`consentimentos_lgpd` (Módulo 1) e na separação de poder de `pecas_conteudo` (Módulo 3 parte 1) — construído mesmo sem existir ainda uma tela de edição de `monitoramento_itens` (só há tela de criação hoje), por disciplina de "trigger antes da UI que dependeria dele".
+
+### Dossiê técnico (frontend)
+
+- Nova página `/dossie-juridico`: lista os itens de `monitoramento_itens` com `hash_evidencia IS NOT NULL` (evidência lacrada), ordenados por data, com descrição, categoria, gravidade, hash, data do hash, link de origem e botão de baixar a captura (reaproveita o padrão do `VerCapturaButton` já existente em `/monitoramento`).
+- **Sem RLS nova:** é só um filtro de leitura sobre dado que a policy `monitoramento_itens_select` já libera pra todos os papéis internos — a página não abre acesso novo, só reorganiza a visão pro jurídico.
+- `/monitoramento`: item de categoria de ameaça com captura mostra selo "Evidência lacrada" quando `hash_evidencia` está presente.
+
+### Critérios de aceite
+- [ ] Migration adiciona as 2 colunas + 2 CHECKs em `monitoramento_itens`, sem quebrar dado existente (colunas nullable, itens antigos ficam com hash nulo).
+- [ ] Trigger de imutabilidade: depois de `hash_evidencia` preenchido, UPDATE que tenta mudar `descricao`/`url`/`captura_path`/`hash_evidencia`/`hash_calculado_em` falha; UPDATE que só muda `status`/`gravidade` continua funcionando.
+- [ ] CHECK impede hash em categoria fora das 3 de ameaça, inclusive tentando trocar a categoria depois de já ter hash.
+- [ ] Frontend: registrar item de categoria de ameaça com arquivo calcula e grava hash + timestamp automaticamente, sem ação manual extra do usuário.
+- [ ] Frontend: item sem categoria de ameaça (ou sem arquivo) não recebe hash.
+- [ ] Frontend: `/dossie-juridico` lista só os itens com evidência lacrada, com download de captura funcionando.
+- [ ] Isolamento cross-tenant testado na visão do dossiê (mesmo padrão já validado em `monitoramento_itens`).
+
+### Risco TSE/LGPD
+- Médio: o valor deste módulo é ter prova defensável em caso de deepfake/desinformação contra o candidato. Se a trava de imutabilidade falhar, a "prova" perde valor jurídico (poderia ser alegado que foi adulterada depois).
+- Risco de super-promessa: é importante que a UI do dossiê não afirme "prova criptográfica inviolável" — só "registro de cadeia de custódia interna", para não criar expectativa jurídica que o sistema não cumpre (ver limitação do hash client-side acima).
+
+### Dependências
+- Reaproveita `monitoramento_itens`, `current_campanha_id()`, papéis já existentes — nenhuma tabela nova, nenhuma policy de RLS nova.
+- Decisões acima já confirmadas com o usuário — liberado para o Programador escrever a migration + frontend.
+
+---
+
+## [2026-07-15] Remodelagem do campo — Lideranças (sem login), metas, tarefas e mapa de cobertura
+
+- **Objetivo:** substituir o modelo "embaixador com login + app offline" pelo modelo real de operação do cliente: a **liderança** é uma pessoa de campo SEM acesso ao sistema, que traz formulários físicos preenchidos de eleitores; a equipe digita esses cadastros no sistema atribuindo-os à liderança. Inclui metas de cadastro (por liderança, por bairro/território e geral), painel de tarefas da equipe e mapa de cobertura por bairro (referências visuais: screenshots de produto concorrente fornecidos pelo usuário — reproduzir o conceito, sem o "link de cadastro público").
+
+### Decisões confirmadas com o usuário
+1. **Liderança não tem login.** Vira registro gerenciado (nome, telefone, cidade, bairro, status ativa/inativa). O papel `embaixador` continua existindo no banco (renomeação/remoção só de interface — decisão "só na interface"), mas some do formulário de convite; app offline e cadastro em campo por login deixam de ser roadmap.
+2. **Metas completas como a referência:** meta por liderança, por bairro/território e campanha geral, com progresso calculado (cadastros e, opcionalmente, apoiadores).
+3. **Tarefas com responsável em texto livre** (ex.: "Equipe campo", "Comunicação"), como a referência.
+4. **Mapa de geolocalização incluído nesta entrega** (pedido explícito do usuário na mesma resposta).
+5. **Sem link de cadastro público** — explícito do usuário.
+
+### Decisões do Planejador (registradas, não perguntadas — derivadas do que já está testado)
+- **Quem digita os formulários: `coord_campanha`.** A migration 0006 exclui deliberadamente marketing/jurídico de PII de cidadão (`cidadaos_select`); abrir INSERT pra marketing agora contradiria esse modelo testado. Se o cliente precisar de um papel "equipe de dados", vira papel novo em spec futura.
+- **Origem do cadastro:** novo valor de enum `formulario_lideranca` em `origem_cadastro_cidadao` + CHECK exigindo `lideranca_id` quando essa é a origem. A trava "nunca por importação/lista comprada" continua intacta (enum fechado).
+- **Consentimento:** novo canal `formulario_fisico` em `canal_consentimento` (o canal `porta_a_porta` exige geolocalização da coleta, que não existe num formulário de papel digitado depois).
+- **Meta por liderança mora na tabela `metas`** (tipo `lideranca`), não em coluna própria — uma única fonte de verdade; a coluna "Meta" da tabela de lideranças lê de lá.
+- **Progresso é derivado, nunca armazenado:** cadastros = count de `cidadaos` por `lideranca_id`/território/campanha; apoiadores = count com `circulo = 'quente'`; período mensal conta só `created_at` do mês corrente.
+- **Coordenada do mapa:** território ganha `cidade` e `centro` (ponto). O centro é definido no formulário de território — busca por bairro+cidade via Nominatim/OpenStreetMap (só nome de bairro/cidade, nenhum dado pessoal sai do sistema) ou digitação manual de lat/lng. Cidadão NÃO é geocodificado individualmente (formulário de papel não tem coordenada); ele conta no círculo do território. Cidadãos sem território com centro definido entram no aviso "N sem coordenada no mapa".
+- **Legado mantido sem remoção:** policy `cidadaos_insert_embaixador`, CHECK `embaixador_coletor_obrigatorio` e o valor `embaixador` do enum ficam como estão (inofensivos, evita retestar o que já passou).
+
+### Migrations (0014 enum-only + 0015 tabelas/policies — mesmo padrão da dupla 0005/0006)
+- **0014:** `ALTER TYPE origem_cadastro_cidadao ADD VALUE 'formulario_lideranca'`; `ALTER TYPE canal_consentimento ADD VALUE 'formulario_fisico'`; tipos novos `status_lideranca` (ativa/inativa), `tipo_meta` (lideranca/territorio/geral), `periodo_meta` (mensal/total), `status_tarefa` (a_fazer/em_progresso/concluida).
+- **0015:**
+  - `liderancas`: id, campanha_id, nome, telefone, cidade, bairro, territorio_id FK nullable, status default 'ativa', criado_por, created_at.
+  - `metas`: id, campanha_id, tipo, lideranca_id FK nullable, territorio_id FK nullable, periodo default 'total', alvo_cadastros NOT NULL, alvo_apoiadores nullable, criado_por, created_at. CHECKs de coerência: tipo lideranca → só lideranca_id; tipo territorio → só territorio_id; tipo geral → nenhum dos dois.
+  - `tarefas`: id, campanha_id, titulo, responsavel TEXT, status default 'a_fazer', prazo DATE nullable, criado_por, created_at.
+  - `cidadaos`: ADD `lideranca_id` FK nullable + CHECK `formulario_lideranca_exige_lideranca`.
+  - `territorios`: ADD `cidade` TEXT, `centro` GEOGRAPHY(POINT).
+  - RLS (todas force-enabled): liderancas — SELECT todos os papéis internos, INSERT/UPDATE coord_campanha+coord_marketing, sem DELETE (desativa via status). metas — SELECT todos, INSERT/UPDATE/DELETE coord_campanha+coord_marketing. tarefas — SELECT todos, INSERT/UPDATE todos exceto candidato e embaixador, DELETE coord_campanha. cidadaos — nova policy INSERT p/ coord_campanha com origem `formulario_lideranca` e liderança da própria campanha (EXISTS sob RLS).
+  - GRANTs explícitos + REVOKE de `anon` nas 3 tabelas novas (lição da migration 0002 — default privileges do Supabase).
+
+### Frontend
+- **/liderancas:** tabela como a referência (Nome, Cidade, Bairro, Telefone, Cadastros, Meta, Progresso %, Status) + busca + form "Nova liderança" + seção "Metas da campanha" (criar meta por liderança/bairro/geral com alvo e período; barra de progresso; excluir). Sem link público.
+- **/tarefas:** lista (Título, Responsável, Status com badge, Prazo) + form "Nova tarefa" + troca de status inline.
+- **/cidadaos (novo — digitação de formulários):** form nome, whatsapp, território, liderança (obrigatória), círculo, temas + consentimento (finalidade, texto aceito, canal formulario_fisico); lista dos últimos digitados. Visível só pra quem lê cidadãos (coord_campanha, candidato — e só coord digita).
+- **/geolocalizacao:** mapa Leaflet/OpenStreetMap; círculo por território com centro (raio proporcional a cadastros; cor por % da meta do território: sem meta = azul, <70% vermelho, 70–99% âmbar, 100%+ verde); popup bairro/cadastros/lideranças/meta; aviso "N sem coordenada"; toggle pra plotar eleitores que tenham coordenada própria (legado embaixador).
+- **/usuarios:** remove "Embaixador" das opções de convite (papel legado); TerritorioForm ganha cidade + busca de coordenada (Nominatim) / lat-lng manual.
+- **AppHeader:** entram Lideranças, Tarefas, Cidadãos, Mapa.
+
+### Critérios de aceite
+- [ ] RLS force-enabled + isolamento cross-tenant testado nas 3 tabelas novas (real, staging).
+- [ ] coord_campanha digita cidadão com origem formulario_lideranca + liderança da própria campanha; liderança de OUTRA campanha é rejeitada.
+- [ ] Cidadão com origem formulario_lideranca sem lideranca_id é rejeitado (CHECK).
+- [ ] Marketing NÃO consegue digitar cidadão (INSERT bloqueado) — modelo de PII preservado.
+- [ ] Metas: CHECKs de coerência tipo/FK; DELETE só coordenação/marketing.
+- [ ] Tarefas: candidato não cria/edita; demais papéis sim; DELETE só coord_campanha.
+- [ ] Frontend: tabela de lideranças mostra cadastros (count real), meta e progresso; status ativa/inativa.
+- [ ] Frontend: tarefas com badges de status como a referência.
+- [ ] Frontend: mapa renderiza círculos nos territórios com centro e popup com os números; aviso de "sem coordenada" correto.
+- [ ] Convite de embaixador some da UI.
+
+### Risco TSE/LGPD
+- Liderança é PII de apoiador (nome+telefone) — leitura liberada a todos os papéis internos da campanha (diferente de cidadão): decisão registrada para o Revisor, reversível por policy.
+- A trava anti-importação continua: a única porta nova de entrada de cidadão é digitação manual pela coordenação, um a um, com consentimento registrado (formulário físico assinado é a base do aceite; o texto aceito vai no consentimento).
+- Nominatim recebe apenas "bairro, cidade" — nunca nome/telefone/endereço de pessoa.
+
+### Dependências
+- Token de acesso Supabase (o da sessão pode ter sido revogado — pedir novo se `db push` falhar).
+- `react-leaflet`/`leaflet` no apps/web.
+
+---
+
+## [2026-07-16] Módulo 3 — Jurídico parte 3: Matriz de alertas + encaminhamento (fecha o bloco jurídico)
+
+- **Objetivo:** última peça do bloco jurídico. Quando um item de ameaça grave é registrado no monitoramento, o sistema gera um alerta automaticamente pros papéis certos; o advogado responsável tem um botão pra marcar que já encaminhou o caso à Justiça Eleitoral (registro simples, não integração com o TSE).
+
+### Decisões confirmadas com o usuário
+1. **Gatilho automático:** todo `monitoramento_itens` com categoria de ameaça (`ameaca_juridica`, `deepfake_suspeito`, `gestao_crise`) e `gravidade = 'alta'` gera alerta na hora — sem matriz configurável nesta entrega (destinatários fixos: `advogado_responsavel` + `coord_campanha`).
+2. **Canal: WhatsApp.** Decisão do usuário. **Mas sem provedor definido ainda** (Twilio/Meta Cloud API/outro) — usuário pediu pra configurar depois. Mesma dependência bloqueante já registrada pro Módulo 4 com a chave da Anthropic: schema, trigger, fila de envio e tela ficam prontos e testados agora; o envio de WhatsApp de verdade liga quando houver credencial de provedor. Até lá, o alerta é 100% visível dentro do sistema (`/alertas`) — ninguém fica sem o aviso, só não chega no celular ainda.
+3. **Encaminhamento simplificado:** não é abertura de processo nem protocolo — é só o `advogado_responsavel` marcando "já encaminhei à Justiça Eleitoral" num alerta, com data (automática) e nota opcional (ex.: número de processo, se quiser anotar). Exclusivo desse papel — nenhum outro consegue marcar.
+
+### Modelo de dados (migration 0017)
+- **`alertas`**: id, campanha_id, monitoramento_item_id FK, destinatario_papel (o papel, não um usuário específico — dispara pra todo mundo daquele papel na campanha), canal default 'whatsapp', status_envio (`pendente_configuracao` / `enviado` / `falhou`) default `pendente_configuracao`, erro_envio TEXT nullable, lido_em TIMESTAMPTZ nullable (por usuário seria mais correto, mas simplifica pra "lido por alguém" nesta entrega — nota de simplificação), encaminhado_por FK usuarios_internos nullable, encaminhado_em TIMESTAMPTZ nullable, encaminhado_nota TEXT nullable, created_at.
+- **`usuarios_internos`**: ADD `telefone` TEXT nullable — precisa pra saber pra onde mandar o WhatsApp quando o envio ligar. Adicionado ao formulário de convite.
+- Trigger `AFTER INSERT` em `monitoramento_itens`: se categoria de ameaça + gravidade alta, insere 1 linha em `alertas` por papel destinatário (2 linhas: advogado_responsavel, coord_campanha) — a fila fica pronta, mesmo sem envio real ainda. Trigger só grava no banco; a chamada HTTP pro provedor de WhatsApp (quando existir) roda na aplicação (Route Handler), não em Postgres — mesmo padrão de "IA roda na aplicação, não no banco" já usado no Módulo 4.
+
+### Frontend
+- **`/alertas`**: lista alertas da campanha (mais recente primeiro), mostra o item de ameaça relacionado (descrição, categoria, gravidade, link/captura), status de envio (com aviso "envio de WhatsApp ainda não configurado" quando `pendente_configuracao`), botão "Marcar como lido". Pro `advogado_responsavel`: botão extra "Marcar encaminhamento à Justiça Eleitoral" com campo de nota opcional — some depois de marcado, vira um selo "Encaminhado em [data] por [nome]".
+- Sino/contador de alertas não lidos no `AppHeader` (opcional, se couber sem quebrar o layout).
+
+### Critérios de aceite
+- [ ] Inserir `monitoramento_itens` com categoria de ameaça + gravidade alta gera 2 alertas automaticamente (advogado_responsavel, coord_campanha); gravidade baixa/média ou categoria não-ameaça não gera nada.
+- [ ] RLS: leitura de alertas liberada a todos os papéis internos (mesmo padrão de monitoramento); só `advogado_responsavel` marca encaminhamento.
+- [ ] `coord_marketing`/`redator_marketing` não conseguem marcar encaminhamento (tentativa bloqueada).
+- [ ] Isolamento cross-tenant testado.
+- [ ] Frontend mostra claramente que o envio de WhatsApp está pendente de configuração — sem fingir que foi enviado.
+
+### Risco TSE/LGPD
+- Baixo/médio: isso é uma camada de notificação interna, não uma ação jurídica formal — o encaminhamento real à Justiça continua sendo feito pelo advogado fora do sistema; o sistema só registra que aconteceu. Não há risco de o sistema "prometer" ter protocolado algo que não protocolou, porque o campo é literalmente "nota", não um número de processo validado.
+
+### Dependências
+- **Bloqueante para envio real de WhatsApp:** credenciais de provedor (Twilio, Meta Cloud API, ou outro) — usuário decidiu configurar depois. Schema/trigger/tela seguem sem isso.
+- `telefone` em `usuarios_internos` (novo campo) precisa ser preenchido nos convites futuros; usuários já existentes ficam sem telefone até serem editados (fora de escopo desta entrega — não há tela de editar usuário existente ainda).
+
+---
+
+## [2026-07-16] Módulo Relacionamento — parte 1: Cadastro de apoiadores
+
+- **Contexto:** antes de construir qualquer coisa do bloco relacionamento (enquete, loop de demanda, histórico de mandato), conversamos sobre escopo. Ficou definido: (1) o cidadão nunca interage direto com o sistema — só recebe informação, mesmo modelo de sempre, sem superfície pública nova; (2) "rede de embaixadores" da especificação original já foi resolvida pelo módulo Lideranças (falta só reconhecimento, que fica pra depois); (3) primeira peça nova a construir é um **cadastro de apoiadores** — pessoas que se oferecem pra ajudar a campanha (não necessariamente cidadão/eleitor já cadastrado).
+
+### Decisões confirmadas com o usuário
+1. **O que capturar:** como o apoiador pode ajudar (disponibilidade, forma de ajuda — transporte, espaço pra reunião, redes sociais, distribuição de material, tempo voluntário), não histórico de engajamento (fica pra depois, se for o caso).
+2. **Tabela própria, separada de `cidadaos`** — apoiador pode existir sem ainda ser cidadão cadastrado.
+3. **Sem consentimento LGPD formal (mais leve que o fluxo de cidadão).** Base legal proposta: legítimo interesse pra coordenação interna de voluntários — decisão do usuário, registrada aqui pro Revisor validar com o advogado do cliente; é uma postura mais leve que o resto do sistema (que sempre exige consentimento explícito registrado).
+4. **Liga a um cidadão já cadastrado quando possível** (campo opcional `cidadao_id`), pra não duplicar nome/telefone da mesma pessoa em duas tabelas.
+
+### Decisões do Planejador (registradas, não perguntadas)
+- **Conflito resolvido — quem pode ligar a um cidadão:** `cidadao_id` só pode ser setado/alterado por `coord_campanha`. Motivo: `coord_marketing` (que também gerencia apoiadores) não tem acesso a dado nominal de `cidadaos` (regra da migration 0006) — deixá-lo escolher um `cidadao_id` livremente contornaria essa trava (ele teria que adivinhar o ID, ou pior, eu teria que construir uma busca que vaza nome de cidadão pra quem não deveria ver). Reforçado por trigger, mesmo padrão de separação de poder já usado em `pecas_conteudo`/`alertas`.
+- **RLS geral (leitura/gestão) espelha `liderancas`:** leitura liberada a todos os papéis internos (apoiador não carrega o mesmo nível de sensibilidade de "eleitor nominal" — é voluntário, categoria mais próxima de liderança); gestão (insert/update) por `coord_campanha` + `coord_marketing`; sem DELETE (só status ativo/inativo).
+- **`forma_ajuda` é enum de múltipla escolha** (`forma_ajuda_apoiador[]`), não texto livre — mantém consistência com o resto do sistema (categorias controladas + campo de detalhe livre pra especificar).
+- **Nota de risco TSE (não construída ainda, só sinalizada):** a opção "doação de material" no formulário leva um aviso de que doação em espécie pode ter implicação na prestação de contas eleitoral (Lei 9.504/1997) — texto de alerta na UI, não um fluxo de compliance completo nesta entrega.
+
+### Modelo de dados (migration 0019)
+- `status_apoiador` ENUM ('ativo', 'inativo').
+- `forma_ajuda_apoiador` ENUM ('transporte', 'espaco_reuniao', 'redes_sociais', 'distribuicao_material', 'tempo_voluntario', 'doacao_material', 'outro').
+- `apoiadores`: id, campanha_id, nome, telefone NOT NULL, cidade, bairro, territorio_id FK nullable, cidadao_id FK nullable, formas_ajuda `forma_ajuda_apoiador[]` default `{}`, detalhe_ajuda TEXT, disponibilidade TEXT, status default 'ativo', criado_por, created_at.
+- Trigger: só `coord_campanha` seta/altera `cidadao_id`; quando setado, precisa pertencer à mesma `campanha_id` (defesa em profundidade contra erro/tentativa cross-tenant).
+
+### Frontend
+- **`/apoiadores`:** tabela (nome, telefone, cidade/bairro via `labelTerritorio`, formas de ajuda em badges, disponibilidade, cidadão vinculado se houver, status) + busca + form "Novo apoiador". Campo de vincular cidadão só aparece pra `coord_campanha` (os outros papéis não veem a opção, nem conseguiriam preencher — não têm acesso de leitura a `cidadaos` pra escolher).
+
+### Critérios de aceite
+- [ ] RLS force-enabled + isolamento cross-tenant testado (real, staging).
+- [ ] `coord_marketing` cria apoiador (positivo) sem `cidadao_id`.
+- [ ] `coord_marketing` NÃO consegue setar `cidadao_id` (trigger bloqueia).
+- [ ] `coord_campanha` cria/edita apoiador COM `cidadao_id` de um cidadão da própria campanha (positivo).
+- [ ] `cidadao_id` de campanha diferente é rejeitado.
+- [ ] `candidato` lê apoiadores (positivo, leitura liberada a todos) mas não cria.
+- [ ] Frontend: campo de vincular cidadão não aparece pra quem não é coord_campanha.
+
+### Risco TSE/LGPD
+- Médio: base legal mais leve que o resto do sistema (legítimo interesse, não consentimento explícito) — decisão de produto que o Revisor deve confirmar com o jurídico do cliente antes de usar em campanha real. "Doação de material" tem aviso na UI, sem trava de compliance.
+
+### Dependências
+- Nenhuma nova — reaproveita `territorios`, `cidadaos` (link opcional), papéis já existentes.
+
+---
+
+## [2026-07-16] Decisão de escopo: nada pós-eleição por enquanto
+
+Usuário decidiu: **histórico de mandato sai do escopo atual**, e mais amplamente — **qualquer peça que só faz sentido depois da eleição (governar, não fazer campanha) fica de fora por enquanto**. Motivo alinhado com o resto do projeto: o sistema está sendo construído pra correr contra o calendário eleitoral (propaganda a partir de 16/08, votação em 04/10) — só depois do pleito é que "assinatura de gabinete" vira prioridade real.
+
+Isso deixa **"loop de demanda legislativa"** em situação ambígua: a especificação original descreve encaminhamento via emenda/requerimento/projeto de lei — ações que só existem se quem recebe a demanda já tem mandato (candidato à reeleição, não candidato de primeira viagem). Fica registrado como pergunta em aberto pro usuário antes de especificar essa peça: ela entra agora (só faz sentido pra incumbentes) ou espera junto com histórico de mandato?
+
+Do Bloco Relacionamento, com essa decisão, resta como claramente pré-eleição: **enquete e plano de governo**.
+
+---
+
+## [2026-07-16] Cadastro de mensagens (envio individual, ligado a destinatário já cadastrado)
+
+- **Objetivo:** log/envio de mensagem individual (não em massa — trava estrutural, não só política, ver abaixo) pra um destinatário já cadastrado (eleitor, apoiador ou liderança), com destinatário, canal, status e data.
+
+### Decisões confirmadas com o usuário
+1. **Destinatário liga a cadastro já existente** — não é texto livre. Precisa ser exatamente um de: eleitor, apoiador, liderança.
+2. **Guarda o conteúdo da mensagem também**, não só metadado.
+3. **Deve disparar de verdade** — não é só um registro manual do que já foi enviado por fora.
+
+### Decisões do Planejador (registradas, não perguntadas)
+- **Sem provedor de WhatsApp configurado ainda** (mesma dependência bloqueante do Módulo 3 — matriz de alertas). "Disparar de verdade" fica pronto na arquitetura (Route Handler que tentaria enviar), mas o resultado prático agora é sempre `status = 'pendente_configuracao'`, igual alertas. Quando o usuário fornecer credencial de provedor, é o mesmo ponto de integração que liga os dois (alertas e mensagens).
+- **Trava estrutural contra disparo em massa** (Regra de Ouro já existente no CLAUDE.md: "sem disparo em massa, envio individual e consentido"): a tabela é uma linha por mensagem, pra um único destinatário — não existe campo de lista/array de destinatários, nem tela de seleção múltipla. Enviar pra 50 pessoas exige 50 ações deliberadas, não uma.
+- **Mensagem pra eleitor (cidadão) é restrita a `coord_campanha`** — mesma regra de sempre (só esse papel lida com PII nominal de cidadão, migration 0006). Mensagem pra apoiador/liderança é liberada também pra `coord_marketing` (mesmo padrão dessas duas tabelas).
+- **Leitura:** mensagem pra eleitor só é visível a quem já vê PII de cidadão (`coord_campanha`, `candidato`); mensagem pra apoiador/liderança é visível a todos os papéis internos. Policy condicional por `tipo_destinatario`, não uma trava única pra tabela inteira.
+- **Por que precisa de Route Handler, não INSERT direto do cliente:** checar se o provedor está configurado e (quando estiver) chamar a API de envio precisa de segredo de servidor — mesmo motivo do Módulo 4 (sugestão de IA) não ser INSERT direto.
+- **Resolução do telefone do destinatário acontece no Route Handler, com a sessão do próprio usuário** (não com service_role) — se a RLS já bloqueia esse papel de ler aquele destinatário (ex.: coord_marketing tentando mandar mensagem "pra cidadão"), o Route Handler nem consegue achar o telefone, então nem tenta enviar. Defesa em profundidade, mesma lógica de `apoiadores.cidadao_id`.
+
+### Modelo de dados (migration 0020)
+- `tipo_destinatario_mensagem` ENUM ('cidadao', 'apoiador', 'lideranca').
+- `canal_mensagem` ENUM ('whatsapp', 'outro').
+- `status_mensagem` ENUM ('pendente_configuracao', 'enviada', 'falhou').
+- `mensagens`: id, campanha_id, tipo_destinatario, cidadao_id/apoiador_id/lideranca_id (nullable, CHECK garante exatamente um preenchido de acordo com tipo_destinatario), canal default 'whatsapp', conteudo TEXT NOT NULL, status default 'pendente_configuracao', erro_envio TEXT, enviado_em TIMESTAMPTZ, criado_por, created_at.
+- Trigger de defesa em profundidade: destinatário (seja qual for) precisa pertencer à mesma `campanha_id` da mensagem.
+
+### Frontend
+- **`/mensagens`:** lista (destinatário — nome se o papel tiver acesso, canal, status com aviso de "WhatsApp não configurado" quando pendente, data) + form "Nova mensagem" (tipo de destinatário, select filtrado, conteúdo, canal). Campo de destinatário "eleitor" só aparece pra `coord_campanha`, mesmo padrão de `/apoiadores`.
+- Rota `POST /api/mensagens/enviar`: valida permissão (espelha RLS), resolve telefone do destinatário com a sessão do usuário, tenta enviar (hoje sempre cai em "não configurado"), grava com o status real do resultado.
+
+### Critérios de aceite
+- [ ] RLS force-enabled + isolamento cross-tenant testado.
+- [ ] Mensagem pra cidadão: só `coord_campanha` cria; `coord_marketing` bloqueado.
+- [ ] Mensagem pra apoiador/liderança: `coord_campanha` e `coord_marketing` criam.
+- [ ] Leitura de mensagem-pra-cidadão restrita a quem já vê PII de cidadão; mensagem pra apoiador/liderança visível a todos.
+- [ ] Destinatário de campanha diferente é rejeitado (trigger).
+- [ ] CHECK de coerência tipo↔FK testado (não dá pra criar com tipo 'apoiador' e `cidadao_id` preenchido, etc.).
+- [ ] Toda mensagem criada nasce com `status = 'pendente_configuracao'` (sem provedor ainda) — UI não finge que enviou.
+
+### Risco TSE/LGPD
+- Baixo pra médio: a trava de "uma linha, um destinatário" impede desvio pro disparo em massa vedado. O maior risco é o mesmo de sempre — vazar PII de cidadão pra papel que não deveria ver —, mitigado pela mesma policy condicional já usada em `apoiadores`.
+
+### Dependências
+- **Bloqueante pro envio real:** credencial de provedor de WhatsApp — mesma pendência do Módulo 3.
+- Reaproveita `cidadaos`, `apoiadores`, `liderancas`, papéis já existentes.
+
+---
+
+## [2026-07-18] Monitoramento — busca automática de menções (notícias + redes sociais)
+
+- **Gatilho:** usuário pediu pra "cuidar da parte de monitoramento"; a lacuna concreta identificada foi que `monitoramento_itens_update` já existe no banco (migration 0007) mas não tem UI — ficou pra depois. Nesta entrada o usuário pediu especificamente uma busca automática por menções ao candidato, inspirada num reel sobre "IA acha todas as suas fotos na internet" — **recusei replicar isso** (seria busca reversa de imagem/reconhecimento facial, risco de virar ferramenta de vigilância se apontada pra qualquer pessoa) e propus a alternativa: busca por **palavra-chave** (nome do candidato) que só traz candidatos a item pra revisão humana, nunca insere sozinho. Usuário confirmou essa direção.
+
+- **Objetivo:** dar à equipe um atalho pra achar menções ao candidato sem precisar sair procurando manualmente — busca pelo nome do candidato em notícias (Google News, funciona hoje, sem custo/credencial) e em redes sociais (X/Twitter, arquitetura pronta mas **pendente de credencial paga**, mesmo padrão do WhatsApp/Anthropic). Resultado é sempre uma lista de candidatos — a inserção em `monitoramento_itens` continua 100% manual, passando pelo mesmo form e pela mesma RLS de sempre.
+
+### Decisões confirmadas
+- Fonte de notícias: Google News RSS público (`news.google.com/rss/search`), sem chave de API — funciona sem nenhuma pendência.
+- Fonte de redes sociais: X (Twitter) API v2 recent search — precisa de `TWITTER_BEARER_TOKEN` (plano pago da X); enquanto não configurado, a seção aparece com aviso "não configurado", sem quebrar o resto.
+- **Nenhuma tabela nova.** Resultado da busca é efêmero (não persiste no banco) — só existe na resposta da rota e no estado do componente até o usuário clicar em "Usar este item", que pré-preenche o form existente (`MonitoramentoForm`). O usuário ainda escolhe categoria/gravidade e confirma o registro manualmente.
+- Busca roda sob demanda (botão "Buscar"), nunca automática/agendada — evita custo de API rodando sem necessidade e mantém o mesmo padrão de "toda chamada externa é uma ação humana explícita" já usado em Mensagens/Alertas.
+- Quem pode buscar: mesmos papéis que já podem registrar item (`coord_campanha`, `advogado_responsavel`, `assistente_juridico`, `coord_marketing`, `redator_marketing`) — a rota reaplica essa checagem em código (não é RLS, é uma chamada HTTP externa, não uma escrita no banco).
+
+### Modelo de dados
+- **Nenhuma migration.** Reaproveita `monitoramento_itens` e sua RLS existente (0007) — a busca em si não toca o banco além de ler `usuarios_internos.papel` e `campanhas.nome_candidato` pra montar a query, com a sessão do próprio usuário.
+
+### Frontend/backend
+- `GET /api/monitoramento/buscar`: Route Handler, sem parâmetro (deriva o nome do candidato da campanha do usuário logado). Busca Google News RSS sempre; busca X só se `TWITTER_BEARER_TOKEN` existir. Retorna `{ noticias, erroNoticias, redes: { configurado, resultados, erro } }`. Erros de rede em qualquer uma das fontes não derrubam a outra.
+- `MonitoramentoWorkspace` (client, novo): substitui `MonitoramentoForm` direto na página — segura o estado de "item escolhido pra pré-preencher" e renderiza `BuscaMencoesPanel` (busca + lista de resultados com botão "Usar este item" por linha) acima do form de registro já existente.
+- `MonitoramentoForm` ganha props opcionais `prefillUrl`/`prefillDescricao` pra receber o item escolhido — usuário ainda precisa escolher categoria/gravidade e clicar "Registrar", nada é automático.
+
+### Critérios de aceite
+- [ ] Busca só funciona pra papel que já pode registrar item (mesmo `PAPEIS_QUE_REGISTRAM` do form) — outros papéis não veem o botão (checagem client-side) nem conseguem chamar a rota direto (checagem server-side na Route Handler).
+- [ ] Falha de rede/parse no Google News não quebra a página nem impede o form de registro manual de continuar funcionando.
+- [ ] `TWITTER_BEARER_TOKEN` ausente: seção de redes sociais mostra aviso claro, sem erro solto.
+- [ ] "Usar este item" preenche url/descrição no form mas **não registra nada sozinho** — só o clique em "Registrar" grava.
+- [ ] Nenhuma chamada externa acontece sem o usuário clicar em "Buscar" (sem polling, sem cron).
+
+### Risco TSE/LGPD
+- Baixo: a busca só traz o que já é público (notícia indexada, post público) e não persiste nada até confirmação humana — mesmo perfil de risco do cadastro manual que já existia. Evitamos deliberadamente qualquer forma de busca reversa de imagem/reconhecimento facial nesta entrada, por ser desproporcional ao caso de uso e abrir risco de uso indevido contra terceiros (não só o candidato).
+
+### Dependências
+- **Bloqueante pra redes sociais:** `TWITTER_BEARER_TOKEN` (credencial paga da X) — notícias funcionam sem nenhuma pendência.
+
+---
+
+## [2026-07-18] Telefone obrigatório em todo cadastro de pessoa
+
+- **Objetivo:** usuário pediu "não permita que ninguém seja cadastrado sem telefone". Levantamento mostrou que `cidadaos.whatsapp` e `apoiadores.telefone` já são `NOT NULL` desde a criação (nenhuma mudança necessária); as lacunas reais são `liderancas.telefone` (nullable no banco e opcional no form) e `usuarios_internos.telefone` (nullable, adicionado depois via ALTER TABLE na migration 0017) — com um caso extremo: **o primeiro usuário da campanha (criado via `bootstrap_campanha` no onboarding) nunca é perguntado o telefone**, o formulário nem tem o campo.
+- **Critérios de aceite:**
+  - [ ] `liderancas.telefone` e `usuarios_internos.telefone` passam a `NOT NULL`.
+  - [ ] `bootstrap_campanha` ganha parâmetro `p_telefone`, valida não-vazio, grava no primeiro `usuarios_internos`.
+  - [ ] Convite de usuário (`InviteUserForm`/`POST /api/usuarios/invite`) passa a exigir telefone.
+  - [ ] Cadastro de liderança (`LiderancaForm`) passa a exigir telefone.
+  - [ ] Dado existente sem telefone (se houver) recebe um placeholder textual óbvio no backfill, não um número inventado — ninguém pode achar que aquele registro tem telefone de verdade.
+- **Dados/tabelas afetadas:** `liderancas`, `usuarios_internos`, função `bootstrap_campanha` (migration 0021).
+- **Risco TSE/LGPD:** nenhum novo — telefone já era coletado nesses cadastros, só deixa de ser opcional. Mensagens/Alertas já dependiam de telefone existir pra funcionar; isso fecha o buraco que deixava esses dois módulos sem like pra alguns registros.
+- **Dependências:** nenhuma.
+
+---
+
+## [2026-07-18] Editar, consultar e desativar cadastros — começando por eleitores
+
+- **Objetivo:** usuário pediu "editar, deletar e consultar" em geral. Auditoria mostrou que nenhuma tela tem edição completa (só toggle de status em apoiador/liderança), busca real só existe em apoiadores/lideranças, e só `tarefas` tem exclusão de verdade — o resto não tem nem policy de DELETE. Pra `cidadaos` e `usuarios_internos` especificamente, apagar de verdade não é desejável nem tecnicamente limpo: cidadão tem `consentimentos_lgpd` (append-only) e usuário interno tem `log_auditoria` (append-only) amarrados — "deletar" vira **desativar** (status), não `DELETE`. Usuário delegou a ordem de execução; comecei por eleitores (lacuna mais grave: nem busca real tinha).
+- **Escopo desta entrada:** só `cidadaos` — busca, edição completa (nome/whatsapp/email/território/liderança/círculo) e desativação (status novo). Apoiadores, lideranças e usuários internos ficam para entradas seguintes.
+- **Critérios de aceite:**
+  - [ ] Busca por nome/whatsapp/bairro-cidade/liderança na lista de eleitores (mesmo padrão client-side já usado em apoiadores/lideranças).
+  - [ ] Editar (só coord_campanha, mesma trava de `cidadaos_update_coord`): nome, whatsapp, email, território, liderança, círculo. **Não edita** `origem_cadastro`, `embaixador_coletor_id` (proveniência) nem nada de `consentimentos_lgpd` (registro do que foi assinado, imutável por design).
+  - [ ] Desativar/reativar (toggle de `status`), mesmo padrão visual de apoiadores/lideranças — não é DELETE, é UPDATE.
+  - [ ] Isolamento de papel: quem só pode ler (`candidato`) não vê botão de editar/desativar, só o status.
+- **Dados/tabelas afetadas:** `cidadaos` ganha coluna `status` (migration 0022) — sem policy de RLS nova, reaproveita `cidadaos_update_coord`.
+- **Risco TSE/LGPD:** mitiga um risco existente (base sem busca real cresce sem controle) sem criar um novo — nenhum dado de consentimento é tocado, editar campos de contato não altera o que foi assinado no formulário físico.
+- **Dependências:** nenhuma.
+
+---
+
+## [2026-07-18] Editar apoiadores e lideranças (continuação da frente de editar/consultar/desativar)
+
+- **Objetivo:** completar a segunda e terceira entidade da frente aberta em "Editar, consultar e desativar cadastros" — apoiadores e lideranças já têm busca e toggle de status, falta a edição completa dos demais campos.
+- **Escopo:** edição inline (mesmo padrão de `CidadaoTable`) de nome/telefone/cidade/bairro/território (+ formas de ajuda/detalhe/disponibilidade em apoiadores). **Não edita** `cidadao_id` (vínculo de apoiador com eleitor já tem trigger próprio de quem pode setar — `restringir_vinculo_cidadao_apoiador`, fora de escopo mexer aqui).
+- **Dados/tabelas afetadas:** nenhuma migration — `apoiadores_update` e `liderancas_update` já existem e já cobrem qualquer coluna pra quem já gerencia essas telas hoje.
+- **Risco TSE/LGPD:** nenhum novo.
+- **Dependências:** nenhuma.
+
+---
+
+## [2026-07-18] Editar e revogar acesso de usuários internos — com achado de segurança
+
+- **Objetivo:** última entidade da frente — hoje não existe NENHUMA forma de editar ou revogar acesso de um usuário interno depois do convite. Se alguém sai da equipe, o acesso fica ativo pra sempre.
+- **Achado durante o levantamento (relevante, registrado antes de implementar):** `usuarios_internos.status` (enum `ativo`/`revogado`/`expirado`) **já existe desde a migration 0001, mas nunca foi de fato aplicado em lugar nenhum** — as funções `current_papel()`, `current_campanha_id()` e `current_territorio_id()` (usadas em praticamente toda policy de RLS do sistema) fazem `SELECT ... FROM usuarios_internos WHERE id = auth.uid()` **sem filtrar por status**. Ou seja: hoje, marcar alguém como "revogado" não bloquearia nada — a pessoa continuaria com acesso total. Construir só o botão de "revogar" sem corrigir isso seria pior que não ter o botão (falsa sensação de segurança). Corrigindo as 3 funções nesta entrada.
+- **Escopo:**
+  - Migration: `current_papel()`, `current_campanha_id()`, `current_territorio_id()` passam a exigir `status = 'ativo'` — usuário revogado/expirado some de toda checagem de RLS do sistema (efeito cascata: não lê nem escreve mais nada, em nenhuma tabela).
+  - Edição: nome, telefone, papel (recalculando `exige_mfa` a partir do papel novo, mesma regra do convite), território/expiração (só quando papel = embaixador).
+  - "Revogar acesso" (status → `revogado`) em vez de excluir — mesmo padrão de desativação das entidades anteriores. Botão de revogar fica desabilitado pra a própria linha do usuário logado (evita autoexclusão acidental).
+- **Critérios de aceite:**
+  - [ ] Usuário com `status <> 'ativo'` perde acesso de leitura/escrita em qualquer tabela protegida por RLS (testar: revogar um usuário de teste, confirmar por SQL simulando a sessão dele que `current_papel()` retorna NULL).
+  - [ ] Edição de papel recalcula `exige_mfa` corretamente.
+  - [ ] Usuário não consegue revogar a própria linha pela UI.
+- **Dados/tabelas afetadas:** `current_papel()`, `current_campanha_id()`, `current_territorio_id()` (migration nova) — sem mudança de schema, só das 3 funções.
+- **Risco TSE/LGPD:** mitiga um risco de segurança real que já existia (controle de acesso incompleto) — não introduz nenhum novo.
+- **Dependências:** nenhuma.
+
+---
+
+## [2026-07-18] Reorganização do menu lateral
+
+- **Objetivo:** usuário pediu uma ordem/agrupamento novo pro menu: Administração primeiro, depois Cadastros (Eleitores, Apoiadores, Lideranças), depois o grupo hoje chamado "Análise" vira "Conhecimento" com Base de Conhecimento, Código eleitoral, Concorrentes e Pesquisa (esta última ainda não construída).
+- **Decisões confirmadas com o usuário:**
+  - Resto do menu (Gestão, Comunicação, e os itens que saem de "Análise": Monitoramento, Dossiê jurídico, Marketing, Peças de conteúdo) fica por minha conta organizar de forma razoável — usuário optou por não detalhar agora.
+  - "Código eleitoral" não é página nova — é atalho pro tema "Código eleitoral" já existente dentro da Base de Conhecimento (confirmado: fica dentro do grupo Conhecimento, mecanismo de atalho por âncora era a opção recomendada, sem sinal contrário).
+- **Decisão minha (não confirmada explicitamente, documentada por transparência):**
+  - Criei dois grupos novos pros itens que saíam de "Análise" sem grupo definido: **Jurídico** (Monitoramento, Dossiê jurídico) e **Marketing** (Marketing, Peças de conteúdo) — separação que já existe conceitualmente nos módulos do projeto (Módulo 3 Jurídico, Módulo 4 Marketing), não é uma escolha arbitrária.
+  - "Pesquisa" **não entrou no menu ainda** — link pra página que não existe seria pior que não ter o item. Adiciono assim que a tela existir.
+- **Escopo:**
+  - `AppShell.tsx`: reordena `NAV_GROUPS` — Administração, Cadastros (nova ordem interna: Eleitores/Apoiadores/Lideranças), Gestão, Comunicação, Jurídico (novo), Marketing (novo), Conhecimento (renomeado de Análise, conteúdo reduzido).
+  - `base-conhecimento/page.tsx`: cada tema ganha um `id` de âncora (`tema-<slug do nome>`) — permite o link "Código eleitoral" do menu pular direto pro tema, sem precisar saber o UUID (que é diferente por campanha). Se a campanha não tiver um tema com esse nome, o link só cai no topo da página, sem erro.
+- **Dados/tabelas afetadas:** nenhuma — mudança 100% de frontend/navegação.
+- **Risco TSE/LGPD:** nenhum.
+- **Dependências:** nenhuma.
+
+---
+
+## [2026-07-18] Código Eleitoral compartilhado entre campanhas
+
+- **Objetivo:** usuário notou que já tinha subido manualmente 2 PDFs de legislação eleitoral (Código Eleitoral Anotado do TSE + Lei 4.737/1965) na campanha de teste, via `.pipeline/seed_codigo_eleitoral.sql`, e perguntou se isso poderia já vir pronto no sistema, já que é a mesma lei pra qualquer campanha. Confirmei a abordagem com o usuário antes de implementar.
+- **Decisão de arquitetura (primeira exceção deliberada à regra de isolamento por `campanha_id`):** em vez de duplicar um PDF de ~9MB em storage por tenant, os 2 arquivos vivem uma vez só, num prefixo `_global/codigo-eleitoral/` no bucket `base-conhecimento` já existente. As linhas de metadado (`temas_campanha`, `base_conhecimento_itens`, `base_conhecimento_arquivos`) continuam por campanha — só o `arquivo_path` de dentro delas aponta pro arquivo compartilhado. Toda regra de RLS das tabelas continua igual; só a policy de leitura de storage ganha uma exceção pro prefixo `_global` (liberada a qualquer usuário interno ativo, não travada por campanha).
+- **Escopo:**
+  - Função `seed_codigo_eleitoral(campanha_id)`: cria o tema "Código Eleitoral" + os 2 itens apontando pro arquivo compartilhado, só se a campanha ainda não tiver esse tema (idempotente).
+  - `bootstrap_campanha` chama essa função pra toda campanha nova — nasce com o Código Eleitoral já carregado.
+  - Backfill pras campanhas que já existem e não têm o tema ainda.
+  - A campanha de teste que já tinha feito isso manualmente (com PDFs próprios, per-tenant) **não é afetada** — a função detecta que o tema já existe e não mexe.
+- **Critérios de aceite:**
+  - [ ] Campanha nova criada via onboarding já nasce com o tema "Código Eleitoral" e os 2 itens.
+  - [ ] Qualquer papel interno ativo consegue abrir/baixar os PDFs do prefixo `_global`, de qualquer campanha.
+  - [ ] Usuário revogado (migration 0023) não consegue ler nem o conteúdo compartilhado.
+  - [ ] Ninguém consegue subir/editar/apagar arquivo no prefixo `_global` pela aplicação (sem policy de INSERT/UPDATE/DELETE — conteúdo mantido pela operação do sistema).
+- **Dados/tabelas afetadas:** nova policy de storage (`_global`), função `seed_codigo_eleitoral`, `bootstrap_campanha` (chamada extra, mesma assinatura).
+- **Risco TSE/LGPD:** nenhum — conteúdo é lei federal pública, não dado pessoal nem de campanha.
+- **Dependências:** os 2 PDFs precisaram ser copiados manualmente pro prefixo `_global` via `supabase storage cp` (fora do SQL — storage não é manipulável por INSERT puro), reaproveitando os arquivos que o usuário já tinha subido na campanha de teste.
+
+---
