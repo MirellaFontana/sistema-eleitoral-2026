@@ -15,6 +15,9 @@ const PAPEIS = [
   { value: "redator_marketing", label: "Redator de marketing" },
   { value: "coord_campanha", label: "Coord. de campanha" },
   { value: "candidato", label: "Candidato" },
+  { value: "apoio_marketing", label: "Apoio de marketing" },
+  { value: "apoio_campanha", label: "Apoio de campanha" },
+  { value: "apoio_coordenacao", label: "Apoio de coordenação" },
 ];
 
 const MFA_OBRIGATORIO = new Set(["coord_campanha", "candidato"]);

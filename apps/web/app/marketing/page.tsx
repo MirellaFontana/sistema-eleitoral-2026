@@ -15,6 +15,9 @@ const PAPEL_LABEL: Record<string, string> = {
   redator_marketing: "Redator de marketing",
   coord_campanha: "Coord. de campanha",
   candidato: "Candidato",
+  apoio_marketing: "Apoio de marketing",
+  apoio_campanha: "Apoio de campanha",
+  apoio_coordenacao: "Apoio de coordenação",
 };
 
 const PAPEIS_QUE_GERAM  = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);

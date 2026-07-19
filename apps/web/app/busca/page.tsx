@@ -13,6 +13,9 @@ const PAPEL_LABEL: Record<string, string> = {
   redator_marketing: "Redator de marketing",
   coord_campanha: "Coord. de campanha",
   candidato: "Candidato",
+  apoio_marketing: "Apoio de marketing",
+  apoio_campanha: "Apoio de campanha",
+  apoio_coordenacao: "Apoio de coordenação",
 };
 
 const CIRCULO_LABEL: Record<string, { label: string; dot: string }> = {
