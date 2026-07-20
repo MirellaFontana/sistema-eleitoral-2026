@@ -4,24 +4,37 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const SITUACOES = [
-  { value: "apresentacao_candidatura", label: "Apresentação da candidatura" },
-  { value: "confirmacao_evento", label: "Confirmação de evento" },
-  { value: "agradecimento", label: "Agradecimento" },
-  { value: "resposta_proposta", label: "Resposta sobre proposta" },
-  { value: "convite_voluntariado", label: "Convite para voluntariado" },
-  { value: "orientacao_apoiador", label: "Orientação para apoiador" },
-  { value: "retorno_demanda", label: "Retorno de demanda" },
-  { value: "resposta_critica", label: "Resposta a crítica" },
-  { value: "esclarecimento_informacao_falsa", label: "Esclarecimento de informação falsa" },
-  { value: "descadastramento", label: "Descadastramento" },
+const SITUACOES_SUGERIDAS = [
+  "Apresentação da candidatura",
+  "Confirmação de evento",
+  "Agradecimento",
+  "Resposta sobre proposta",
+  "Convite para voluntariado",
+  "Orientação para apoiador",
+  "Retorno de demanda",
+  "Resposta a crítica",
+  "Esclarecimento de informação falsa",
+  "Descadastramento",
 ];
 
-export function ModeloForm({ campanhaId }: { campanhaId: string }) {
+export function ModeloForm({
+  campanhaId,
+  situacoesExistentes,
+}: {
+  campanhaId: string;
+  situacoesExistentes: string[];
+}) {
   const router = useRouter();
   const supabase = createClient();
 
-  const [situacao, setSituacao] = useState(SITUACOES[0].value);
+  // Sugestões = as 10 situações originais + qualquer situação nova que a equipe já tenha
+  // cadastrado (evita fragmentar em variações de grafia, tipo "Convite pra evento" vs
+  // "Convite para evento").
+  const sugestoes = Array.from(new Set([...SITUACOES_SUGERIDAS, ...situacoesExistentes])).sort(
+    (a, b) => a.localeCompare(b, "pt-BR")
+  );
+
+  const [situacao, setSituacao] = useState("");
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -30,11 +43,16 @@ export function ModeloForm({ campanhaId }: { campanhaId: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
-    setCarregando(true);
 
+    if (!situacao.trim()) {
+      setErro("Informe a situação do modelo (ex.: Agradecimento).");
+      return;
+    }
+
+    setCarregando(true);
     const { error } = await supabase.from("modelos_mensagem").insert({
       campanha_id: campanhaId,
-      situacao,
+      situacao: situacao.trim(),
       titulo: titulo.trim(),
       conteudo: conteudo.trim(),
     });
@@ -44,6 +62,7 @@ export function ModeloForm({ campanhaId }: { campanhaId: string }) {
       setErro(error.message);
       return;
     }
+    setSituacao("");
     setTitulo("");
     setConteudo("");
     router.refresh();
@@ -54,17 +73,19 @@ export function ModeloForm({ campanhaId }: { campanhaId: string }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Situação</label>
-          <select
+          <input
+            required
+            list="situacoes-sugeridas"
             value={situacao}
             onChange={(e) => setSituacao(e.target.value)}
+            placeholder="Ex.: Agradecimento — ou digite uma situação nova"
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-          >
-            {SITUACOES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
+          />
+          <datalist id="situacoes-sugeridas">
+            {sugestoes.map((s) => (
+              <option key={s} value={s} />
             ))}
-          </select>
+          </datalist>
         </div>
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Título do modelo</label>
@@ -101,5 +122,3 @@ export function ModeloForm({ campanhaId }: { campanhaId: string }) {
     </form>
   );
 }
-
-export { SITUACOES };

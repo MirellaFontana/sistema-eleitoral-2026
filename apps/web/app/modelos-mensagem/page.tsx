@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
-import { ModeloForm, SITUACOES } from "./ModeloForm";
+import { ModeloForm } from "./ModeloForm";
 import { ModeloCard, type ModeloView } from "./ModeloCard";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -83,6 +83,9 @@ export default async function ModelosMensagemPage() {
     lista.push(view);
     grupos.set(m.situacao, lista);
   }
+  // Situação é texto livre agora (migration 0033) — agrupa por qualquer valor que exista,
+  // em vez de uma lista fixa de 10 situações.
+  const situacoesOrdenadas = Array.from(grupos.keys()).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -100,17 +103,17 @@ export default async function ModelosMensagemPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
               Novo modelo
             </h2>
-            <ModeloForm campanhaId={eu.campanha_id} />
+            <ModeloForm campanhaId={eu.campanha_id} situacoesExistentes={situacoesOrdenadas} />
           </section>
         )}
 
-        {SITUACOES.map((s) => {
-          const lista = grupos.get(s.value) ?? [];
+        {situacoesOrdenadas.map((situacao) => {
+          const lista = grupos.get(situacao) ?? [];
           if (lista.length === 0) return null;
           return (
-            <section key={s.value} className="space-y-3">
+            <section key={situacao} className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-                {s.label}
+                {situacao}
               </h2>
               <ul className="space-y-2">
                 {lista.map((m) => (
