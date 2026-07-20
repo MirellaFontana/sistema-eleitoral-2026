@@ -1019,3 +1019,65 @@ Do Bloco Relacionamento, com essa decisão, resta como claramente pré-eleição
 
 ### Dependências
 - Nenhuma credencial. Migration nova na sequência (após 0027 e o calendário eleitoral, conforme ordem de implementação).
+
+---
+
+## [2026-07-20] Comunicação: biblioteca de mensagens aprovadas + central de avisos internos
+
+- **Objetivo:** usuário pediu dois módulos novos dentro do grupo Comunicação. (1) Uma biblioteca de modelos de mensagem pré-aprovados pra 10 situações recorrentes (apresentação de candidatura, confirmação de evento, agradecimento, resposta sobre proposta, convite pra voluntariado, orientação pro apoiador, retorno de demanda, resposta a crítica, esclarecimento de informação falsa, descadastramento), cada um com responsável pela criação, aprovação do marketing, versão e data da última revisão. (2) Uma central de avisos internos mais ampla que a matriz de alertas atual (hoje concentrada em ameaça jurídica/crise), cobrindo 12 categorias operacionais do dia a dia da campanha. **Confirmado explicitamente com o usuário: a biblioteca de mensagens NÃO se integra ao envio de mensagens (`/mensagens`)** — é só um catálogo de referência, sem gatilho de disparo.
+
+### Biblioteca de mensagens aprovadas
+
+**Decisão de arquitetura:** enum fechado `situacao_modelo_mensagem` com as 10 situações exatas listadas pelo usuário — mesmo padrão de enum fechado já usado em `tipo_evento_campanha`/`formato_sugestao_conteudo`. Mais de um modelo pode existir pra mesma situação (ex.: dois textos diferentes de agradecimento) — `titulo` distingue.
+
+**Versionamento (decisão minha, registrada):** em vez de guardar um histórico completo de versões antigas (tabela separada por revisão), cada modelo é uma linha só com contador `versao` e `atualizado_em` — atributos do estado atual, não um browser de histórico. Interpretação literal do pedido ("cada modelo teria... versão; data da última revisão", não "histórico de versões"). Se o usuário quiser navegar versões antigas depois, isso vira uma tabela de auditoria à parte.
+
+**Regra de negócio automática (trigger, não só UI):** editar o `conteudo` de um modelo já aprovado incrementa `versao` em 1, joga `status` de volta pra `rascunho` e limpa `aprovado_por`/`aprovado_em` — sem isso, a aprovação do marketing viraria decorativa (qualquer edição depois de aprovado continuaria "aprovada" sem revisão nova). Mesmo espírito de trava no banco já usado em Peças de Conteúdo (Regra de Ouro nº1).
+
+**Papéis:** criar/editar conteúdo — `coord_campanha`, `coord_marketing`, `redator_marketing` (mesmo trio de sempre que produz conteúdo). Aprovar (setar `status = 'aprovado'`) — só `coord_campanha`/`coord_marketing`, reforçado por trigger (RLS de UPDATE não distingue coluna alterada dentro do mesmo comando — mesma lógica de `restringir_encaminhamento_alertas` da migration 0017). Excluir — só `coord_campanha`. Leitura — todos os papéis internos ativos (é biblioteca de referência compartilhada).
+
+### Central de avisos internos
+
+**Decisão de arquitetura (não pedida, registrada por transparência):** **tabela nova (`avisos_internos`), não uma extensão da tabela `alertas` existente.** `alertas` tem `monitoramento_item_id NOT NULL` e campos de encaminhamento jurídico (`encaminhado_por/em/nota`) que não fazem sentido pra "nova tarefa" ou "reunião convocada" — forçar essas 12 categorias dentro do schema de `alertas` quebraria a FK obrigatória e misturaria dois conceitos (alerta jurídico automático vs. aviso operacional manual). `alertas` continua existindo exatamente como está, sem mudança.
+
+**Enum `categoria_aviso_interno`** com as 12 categorias exatas do usuário: mudança de agenda, nova tarefa, peça aguardando aprovação, prazo eleitoral próximo, crise identificada, evento alterado, orientação jurídica, material disponível, reunião convocada, ocorrência em território, acesso revogado, incidente de segurança.
+
+**Escopo desta entrega — manual + 2 gatilhos automáticos (decisão de escopo registrada):** construir gatilho automático pras 12 categorias exigiria instrumentar ~8 tabelas diferentes (agenda, tarefas, peças, prazos, monitoramento, usuários) — trabalho grande e "prazo eleitoral próximo" nem tem um evento de banco claro pra disparar (é passagem de tempo, exigiria job agendado tipo pg_cron, uma dependência operacional nova que não vou introduzir sem confirmar com o usuário). Por isso, a central nasce como **quadro de avisos manual** (qualquer papel autorizado posta, escolhe a categoria, escreve título/mensagem) pras 12 categorias, com **2 gatilhos automáticos de bônus** que reaproveitam padrão já testado (`gerar_alertas_ameaca_grave` da migration 0017) por serem baratos e terem evento de banco óbvio:
+1. **Peça aguardando aprovação** — ao inserir `pecas_conteudo` com `status = 'rascunho'`, gera 1 aviso por papel aprovador (`advogado_responsavel`, `assistente_juridico`, `coord_campanha`, `coord_marketing`).
+2. **Acesso revogado** — ao `usuarios_internos.status` mudar pra `revogado`, gera 1 aviso pra `coord_campanha`.
+- As outras 10 categorias (mudança de agenda, nova tarefa, prazo eleitoral próximo, crise identificada, evento alterado, orientação jurídica, material disponível, reunião convocada, ocorrência em território, incidente de segurança) ficam manuais nesta entrega — "prazo eleitoral próximo" automático já existe de outra forma (banner no Dashboard + `/calendario-eleitoral`, migration 0028), então não duplico aqui. Instrumentar as demais categorias automaticamente é evolução natural se o usuário pedir depois.
+
+**Destinatário e leitura (decisão registrada):** `destinatario_papel` é **opcional** — nulo significa "todos os papéis internos ativos da campanha"; preenchido restringe a esse papel. `coord_campanha` sempre vê tudo, independente do destinatário (papel de coordenação geral, mesmo raciocínio usado em outras telas do sistema). Sem UPDATE/DELETE de conteúdo (quadro de avisos é histórico — corrigir um aviso errado é postar um novo, não editar o antigo).
+
+**Leitura por pessoa (decisão registrada):** um `lido_em` único por aviso (como em `alertas`) ficaria errado aqui — `alertas` sempre teve audiência pequena e fixa (advogado + coord_campanha), mas um aviso de "todos os papéis" marcado como lido por uma pessoa esconderia ele de todo mundo que ainda não abriu. Por isso, tabela extra `avisos_internos_lidos` (aviso_id, usuario_id, lido_em) — recibo de leitura por pessoa, cada usuário só lê/grava o próprio.
+
+**Papéis que postam aviso:** `coord_campanha`, `coord_marketing`, `redator_marketing`, `advogado_responsavel`, `assistente_juridico` — mesmo conjunto exato já usado em `tarefas_insert` (migration 0015), reaproveitado por precedente, não escolha nova.
+
+### Modelo de dados (migration nova)
+- `situacao_modelo_mensagem` (enum, 10 valores) · `status_modelo_mensagem` (enum: rascunho, aprovado).
+- `modelos_mensagem`: id, campanha_id, situacao, titulo, conteudo, versao int default 1, status default rascunho, criado_por, aprovado_por, aprovado_em, atualizado_em, created_at. CHECK aprovação coerente (par ou nenhum, mesmo padrão de `encaminhamento_coerente`).
+- Trigger `bump_versao_modelo_mensagem`: BEFORE UPDATE, se `conteudo` mudou → versao+1, status='rascunho', aprovado_por/em = NULL, atualizado_em=now().
+- Trigger `restringir_aprovacao_modelo_mensagem`: BEFORE UPDATE, se status/aprovado_por/aprovado_em mudou fora do trigger acima → exige `current_papel() IN ('coord_campanha','coord_marketing')` e `aprovado_por = auth.uid()`.
+- `categoria_aviso_interno` (enum, 12 valores).
+- `avisos_internos`: id, campanha_id, categoria, titulo, mensagem, destinatario_papel papel_usuario NULL, criado_por, created_at.
+- `avisos_internos_lidos`: aviso_id FK cascade, usuario_id FK cascade, lido_em default now(), PK(aviso_id, usuario_id).
+- Trigger `aviso_peca_aguardando_aprovacao` em `pecas_conteudo` (AFTER INSERT WHEN status='rascunho') e `aviso_acesso_revogado` em `usuarios_internos` (AFTER UPDATE WHEN status muda pra revogado).
+- RLS force-enabled nas 4 tabelas novas, políticas descritas acima.
+
+### Frontend
+- **`/modelos-mensagem`** (grupo Comunicação): lista agrupada por situação com badge de status/versão/data; form de criação; botão "Aprovar" só pros papéis certos, só em rascunho.
+- **`/avisos`** (grupo Comunicação): form de postar (categoria, título, mensagem, destinatário opcional) pros papéis autorizados; lista mais recentes primeiro, com badge de categoria e destaque visual pra não lido (via `avisos_internos_lidos` da própria sessão).
+
+### Critérios de aceite
+- [ ] Editar conteúdo de modelo aprovado derruba status pra rascunho e incrementa versão automaticamente (trigger, testado com UPDATE real).
+- [ ] Só coord_campanha/coord_marketing aprovam; redator_marketing cria mas não aprova (403 testado).
+- [ ] Isolamento cross-tenant nas 4 tabelas novas.
+- [ ] Aviso de "peça aguardando aprovação" nasce sozinho ao inserir peça em rascunho; aviso de "acesso revogado" nasce sozinho ao revogar usuário.
+- [ ] Aviso com destinatário nulo aparece pra todo mundo; com destinatário específico, só aparece pro papel certo + coord_campanha.
+- [ ] "Lido" é por pessoa — uma pessoa marcando como lido não esconde o aviso de outra.
+
+### Risco TSE/LGPD
+- Nenhum risco novo — ferramentas de organização interna da equipe, sem dado pessoal de eleitor envolvido.
+
+### Dependências
+- Nenhuma credencial. Migration nova na sequência.

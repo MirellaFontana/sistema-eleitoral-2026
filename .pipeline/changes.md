@@ -590,3 +590,26 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** teste com sessão real de papel restrito (embaixador) pra confirmar que a RLS filtra resultados; busca por telefone com e sem máscara.
 
 ---
+
+## [2026-07-20] Comunicação: biblioteca de mensagens aprovadas + central de avisos internos (ref. specs.md mesma data)
+
+- **Arquivos:** `supabase/migrations/0032_comunicacao_modelos_avisos.sql` (novo — 2 enums, 2 tabelas de modelos, 2 tabelas de avisos, 4 triggers), `app/modelos-mensagem/{page.tsx,ModeloForm.tsx,ModeloCard.tsx}` (novos), `app/avisos/{page.tsx,AvisoForm.tsx,AvisoCard.tsx}` (novos), `components/AppShell.tsx` (2 itens novos no grupo Comunicação: "Modelos de mensagem" ícone `BookMarked`, "Avisos internos" ícone `Radio`).
+- **Confirmado com o usuário antes de implementar:** a biblioteca de mensagens NÃO se integra ao envio de `/mensagens` — é catálogo de referência isolado, sem gatilho de disparo.
+- **Decisões técnicas:**
+  - `modelos_mensagem`: versionamento por trigger (`bump_versao_modelo_mensagem`) — editar `conteudo` incrementa `versao` e derruba `status` de volta pra `rascunho` automaticamente, limpando `aprovado_por`/`aprovado_em`. Sem isso, a aprovação do marketing viraria decorativa (qualquer edição pós-aprovação continuaria "aprovada" sem revisão nova).
+  - Segundo trigger (`restringir_aprovacao_modelo_mensagem`) trava aprovação a `coord_campanha`/`coord_marketing` no próprio banco — RLS de UPDATE não distingue qual coluna mudou dentro do mesmo comando, mesmo racional de `restringir_encaminhamento_alertas` (migration 0017).
+  - `avisos_internos` é **tabela nova, desacoplada de `alertas`** (que segue existindo exatamente como está) — `alertas` tem `monitoramento_item_id NOT NULL` e campos de encaminhamento jurídico que não fazem sentido pras 12 categorias operacionais pedidas (reunião convocada, nova tarefa, etc.).
+  - Leitura por pessoa via `avisos_internos_lidos` (aviso_id, usuario_id, lido_em) em vez de um `lido_em` único na linha — um aviso "pra todos" marcado como lido por uma pessoa não pode esconder ele de quem ainda não abriu (diferente de `alertas`, que sempre teve audiência pequena e fixa).
+  - 2 gatilhos automáticos de bônus (mesmo padrão de `gerar_alertas_ameaca_grave`): peça de conteúdo nova em rascunho gera 1 aviso por papel aprovador (advogado_responsavel, assistente_juridico, coord_campanha, coord_marketing); usuário revogado gera aviso pra coord_campanha. As outras 10 categorias nascem manuais nesta entrega (ver specs.md pro raciocínio de escopo).
+- **Desvio da spec:** nenhum.
+- **Testado em staging (sessão SQL simulada, dados de teste limpos ao final):**
+  - Redator cria modelo (rascunho, v1) — OK.
+  - Redator tentando aprovar → bloqueado pelo trigger com mensagem clara (`P0001`) — confirmado.
+  - Coord_marketing aprova → OK, status vira aprovado.
+  - Editar conteúdo do modelo aprovado → versão sobe pra 2, status volta pra rascunho, aprovado_por/em limpos — confirmado automático, sem intervenção da aplicação.
+  - Inserir peça de conteúdo em rascunho → gerou os 4 avisos automáticos (1 por papel aprovador) — confirmado.
+  - Revogar usuário (como coord_campanha, com AAL2/MFA simulado — a policy de UPDATE de `usuarios_internos` exige `mfa_verificado()`, então a simulação de sessão SQL precisou incluir `request.jwt.claims` com `aal: aal2`, não só o `sub`) → gerou aviso "Acesso revogado" pra coord_campanha — confirmado.
+- **Pendências para o Testador:** teste de navegador ponta a ponta (criar/aprovar modelo, publicar aviso, marcar como lido) ainda não feito — só verificado via simulação SQL direta contra staging.
+- **Nota de ambiente:** durante esta sessão o Bash tool ficou com PATH degradado (sed/wc/head/npx não encontrados); typecheck e push de migration precisaram rodar via PowerShell em vez de Bash. Git continuou funcionando normalmente em ambos.
+
+---

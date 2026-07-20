@@ -26,6 +26,8 @@ import {
   CalendarClock,
   CalendarDays,
   IdCard,
+  BookMarked,
+  Radio,
   Menu,
   X,
   type LucideIcon,
@@ -64,6 +66,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/mensagens", label: "Mensagens", icon: MessageCircle },
       { href: "/alertas", label: "Alertas", icon: Bell },
+      { href: "/modelos-mensagem", label: "Modelos de mensagem", icon: BookMarked },
+      { href: "/avisos", label: "Avisos internos", icon: Radio },
     ],
   },
   {
