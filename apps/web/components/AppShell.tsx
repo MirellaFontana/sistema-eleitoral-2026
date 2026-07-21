@@ -65,7 +65,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Comunicação",
     items: [
       { href: "/mensagens", label: "Mensagens", icon: MessageCircle },
-      { href: "/alertas", label: "Alertas", icon: Bell },
       { href: "/modelos-mensagem", label: "Modelos de mensagem", icon: BookMarked },
       { href: "/avisos", label: "Avisos internos", icon: Radio },
     ],
@@ -81,6 +80,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Marketing",
     items: [
       { href: "/monitoramento", label: "Monitoramento", icon: Eye },
+      { href: "/alertas", label: "Alertas", icon: Bell },
       { href: "/respostas", label: "Respostas", icon: Reply },
       { href: "/marketing", label: "Marketing", icon: Megaphone },
       { href: "/pecas-conteudo", label: "Peças de conteúdo", icon: FileText },
