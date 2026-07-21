@@ -61,15 +61,30 @@ export function BuscaMencoesPanel({
   async function buscar() {
     setCarregando(true);
     setErro(null);
-    const res = await fetch("/api/monitoramento/buscar");
-    const data = await res.json();
-    setCarregando(false);
+    setResultado(null);
+    try {
+      const res = await fetch("/api/monitoramento/buscar");
 
-    if (!res.ok) {
-      setErro(data.error ?? "erro ao buscar menções");
-      return;
+      // Sessão expirada faz o middleware redirecionar a própria chamada de API pro
+      // /login (HTML) em vez de rodar a rota — isso geraria uma resposta que não é JSON,
+      // e res.json() quebraria silenciosamente, deixando o botão travado sem erro.
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        setErro("Sua sessão expirou. Atualize a página e faça login de novo.");
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error ?? "erro ao buscar menções");
+        return;
+      }
+      setResultado(data);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha de conexão ao buscar menções. Tente de novo.");
+    } finally {
+      setCarregando(false);
     }
-    setResultado(data);
   }
 
   return (
