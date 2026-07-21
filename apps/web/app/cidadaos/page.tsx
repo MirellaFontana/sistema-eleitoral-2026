@@ -64,7 +64,7 @@ export default async function CidadaosPage() {
       supabase
         .from("cidadaos")
         .select(
-          "id, nome, whatsapp, email, circulo, status, created_at, lideranca_id, liderancas(nome), territorio_id, territorios(nome_bairro, cidade)"
+          "id, nome, whatsapp, email, cidade, circulo, status, created_at, lideranca_id, liderancas(nome), territorio_id, territorios(nome_bairro, cidade)"
         )
         .order("created_at", { ascending: false }),
       supabase.from("liderancas").select("id, nome, status").eq("status", "ativa").order("nome"),
@@ -82,6 +82,7 @@ export default async function CidadaosPage() {
       nome: c.nome,
       whatsapp: c.whatsapp,
       email: c.email,
+      cidade: c.cidade,
       circulo: c.circulo,
       status: c.status,
       liderancaId: c.lideranca_id,

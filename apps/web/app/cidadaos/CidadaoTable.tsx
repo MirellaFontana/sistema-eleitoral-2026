@@ -16,6 +16,7 @@ type Linha = {
   nome: string;
   whatsapp: string;
   email: string | null;
+  cidade: string | null;
   circulo: string;
   status: string;
   liderancaId: string | null;
@@ -50,7 +51,7 @@ export function CidadaoTable({
   const filtradas = linhas.filter((l) => {
     const q = busca.trim().toLowerCase();
     if (!q) return true;
-    return [l.nome, l.whatsapp, l.territorioLabel, l.liderancaNome].some((v) =>
+    return [l.nome, l.whatsapp, l.cidade, l.territorioLabel, l.liderancaNome].some((v) =>
       v?.toLowerCase().includes(q)
     );
   });
@@ -98,7 +99,8 @@ export function CidadaoTable({
                 <div>
                   <p className="text-sm font-medium">{l.nome}</p>
                   <p className="text-xs text-neutral-500">
-                    {l.whatsapp} · {CIRCULO_LABEL[l.circulo] ?? l.circulo} · {l.territorioLabel}
+                    {l.whatsapp} · {CIRCULO_LABEL[l.circulo] ?? l.circulo}
+                    {l.cidade ? ` · ${l.cidade}` : ""} · {l.territorioLabel}
                     {l.liderancaNome ? ` · ${l.liderancaNome}` : ""} · {formatarData(l.createdAt)}
                   </p>
                 </div>
@@ -170,6 +172,7 @@ function CidadaoViewRow({ linha, onFechar }: { linha: Linha; onFechar: () => voi
         <Campo label="Nome" valor={linha.nome} />
         <Campo label="WhatsApp" valor={linha.whatsapp} />
         <Campo label="E-mail" valor={linha.email ?? "não informado"} />
+        <Campo label="Cidade" valor={linha.cidade ?? "não informado"} />
         <Campo label="Temperatura do voto" valor={CIRCULO_LABEL[linha.circulo] ?? linha.circulo} />
         <Campo label="Bairro/território" valor={linha.territorioLabel} />
         <Campo label="Liderança" valor={linha.liderancaNome ?? "Iniciativa própria"} />
@@ -206,6 +209,7 @@ function CidadaoEditRow({
   const [nome, setNome] = useState(linha.nome);
   const [whatsapp, setWhatsapp] = useState(linha.whatsapp);
   const [email, setEmail] = useState(linha.email ?? "");
+  const [cidade, setCidade] = useState(linha.cidade ?? "");
   const [circulo, setCirculo] = useState(linha.circulo);
   const [liderancaId, setLiderancaId] = useState(linha.liderancaId ?? "");
   const [territorioId, setTerritorioId] = useState(linha.territorioId ?? "");
@@ -223,6 +227,7 @@ function CidadaoEditRow({
         nome: nome.trim(),
         whatsapp: whatsapp.trim(),
         email: email.trim() || null,
+        cidade: cidade.trim() || null,
         circulo,
         // origem_cadastro precisa acompanhar lideranca_id: o banco exige lideranca_id quando
         // origem é "formulario_lideranca" — limpar a liderança sem isso violaria a constraint.
@@ -264,7 +269,7 @@ function CidadaoEditRow({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-neutral-500">E-mail</label>
             <input
@@ -274,6 +279,17 @@ function CidadaoEditRow({
               className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
             />
           </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-500">Cidade</label>
+            <input
+              value={cidade}
+              onChange={(e) => setCidade(e.target.value)}
+              className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-neutral-500">Bairro/território</label>
             <select
@@ -298,7 +314,7 @@ function CidadaoEditRow({
             >
               <option value="frio">Frio</option>
               <option value="morno">Morno</option>
-              <option value="quente">Quente (apoiador)</option>
+              <option value="quente">Quente</option>
             </select>
           </div>
         </div>

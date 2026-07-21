@@ -25,6 +25,7 @@ export function CidadaoForm({
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
+  const [cidade, setCidade] = useState("");
   const [liderancaId, setLiderancaId] = useState("");
   const [territorioId, setTerritorioId] = useState("");
   const [circulo, setCirculo] = useState("frio");
@@ -46,6 +47,7 @@ export function CidadaoForm({
         nome: nome.trim(),
         whatsapp: whatsapp.trim(),
         email: email.trim() || null,
+        cidade: cidade.trim() || null,
         circulo,
         territorio_id: territorioId || null,
         origem_cadastro: liderancaId ? "formulario_lideranca" : "iniciativa_propria",
@@ -84,6 +86,7 @@ export function CidadaoForm({
     setNome("");
     setWhatsapp("");
     setEmail("");
+    setCidade("");
     setCirculo("frio");
     router.refresh();
   }
@@ -123,19 +126,13 @@ export function CidadaoForm({
           />
         </div>
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-neutral-500">Bairro/território</label>
-          <select
-            value={territorioId}
-            onChange={(e) => setTerritorioId(e.target.value)}
+          <label className="block text-xs font-medium text-neutral-500">Cidade</label>
+          <input
+            value={cidade}
+            onChange={(e) => setCidade(e.target.value)}
+            placeholder="Ex.: Recife"
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-          >
-            <option value="">não informado</option>
-            {territorios.map((t) => (
-              <option key={t.id} value={t.id}>
-                {labelTerritorio(t.nome_bairro, t.cidade)}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Temperatura do voto</label>
@@ -146,9 +143,30 @@ export function CidadaoForm({
           >
             <option value="frio">Frio</option>
             <option value="morno">Morno</option>
-            <option value="quente">Quente (apoiador)</option>
+            <option value="quente">Quente</option>
           </select>
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">
+          Bairro/território{" "}
+          <span className="font-normal text-neutral-400">
+            (opcional — usado no mapa de cobertura)
+          </span>
+        </label>
+        <select
+          value={territorioId}
+          onChange={(e) => setTerritorioId(e.target.value)}
+          className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+        >
+          <option value="">não informado</option>
+          {territorios.map((t) => (
+            <option key={t.id} value={t.id}>
+              {labelTerritorio(t.nome_bairro, t.cidade)}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1">
