@@ -13,6 +13,11 @@ const MapaCobertura = dynamic(() => import("./MapaCobertura"), {
   ),
 });
 
-export function MapaWrapper(props: { circulos: Circulo[]; eleitores: Ponto[]; semCoordenada: number }) {
+export function MapaWrapper(props: {
+  circulos: Circulo[];
+  eleitores: Ponto[];
+  semCoordenada: number;
+  centroPadrao?: { lat: number; lng: number; zoom: number };
+}) {
   return <MapaCobertura {...props} />;
 }

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { MapaWrapper } from "./MapaWrapper";
+import { UF_COORDENADAS } from "@/lib/uf-coordenadas";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Liderança de campo (legado)",
@@ -38,7 +39,7 @@ export default async function GeolocalizacaoPage() {
 
   const { data: eu } = await supabase
     .from("usuarios_internos")
-    .select("papel, campanha_id, campanhas(nome_candidato)")
+    .select("papel, campanha_id, campanhas(nome_candidato, uf)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -48,6 +49,7 @@ export default async function GeolocalizacaoPage() {
   if (rotaMfa) redirect(rotaMfa);
 
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
+  const centroUf = campanha?.uf ? UF_COORDENADAS[campanha.uf] : undefined;
 
   const [terrRes, campRes, metasRes, eleitoresRes] = await Promise.all([
     supabase.rpc("mapa_territorios"),
@@ -101,19 +103,20 @@ export default async function GeolocalizacaoPage() {
           </span>
         </div>
 
-        {circulos.length === 0 ? (
+        {circulos.length === 0 && (
           <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Nenhum território com coordenada definida ainda. Em “Usuários” → “Adicionar
-            território”, informe cidade e use “Buscar coordenada” (ou lat/lng manual) para o bairro
-            aparecer no mapa.
+            Nenhum território com coordenada definida ainda — o mapa abaixo está centralizado no
+            estado da campanha. Em “Lideranças” → “Territórios”, informe cidade e use “Buscar
+            coordenada” (ou lat/lng manual) para o bairro aparecer com o círculo de cobertura.
           </p>
-        ) : (
-          <MapaWrapper
-            circulos={circulos}
-            eleitores={eleitores}
-            semCoordenada={Number(campanhaAgg.sem_coordenada)}
-          />
         )}
+
+        <MapaWrapper
+          circulos={circulos}
+          eleitores={eleitores}
+          semCoordenada={Number(campanhaAgg.sem_coordenada)}
+          centroPadrao={centroUf}
+        />
 
         <p className="text-xs text-neutral-400">
           {Number(campanhaAgg.sem_coordenada) > 0 &&

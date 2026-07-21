@@ -27,19 +27,33 @@ function corDoCirculo(c: Circulo): string {
   return "#dc2626"; // vermelho
 }
 
+// Centro do Brasil — último recurso, só se a campanha não tiver UF e ainda não houver
+// nenhum território com coordenada (não deveria acontecer no fluxo normal de cadastro).
+const CENTRO_BRASIL = { lat: -14.235, lng: -51.9253, zoom: 4 };
+
 export default function MapaCobertura({
   circulos,
   eleitores,
   semCoordenada,
+  centroPadrao,
 }: {
   circulos: Circulo[];
   eleitores: Ponto[];
   semCoordenada: number;
+  centroPadrao?: { lat: number; lng: number; zoom: number };
 }) {
   const [mostrarEleitores, setMostrarEleitores] = useState(false);
 
-  const centroLat = circulos.reduce((s, c) => s + c.lat, 0) / circulos.length;
-  const centroLng = circulos.reduce((s, c) => s + c.lng, 0) / circulos.length;
+  // Com território cadastrado, centraliza na média real dos círculos (mais preciso, mais
+  // próximo). Sem nenhum ainda, usa o estado da campanha como enquadramento inicial.
+  const temCirculos = circulos.length > 0;
+  const centro = temCirculos
+    ? {
+        lat: circulos.reduce((s, c) => s + c.lat, 0) / circulos.length,
+        lng: circulos.reduce((s, c) => s + c.lng, 0) / circulos.length,
+        zoom: 12,
+      }
+    : (centroPadrao ?? CENTRO_BRASIL);
 
   return (
     <div className="space-y-3">
@@ -54,8 +68,9 @@ export default function MapaCobertura({
 
       <div className="overflow-hidden rounded border border-neutral-200">
         <MapContainer
-          center={[centroLat, centroLng]}
-          zoom={12}
+          key={`${centro.lat}-${centro.lng}`}
+          center={[centro.lat, centro.lng]}
+          zoom={centro.zoom}
           style={{ height: 480, width: "100%" }}
           scrollWheelZoom
         >
