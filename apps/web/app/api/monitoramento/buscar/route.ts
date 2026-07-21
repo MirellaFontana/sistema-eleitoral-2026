@@ -11,6 +11,15 @@ const PAPEIS_QUE_BUSCAM = new Set([
 
 type Resultado = { titulo: string; link: string; fonte: string; publicadoEm: string | null };
 
+type GrupoResultado = {
+  termoId: string;
+  termo: string;
+  rotulo: string | null;
+  noticias: Resultado[];
+  erroNoticias: string | null;
+  redes: { configurado: boolean; resultados: Resultado[]; erro: string | null };
+};
+
 function decodificarHtml(texto: string) {
   return texto
     .replace(/<!\[CDATA\[/g, "")
@@ -42,31 +51,11 @@ function extrairNoticiasRss(xml: string): Resultado[] {
     .filter((item) => item.titulo && item.link);
 }
 
-export async function GET() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "não autenticado" }, { status: 401 });
-
-  const { data: eu } = await supabase
-    .from("usuarios_internos")
-    .select("papel, campanhas(nome_candidato)")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!eu || !PAPEIS_QUE_BUSCAM.has(eu.papel)) {
-    return NextResponse.json({ error: "sem permissão pra buscar menções" }, { status: 403 });
-  }
-
-  const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
-  const nomeCandidato = campanha?.nome_candidato;
-  if (!nomeCandidato) {
-    return NextResponse.json({ error: "campanha sem nome de candidato cadastrado" }, { status: 400 });
-  }
-
-  const query = `"${nomeCandidato}"`;
+async function buscarTermo(
+  termoRow: { id: string; termo: string; rotulo: string | null },
+  twitterToken: string | undefined
+): Promise<GrupoResultado> {
+  const query = `"${termoRow.termo}"`;
 
   let noticias: Resultado[] = [];
   let erroNoticias: string | null = null;
@@ -82,7 +71,6 @@ export async function GET() {
     erroNoticias = e instanceof Error ? e.message : "erro ao buscar notícias";
   }
 
-  const twitterToken = process.env.TWITTER_BEARER_TOKEN;
   const redes: { configurado: boolean; resultados: Resultado[]; erro: string | null } = {
     configurado: !!twitterToken,
     resultados: [],
@@ -111,5 +99,48 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ noticias, erroNoticias, redes });
+  return {
+    termoId: termoRow.id,
+    termo: termoRow.termo,
+    rotulo: termoRow.rotulo,
+    noticias,
+    erroNoticias,
+    redes,
+  };
+}
+
+export async function GET() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "não autenticado" }, { status: 401 });
+
+  const { data: eu } = await supabase
+    .from("usuarios_internos")
+    .select("papel")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!eu || !PAPEIS_QUE_BUSCAM.has(eu.papel)) {
+    return NextResponse.json({ error: "sem permissão pra buscar menções" }, { status: 403 });
+  }
+
+  const { data: termos } = await supabase
+    .from("termos_monitoramento")
+    .select("id, termo, rotulo")
+    .eq("ativo", true);
+
+  if (!termos || termos.length === 0) {
+    return NextResponse.json(
+      { error: "Nenhum termo de monitoramento ativo — cadastre em \"O que monitorar\" antes de buscar." },
+      { status: 400 }
+    );
+  }
+
+  const twitterToken = process.env.TWITTER_BEARER_TOKEN;
+  const grupos = await Promise.all(termos.map((t) => buscarTermo(t, twitterToken)));
+
+  return NextResponse.json({ grupos });
 }

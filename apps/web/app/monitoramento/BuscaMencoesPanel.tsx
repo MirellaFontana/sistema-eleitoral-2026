@@ -3,7 +3,10 @@
 import { useState } from "react";
 
 type Resultado = { titulo: string; link: string; fonte: string; publicadoEm: string | null };
-type RespostaBusca = {
+type Grupo = {
+  termoId: string;
+  termo: string;
+  rotulo: string | null;
   noticias: Resultado[];
   erroNoticias: string | null;
   redes: { configurado: boolean; resultados: Resultado[]; erro: string | null };
@@ -49,19 +52,67 @@ function ListaResultados({
   );
 }
 
+function GrupoTermo({
+  grupo,
+  onEscolher,
+}: {
+  grupo: Grupo;
+  onEscolher: (item: { url: string; descricao: string }) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded border border-neutral-200 p-3">
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-800">
+          {grupo.termo}
+        </span>
+        {grupo.rotulo && <span className="text-xs text-neutral-400">{grupo.rotulo}</span>}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Notícias</h4>
+        {grupo.erroNoticias && (
+          <p className="text-xs text-neutral-500">Não deu pra buscar: {grupo.erroNoticias}</p>
+        )}
+        {!grupo.erroNoticias && grupo.noticias.length === 0 && (
+          <p className="text-xs text-neutral-400">Nenhuma notícia encontrada.</p>
+        )}
+        <ListaResultados itens={grupo.noticias} onEscolher={onEscolher} />
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          Redes sociais
+        </h4>
+        {!grupo.redes.configurado && (
+          <p className="text-xs text-amber-700">
+            Busca em redes sociais ainda não configurada (falta credencial de API — X/Twitter).
+          </p>
+        )}
+        {grupo.redes.configurado && grupo.redes.erro && (
+          <p className="text-xs text-neutral-500">Não deu pra buscar: {grupo.redes.erro}</p>
+        )}
+        {grupo.redes.configurado && !grupo.redes.erro && grupo.redes.resultados.length === 0 && (
+          <p className="text-xs text-neutral-400">Nenhum resultado encontrado.</p>
+        )}
+        <ListaResultados itens={grupo.redes.resultados} onEscolher={onEscolher} />
+      </div>
+    </div>
+  );
+}
+
 export function BuscaMencoesPanel({
   onEscolher,
 }: {
   onEscolher: (item: { url: string; descricao: string }) => void;
 }) {
-  const [resultado, setResultado] = useState<RespostaBusca | null>(null);
+  const [grupos, setGrupos] = useState<Grupo[] | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   async function buscar() {
     setCarregando(true);
     setErro(null);
-    setResultado(null);
+    setGrupos(null);
     try {
       const res = await fetch("/api/monitoramento/buscar");
 
@@ -79,7 +130,7 @@ export function BuscaMencoesPanel({
         setErro(data.error ?? "erro ao buscar menções");
         return;
       }
-      setResultado(data);
+      setGrupos(data.grupos);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha de conexão ao buscar menções. Tente de novo.");
     } finally {
@@ -93,8 +144,8 @@ export function BuscaMencoesPanel({
         <div>
           <h3 className="text-sm font-semibold">Buscar menções automaticamente</h3>
           <p className="text-xs text-neutral-500">
-            Busca pelo nome do candidato em notícias (e redes sociais, se configurado). Nada é
-            registrado sozinho — você escolhe o que vira item.
+            Busca cada termo cadastrado em "O que monitorar" — notícias (e redes sociais, se
+            configurado). Nada é registrado sozinho — você escolhe o que vira item.
           </p>
         </div>
         <button
@@ -108,44 +159,11 @@ export function BuscaMencoesPanel({
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}
 
-      {resultado && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Notícias
-            </h4>
-            {resultado.erroNoticias && (
-              <p className="text-xs text-neutral-500">
-                Não deu pra buscar: {resultado.erroNoticias}
-              </p>
-            )}
-            {!resultado.erroNoticias && resultado.noticias.length === 0 && (
-              <p className="text-xs text-neutral-400">Nenhuma notícia encontrada.</p>
-            )}
-            <ListaResultados itens={resultado.noticias} onEscolher={onEscolher} />
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-              Redes sociais
-            </h4>
-            {!resultado.redes.configurado && (
-              <p className="text-xs text-amber-700">
-                Busca em redes sociais ainda não configurada (falta credencial de API — X/Twitter).
-              </p>
-            )}
-            {resultado.redes.configurado && resultado.redes.erro && (
-              <p className="text-xs text-neutral-500">
-                Não deu pra buscar: {resultado.redes.erro}
-              </p>
-            )}
-            {resultado.redes.configurado &&
-              !resultado.redes.erro &&
-              resultado.redes.resultados.length === 0 && (
-                <p className="text-xs text-neutral-400">Nenhum resultado encontrado.</p>
-              )}
-            <ListaResultados itens={resultado.redes.resultados} onEscolher={onEscolher} />
-          </div>
+      {grupos && (
+        <div className="space-y-3">
+          {grupos.map((g) => (
+            <GrupoTermo key={g.termoId} grupo={g} onEscolher={onEscolher} />
+          ))}
         </div>
       )}
     </div>

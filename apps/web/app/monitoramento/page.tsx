@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { MonitoramentoWorkspace } from "./MonitoramentoWorkspace";
 import { VerCapturaButton } from "./VerCapturaButton";
+import type { TermoView } from "./TermosMonitoramento";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -66,10 +67,34 @@ export default async function MonitoramentoPage() {
   const podeRegistrar = PAPEIS_QUE_REGISTRAM.has(eu.papel);
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const { data: itens } = await supabase
-    .from("monitoramento_itens")
-    .select("id, url, descricao, categoria, gravidade, status, captura_path, hash_evidencia, created_at")
-    .order("created_at", { ascending: false });
+  // Semeia o próprio candidato como primeiro termo monitorado, uma única vez por campanha —
+  // mantém o comportamento de antes (buscava o candidato automaticamente) sem exigir que
+  // alguém cadastre isso manualmente antes de usar a busca pela primeira vez.
+  if (podeRegistrar && campanha?.nome_candidato) {
+    const { count } = await supabase
+      .from("termos_monitoramento")
+      .select("*", { count: "exact", head: true });
+    if (count === 0) {
+      await supabase.from("termos_monitoramento").insert({
+        campanha_id: eu.campanha_id,
+        termo: campanha.nome_candidato,
+        rotulo: "Candidato",
+      });
+    }
+  }
+
+  const [{ data: itens }, { data: termosData }] = await Promise.all([
+    supabase
+      .from("monitoramento_itens")
+      .select("id, url, descricao, categoria, gravidade, status, captura_path, hash_evidencia, created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("termos_monitoramento")
+      .select("id, termo, rotulo, ativo")
+      .order("created_at"),
+  ]);
+
+  const termos: TermoView[] = termosData ?? [];
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -87,7 +112,7 @@ export default async function MonitoramentoPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
               Registrar item
             </h2>
-            <MonitoramentoWorkspace campanhaId={eu.campanha_id} />
+            <MonitoramentoWorkspace campanhaId={eu.campanha_id} termos={termos} />
           </section>
         )}
 
