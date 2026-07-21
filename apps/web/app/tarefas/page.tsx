@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { TarefaForm } from "./TarefaForm";
-import { TarefaRow } from "./TarefaRow";
+import { TarefaCard, type TarefaView } from "./TarefaCard";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Liderança de campo (legado)",
@@ -25,6 +25,17 @@ const PAPEIS_QUE_EDITAM = new Set([
   "advogado_responsavel",
   "assistente_juridico",
 ]);
+
+type LinhaTarefa = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  status: string;
+  prazo: string | null;
+  created_at: string;
+  responsavel_id: string | null;
+  usuarios_internos: { nome: string } | { nome: string }[] | null;
+};
 
 export default async function TarefasPage() {
   const supabase = await createClient();
@@ -49,17 +60,39 @@ export default async function TarefasPage() {
   const podeExcluir = eu.papel === "coord_campanha";
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const { data: tarefas } = await supabase
-    .from("tarefas")
-    .select("id, titulo, responsavel, status, prazo, created_at")
-    .order("created_at", { ascending: false });
+  const [{ data: tarefas }, { data: equipe }] = await Promise.all([
+    supabase
+      .from("tarefas")
+      .select(
+        "id, titulo, descricao, status, prazo, created_at, responsavel_id, usuarios_internos!responsavel_id(nome)"
+      )
+      .order("created_at", { ascending: false }),
+    supabase.from("usuarios_internos").select("id, nome").order("nome"),
+  ]);
+
+  const linhas: TarefaView[] = ((tarefas ?? []) as unknown as LinhaTarefa[]).map((t) => {
+    const responsavel = Array.isArray(t.usuarios_internos) ? t.usuarios_internos[0] : t.usuarios_internos;
+    return {
+      id: t.id,
+      titulo: t.titulo,
+      descricao: t.descricao,
+      status: t.status,
+      prazo: t.prazo,
+      responsavelId: t.responsavel_id,
+      responsavelNome: responsavel?.nome ?? null,
+      createdAt: t.created_at,
+    };
+  });
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
         <div>
           <h1 className="text-lg font-semibold">Tarefas</h1>
-          <p className="text-sm text-neutral-500">Lista de atividades da equipe.</p>
+          <p className="text-sm text-neutral-500">
+            Cadastro de atividades da equipe — com descrição e responsável escolhido diretamente
+            do cadastro de usuários.
+          </p>
         </div>
 
         {podeEditar && (
@@ -67,35 +100,25 @@ export default async function TarefasPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
               Nova tarefa
             </h2>
-            <TarefaForm campanhaId={eu.campanha_id} />
+            <TarefaForm campanhaId={eu.campanha_id} equipe={equipe ?? []} />
           </section>
         )}
 
         <section className="space-y-3">
-          {(tarefas ?? []).length === 0 && (
+          {linhas.length === 0 && (
             <p className="text-sm text-neutral-400">Nenhuma tarefa registrada ainda.</p>
           )}
-
-          {(tarefas ?? []).length > 0 && (
-            <div className="overflow-x-auto rounded border border-neutral-200">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500">
-                    <th className="px-3 py-2 font-medium">Título</th>
-                    <th className="px-3 py-2 font-medium">Responsável</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">Prazo</th>
-                    {podeExcluir && <th className="px-3 py-2" />}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(tarefas ?? []).map((t) => (
-                    <TarefaRow key={t.id} tarefa={t} podeEditar={podeEditar} podeExcluir={podeExcluir} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <ul className="space-y-2">
+            {linhas.map((t) => (
+              <TarefaCard
+                key={t.id}
+                tarefa={t}
+                equipe={equipe ?? []}
+                podeEditar={podeEditar}
+                podeExcluir={podeExcluir}
+              />
+            ))}
+          </ul>
         </section>
       </main>
     </AppShell>
