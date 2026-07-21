@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -44,6 +44,7 @@ export function MonitoramentoForm({
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [categoria, setCategoria] = useState(CATEGORIAS[0].value);
   const [gravidade, setGravidade] = useState("");
@@ -55,10 +56,13 @@ export function MonitoramentoForm({
   const [carregando, setCarregando] = useState(false);
 
   // Item escolhido no painel de busca automática — só preenche, não registra sozinho.
+  // A lista de resultados pode ter 15+ notícias empurrando o formulário pra baixo da tela;
+  // sem rolar até ele, o preenchimento acontece fora da vista e parece que "nada aconteceu".
   useEffect(() => {
     if (prefillUrl === undefined && prefillDescricao === undefined) return;
     setUrl(prefillUrl ?? "");
     setDescricao(prefillDescricao ?? "");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [prefillUrl, prefillDescricao]);
 
   const precisaGravidade = CATEGORIAS_COM_GRAVIDADE.has(categoria);
@@ -121,7 +125,11 @@ export function MonitoramentoForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded border border-neutral-200 p-4">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="space-y-3 scroll-mt-4 rounded border border-neutral-200 p-4"
+    >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Categoria</label>
