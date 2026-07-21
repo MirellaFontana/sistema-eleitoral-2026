@@ -48,8 +48,8 @@ export function CidadaoForm({
         email: email.trim() || null,
         circulo,
         territorio_id: territorioId || null,
-        origem_cadastro: "formulario_lideranca",
-        lideranca_id: liderancaId,
+        origem_cadastro: liderancaId ? "formulario_lideranca" : "iniciativa_propria",
+        lideranca_id: liderancaId || null,
       })
       .select("id")
       .single();
@@ -153,15 +153,15 @@ export function CidadaoForm({
 
       <div className="space-y-1">
         <label className="block text-xs font-medium text-neutral-500">
-          Liderança que trouxe o formulário (obrigatório)
+          Liderança que trouxe o formulário{" "}
+          <span className="font-normal text-neutral-400">(opcional)</span>
         </label>
         <select
-          required
           value={liderancaId}
           onChange={(e) => setLiderancaId(e.target.value)}
           className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
         >
-          <option value="">selecione…</option>
+          <option value="">Nenhuma — cadastro por iniciativa própria</option>
           {liderancas.map((l) => (
             <option key={l.id} value={l.id}>
               {l.nome}

@@ -98,8 +98,8 @@ export default async function CidadaosPage() {
         <div>
           <h1 className="text-lg font-semibold">Eleitores — digitação de formulários</h1>
           <p className="text-sm text-neutral-500">
-            Cadastro digitado a partir do formulário físico trazido pela liderança, um a um, com
-            consentimento registrado. Não existe importação de lista — por design.
+            Cadastro digitado um a um, com consentimento registrado — trazido por uma liderança de
+            campo ou por iniciativa própria da pessoa. Não existe importação de lista — por design.
           </p>
         </div>
 
@@ -108,18 +108,11 @@ export default async function CidadaosPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
               Digitar formulário
             </h2>
-            {(liderancasAtivas ?? []).length === 0 ? (
-              <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                Cadastre primeiro uma liderança ativa em “Lideranças” — todo formulário digitado
-                precisa ser atribuído à liderança que o trouxe.
-              </p>
-            ) : (
-              <CidadaoForm
-                campanhaId={eu.campanha_id}
-                liderancas={liderancasAtivas ?? []}
-                territorios={territorios ?? []}
-              />
-            )}
+            <CidadaoForm
+              campanhaId={eu.campanha_id}
+              liderancas={liderancasAtivas ?? []}
+              territorios={territorios ?? []}
+            />
           </section>
         )}
 

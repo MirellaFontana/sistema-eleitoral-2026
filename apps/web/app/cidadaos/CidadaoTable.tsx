@@ -172,7 +172,7 @@ function CidadaoViewRow({ linha, onFechar }: { linha: Linha; onFechar: () => voi
         <Campo label="E-mail" valor={linha.email ?? "não informado"} />
         <Campo label="Temperatura do voto" valor={CIRCULO_LABEL[linha.circulo] ?? linha.circulo} />
         <Campo label="Bairro/território" valor={linha.territorioLabel} />
-        <Campo label="Liderança" valor={linha.liderancaNome ?? "nenhuma"} />
+        <Campo label="Liderança" valor={linha.liderancaNome ?? "Iniciativa própria"} />
         <Campo label="Status" valor={linha.status === "ativo" ? "Ativo" : "Inativo"} />
         <Campo label="Cadastrado em" valor={formatarData(linha.createdAt)} />
       </div>
@@ -224,7 +224,10 @@ function CidadaoEditRow({
         whatsapp: whatsapp.trim(),
         email: email.trim() || null,
         circulo,
+        // origem_cadastro precisa acompanhar lideranca_id: o banco exige lideranca_id quando
+        // origem é "formulario_lideranca" — limpar a liderança sem isso violaria a constraint.
         lideranca_id: liderancaId || null,
+        origem_cadastro: liderancaId ? "formulario_lideranca" : "iniciativa_propria",
         territorio_id: territorioId || null,
       })
       .eq("id", linha.id);
@@ -301,13 +304,15 @@ function CidadaoEditRow({
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-neutral-500">Liderança</label>
+          <label className="block text-xs font-medium text-neutral-500">
+            Liderança <span className="font-normal text-neutral-400">(opcional)</span>
+          </label>
           <select
             value={liderancaId}
             onChange={(e) => setLiderancaId(e.target.value)}
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
           >
-            <option value="">nenhuma</option>
+            <option value="">Nenhuma — iniciativa própria</option>
             {liderancas.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.nome}
