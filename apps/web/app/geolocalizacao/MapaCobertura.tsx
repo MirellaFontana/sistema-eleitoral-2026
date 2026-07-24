@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { MapContainer, TileLayer, Circle, CircleMarker, Popup } from "react-leaflet";
+import { useState, useEffect } from "react";
+import { MapContainer, TileLayer, Circle, CircleMarker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.heat";
 import { labelTerritorio } from "@/lib/territorio";
 
 export type Circulo = {
@@ -18,6 +20,20 @@ export type Circulo = {
 };
 
 export type Ponto = { lat: number; lng: number };
+
+function HeatLayer({ pontos }: { pontos: Ponto[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (pontos.length === 0) return;
+    const layer = L.heatLayer(
+      pontos.map((p) => [p.lat, p.lng, 1]),
+      { radius: 25, blur: 15, maxZoom: 17, minOpacity: 0.4 }
+    );
+    layer.addTo(map);
+    return () => { map.removeLayer(layer); };
+  }, [map, pontos]);
+  return null;
+}
 
 function corDoCirculo(c: Circulo): string {
   if (!c.metaAlvo) return "#2563eb"; // azul — sem meta
@@ -42,7 +58,7 @@ export default function MapaCobertura({
   semCoordenada: number;
   centroPadrao?: { lat: number; lng: number; zoom: number };
 }) {
-  const [mostrarEleitores, setMostrarEleitores] = useState(false);
+  const [modoEleitores, setModoEleitores] = useState<"off" | "heatmap" | "pontos">("off");
 
   // Com território cadastrado, centraliza na média real dos círculos (mais preciso, mais
   // próximo). Sem nenhum ainda, usa o estado da campanha como enquadramento inicial.
@@ -57,14 +73,20 @@ export default function MapaCobertura({
 
   return (
     <div className="space-y-3">
-      <label className="flex items-center gap-2 text-sm text-neutral-700">
-        <input
-          type="checkbox"
-          checked={mostrarEleitores}
-          onChange={(e) => setMostrarEleitores(e.target.checked)}
-        />
-        Mostrar eleitores no mapa ({eleitores.length} com coordenada própria)
-      </label>
+      <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-700">
+        <span className="font-medium">Eleitores ({eleitores.length} com GPS):</span>
+        {(["off", "heatmap", "pontos"] as const).map((modo) => (
+          <label key={modo} className="flex items-center gap-1.5">
+            <input
+              type="radio"
+              name="modoEleitores"
+              checked={modoEleitores === modo}
+              onChange={() => setModoEleitores(modo)}
+            />
+            {modo === "off" ? "Oculto" : modo === "heatmap" ? "Mapa de calor" : "Pontos"}
+          </label>
+        ))}
+      </div>
 
       <div className="overflow-hidden rounded border border-neutral-200">
         <MapContainer
@@ -114,7 +136,9 @@ export default function MapaCobertura({
             );
           })}
 
-          {mostrarEleitores &&
+          {modoEleitores === "heatmap" && <HeatLayer pontos={eleitores} />}
+
+          {modoEleitores === "pontos" &&
             eleitores.map((p, i) => (
               <CircleMarker
                 key={i}

@@ -30,9 +30,35 @@ export function CidadaoForm({
   const [territorioId, setTerritorioId] = useState("");
   const [circulo, setCirculo] = useState("frio");
   const [textoConsentimento, setTextoConsentimento] = useState(TEXTO_CONSENTIMENTO_PADRAO);
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+
+  function capturarGps() {
+    if (!navigator.geolocation) {
+      setGpsStatus("Geolocalização não suportada neste navegador.");
+      return;
+    }
+    setGpsStatus("Obtendo localização…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude);
+        setLng(pos.coords.longitude);
+        setGpsStatus(`${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+      },
+      (err) => {
+        setGpsStatus(
+          err.code === 1
+            ? "Permissão de localização negada."
+            : "Não foi possível obter a localização."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,19 +66,24 @@ export function CidadaoForm({
     setSucesso(null);
     setCarregando(true);
 
+    const row: Record<string, unknown> = {
+      campanha_id: campanhaId,
+      nome: nome.trim(),
+      whatsapp: whatsapp.trim(),
+      email: email.trim() || null,
+      cidade: cidade.trim() || null,
+      circulo,
+      territorio_id: territorioId || null,
+      origem_cadastro: liderancaId ? "formulario_lideranca" : "iniciativa_propria",
+      lideranca_id: liderancaId || null,
+    };
+    if (lat != null && lng != null) {
+      row.geom = `POINT(${lng} ${lat})`;
+    }
+
     const { data: cidadao, error } = await supabase
       .from("cidadaos")
-      .insert({
-        campanha_id: campanhaId,
-        nome: nome.trim(),
-        whatsapp: whatsapp.trim(),
-        email: email.trim() || null,
-        cidade: cidade.trim() || null,
-        circulo,
-        territorio_id: territorioId || null,
-        origem_cadastro: liderancaId ? "formulario_lideranca" : "iniciativa_propria",
-        lideranca_id: liderancaId || null,
-      })
+      .insert(row)
       .select("id")
       .single();
 
@@ -88,6 +119,9 @@ export function CidadaoForm({
     setEmail("");
     setCidade("");
     setCirculo("frio");
+    setLat(null);
+    setLng(null);
+    setGpsStatus(null);
     router.refresh();
   }
 
@@ -186,6 +220,36 @@ export function CidadaoForm({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">
+          Localização GPS{" "}
+          <span className="font-normal text-neutral-400">
+            (opcional — marca onde o formulário foi preenchido)
+          </span>
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={capturarGps}
+            className="rounded border border-neutral-300 px-2.5 py-1 text-xs font-medium hover:bg-neutral-50"
+          >
+            📍 Capturar GPS
+          </button>
+          {gpsStatus && (
+            <span className="text-xs text-neutral-500">{gpsStatus}</span>
+          )}
+          {lat != null && (
+            <button
+              type="button"
+              onClick={() => { setLat(null); setLng(null); setGpsStatus(null); }}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-1">
