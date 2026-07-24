@@ -52,7 +52,7 @@ export default async function PecasConteudoPage() {
   const { data: pecas } = await supabase
     .from("pecas_conteudo")
     .select(
-      "id, tipo, canal, usou_ia, ferramenta, rotulo_aplicado, rotulo_texto, aprovador_id, status, publicado_em, created_at"
+      "id, tipo, canal, conteudo, usou_ia, ferramenta, rotulo_aplicado, rotulo_texto, aprovador_id, status, publicado_em, created_at"
     )
     .order("created_at", { ascending: false });
 
@@ -86,7 +86,7 @@ export default async function PecasConteudoPage() {
 
           <ul className="space-y-2">
             {(pecas ?? []).map((peca) => (
-              <PecaCard key={peca.id} peca={peca} podeAprovar={podeAprovar} currentUserId={user.id} />
+              <PecaCard key={peca.id} peca={peca} podeAprovar={podeAprovar} podeCriar={podeCriar} currentUserId={user.id} />
             ))}
           </ul>
         </section>

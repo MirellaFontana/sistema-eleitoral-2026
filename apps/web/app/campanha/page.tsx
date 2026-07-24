@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { CampanhaForm } from "./CampanhaForm";
+import { FotosCampanha } from "./FotosCampanha";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -41,6 +42,11 @@ export default async function CampanhaPage() {
   const isCoordCampanha = eu.papel === "coord_campanha";
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
+  const { data: fotos } = await supabase
+    .from("fotos_campanha")
+    .select("id, tipo, nome_original, path, largura, altura")
+    .order("tipo");
+
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
@@ -71,6 +77,24 @@ export default async function CampanhaPage() {
             Somente a coordenação de campanha edita esses dados.
           </p>
         )}
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Fotos e logotipos
+            </h2>
+            <p className="text-sm text-neutral-400">
+              Usadas na geração de peças de conteúdo e templates de arte.
+            </p>
+          </div>
+          {campanha && (
+            <FotosCampanha
+              campanhaId={campanha.id}
+              fotos={fotos ?? []}
+              podeEditar={isCoordCampanha}
+            />
+          )}
+        </section>
       </main>
     </AppShell>
   );
