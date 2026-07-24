@@ -1081,3 +1081,162 @@ Do Bloco Relacionamento, com essa decisão, resta como claramente pré-eleição
 
 ### Dependências
 - Nenhuma credencial. Migration nova na sequência.
+
+---
+
+## [2026-07-22] Conferência do calendário eleitoral contra Resolução TSE nº 23.760/2026
+
+- **Objetivo:** conferir todas as datas seedadas na migration 0028 contra a Resolução oficial do TSE (nº 23.760/2026, de 2 de março de 2026) e remover as marcações "CONFERIR" das descrições. Adicionar datas relevantes que faltavam no seed original.
+
+### Resultado da conferência
+- Todas as 10 datas originais estão corretas (convenções, registro, propaganda, rádio/TV, prestação de contas, vedação IA, eleição 1º/2º turno).
+- Propaganda rádio/TV: 28/08 a 01/10 — confirmado.
+- Prestação de contas parcial: prazo 09-13/09, deadline 13/09 — confirmado.
+- Fonte atualizada de "Resolução TSE — calendário eleitoral 2026" para "Resolução TSE nº 23.760/2026".
+- 4 datas novas adicionadas: fechamento cadastro eleitoral (07/05), obrigação de informar recursos financeiros (20/07), propaganda rádio/TV 2º turno início (09/10) e fim (23/10).
+
+### Critérios de aceite
+- [x] Nenhuma descrição contém "CONFERIR".
+- [x] Fontes referenciam a resolução pelo número oficial.
+- [x] Datas conferidas contra a página oficial do TSE.
+
+### Risco TSE/LGPD
+- Nenhum — dado público corrigido para maior precisão.
+
+---
+
+## [2026-07-22] Sistema de permissões granulares delegáveis
+
+- **Objetivo:** substituir o sistema de papéis fixos com permissões hardcoded por um sistema onde o coordenador de campanha pode criar **funções customizadas** e atribuir **permissões granulares** a cada uma. Hoje, se o coordenador quer que um "Assessor de imprensa" veja a agenda mas não veja eleitores, não tem como — as permissões são inseparáveis do papel. O novo sistema resolve isso.
+
+- **Inspiração:** modelo de permissões do projeto `inteligencia-eleitoral-2026` (Codex), adaptado ao nosso schema existente.
+
+### Modelo de dados
+
+**`permissoes_sistema`** — enum ou tabela de referência com todas as permissões granulares do sistema. Agrupadas logicamente:
+
+**Cadastros (7):**
+- `ver_eleitores` — ver dados nominais de eleitores (PII)
+- `cadastrar_eleitores` — cadastrar eleitores (embaixador/formulário/iniciativa)
+- `editar_eleitores` — editar/desativar eleitores
+- `ver_apoiadores` — ver apoiadores
+- `gerenciar_apoiadores` — criar/editar apoiadores
+- `ver_liderancas` — ver lideranças
+- `gerenciar_liderancas` — criar/editar lideranças
+
+**Comunicação (4):**
+- `enviar_mensagens` — enviar mensagens para apoiadores/lideranças
+- `gerenciar_modelos` — criar/editar modelos de mensagem
+- `aprovar_modelos` — aprovar modelos de mensagem
+- `publicar_avisos` — publicar avisos internos
+
+**Marketing (5):**
+- `gerenciar_pecas` — criar/editar peças de conteúdo
+- `aprovar_pecas` — aprovar/rotular/publicar peças
+- `usar_ia` — gerar sugestões, análises, respostas via IA
+- `gerenciar_concorrentes` — criar/editar concorrentes
+- `gerenciar_demandas` — criar/editar demandas
+
+**Gestão (4):**
+- `gerenciar_agenda` — criar/editar/excluir eventos
+- `gerenciar_tarefas` — criar/editar tarefas
+- `gerenciar_territorios` — criar/editar territórios
+- `gerenciar_base_conhecimento` — criar/editar temas e itens
+
+**Monitoramento/Jurídico (2):**
+- `registrar_monitoramento` — registrar itens de monitoramento
+- `ver_auditoria` — ver trilha de auditoria
+
+**Total: 22 permissões delegáveis.**
+
+**Controles não-delegáveis (hardcoded, sempre restritos):**
+- `editar_campanha` — só coord_campanha com MFA
+- `gerenciar_equipe` — só coord_campanha com MFA (convidar/editar/revogar)
+- `encaminhar_justica` — só advogado_responsavel (encaminhar alerta à JE)
+- `enviar_msg_eleitor` — só coord_campanha (mensagem direta a cidadão)
+- `vincular_cidadao` — só coord_campanha (vincular cidadão a apoiador)
+
+**Bloqueios absolutos (nenhum papel/função contorna):**
+- Append-only em log_auditoria e consentimentos_lgpd
+- Evidência lacrada imutável
+- Janela de vedação de conteúdo sintético (72h)
+- Calendário eleitoral sem escrita
+
+### Tabelas novas
+
+**`funcoes_campanha`** — funções customizadas criadas pelo coordenador
+- `id` uuid pk
+- `campanha_id` uuid fk → campanhas.id, NOT NULL
+- `nome` text NOT NULL (ex: "Voluntário de campo", "Assessor de imprensa")
+- `descricao` text nullable
+- `sistema` boolean default false — true = funções pré-criadas pelo seed, não excluíveis
+- `created_at` timestamptz default now()
+- UNIQUE(campanha_id, nome)
+
+**`funcao_permissoes`** — junction: quais permissões cada função tem
+- `funcao_id` uuid fk → funcoes_campanha.id ON DELETE CASCADE
+- `permissao` text NOT NULL CHECK IN (lista das 22 permissões)
+- PK(funcao_id, permissao)
+
+### Alterações em tabelas existentes
+
+**`usuarios_internos`** — adicionar coluna:
+- `funcao_id` uuid fk → funcoes_campanha.id, nullable (nullable durante transição; novos usuários devem ter)
+
+O campo `papel` (enum) continua existindo para manter compatibilidade com triggers e lógica que dependem de papéis específicos (ex: `encaminhar_justica` só advogado_responsavel). A `funcao_id` determina as permissões granulares; o `papel` determina os controles não-delegáveis.
+
+### Função SQL central
+
+**`has_permission(p text)`** — SECURITY DEFINER, retorna boolean.
+1. Se `p` é um controle não-delegável → checa `current_papel()` diretamente (hardcoded).
+2. Se `current_papel() = 'coord_campanha'` → retorna true sempre (superusuário da campanha).
+3. Caso contrário → consulta `funcao_permissoes` via `funcao_id` do `usuarios_internos` do usuário atual.
+
+### Migração das RLS policies
+
+Todas as policies que hoje checam `current_papel() IN (...)` serão migradas para usar `has_permission('nome_permissao')`. Exemplo:
+- Antes: `USING (current_papel() IN ('coord_campanha','coord_marketing') AND campanha_id = current_campanha_id())`
+- Depois: `USING (has_permission('gerenciar_liderancas') AND campanha_id = current_campanha_id())`
+
+Os triggers de controles não-delegáveis continuam checando `current_papel()` diretamente.
+
+### Seed: funções padrão
+
+Na própria migration, criar as funções padrão que replicam os papéis atuais com `sistema = true`:
+
+| Função padrão | Permissões |
+|---|---|
+| Coordenador de campanha | Todas (22) — mas na prática `has_permission()` retorna true direto pro CC |
+| Candidato | ver_eleitores, ver_apoiadores, ver_liderancas, ver_auditoria |
+| Advogado responsável | registrar_monitoramento, ver_auditoria, gerenciar_pecas, aprovar_pecas, gerenciar_tarefas, publicar_avisos |
+| Assistente jurídico | registrar_monitoramento, ver_auditoria, gerenciar_pecas, aprovar_pecas, gerenciar_tarefas, publicar_avisos |
+| Coord. de marketing | ver_apoiadores, gerenciar_apoiadores, ver_liderancas, gerenciar_liderancas, enviar_mensagens, gerenciar_modelos, aprovar_modelos, publicar_avisos, gerenciar_pecas, aprovar_pecas, usar_ia, gerenciar_concorrentes, gerenciar_demandas, gerenciar_tarefas, gerenciar_base_conhecimento, registrar_monitoramento |
+| Redator de marketing | gerenciar_modelos, publicar_avisos, gerenciar_pecas, usar_ia, gerenciar_tarefas |
+| Embaixador | ver_eleitores (território), cadastrar_eleitores (território) |
+| Apoio marketing | (sem permissões por padrão — coordenador customiza) |
+| Apoio campanha | (sem permissões por padrão) |
+| Apoio coordenação | (sem permissões por padrão) |
+
+O `bootstrap_campanha()` será atualizado para criar essas funções padrão ao criar uma campanha nova e vincular o primeiro usuário à função "Coordenador de campanha".
+
+### Frontend
+
+**`/funcoes`** (grupo Administração, ícone `Shield`):
+- Lista de funções da campanha com contagem de membros
+- Form de criar/editar função: nome, descrição, checkboxes de permissões (agrupados por categoria)
+- Funções `sistema = true` podem ter permissões editadas mas não podem ser excluídas nem renomeadas
+- Ao editar `usuarios_internos`, dropdown de "Função" em vez de (ou além de) papel
+
+### Critérios de aceite
+- [ ] `has_permission()` retorna true pra coord_campanha em qualquer permissão delegável
+- [ ] `has_permission()` retorna false pra controle não-delegável quando papel não é o autorizado
+- [ ] Funções padrão replicam exatamente as permissões dos papéis atuais (zero mudança de comportamento)
+- [ ] Coordenador cria função customizada, atribui permissões, vincula usuário — o usuário só vê/faz o que foi atribuído
+- [ ] Isolamento cross-tenant nas tabelas novas
+- [ ] Usuário sem `funcao_id` mantém comportamento anterior via `papel` (backward compat)
+
+### Risco TSE/LGPD
+- Baixo: é reorganização de controle de acesso interno. O risco seria afrouxar permissões de PII por erro — mitigado pelo seed que replica exatamente as permissões atuais como baseline, e pelos controles não-delegáveis hardcoded.
+
+### Dependências
+- Nenhuma credencial nova. Migration(s) nova(s) na sequência.

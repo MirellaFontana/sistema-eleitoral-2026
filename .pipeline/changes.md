@@ -613,3 +613,72 @@ Formato sugerido por entrada:
 - **Nota de ambiente:** durante esta sessão o Bash tool ficou com PATH degradado (sed/wc/head/npx não encontrados); typecheck e push de migration precisaram rodar via PowerShell em vez de Bash. Git continuou funcionando normalmente em ambos.
 
 ---
+
+## [2026-07-22] Conferência do calendário eleitoral contra Resolução TSE nº 23.760/2026 (ref. specs.md mesma data)
+
+- **Arquivos alterados:** `supabase/migrations/0039_calendario_eleitoral_conferido.sql` (novo).
+- **Decisões técnicas:**
+  - Migration de UPDATE nos 3 registros com "CONFERIR" (propaganda rádio/TV início/fim, prestação de contas parcial) — remove texto de conferência e atualiza `fonte` para o número oficial da resolução.
+  - 4 INSERTs de prazos novos: fechamento cadastro eleitoral (07/05), obrigação de informar recursos financeiros (20/07), propaganda rádio/TV 2º turno início (09/10) e fim (23/10).
+  - Fontes conferidas contra: página oficial "Eleições 2026: confira as principais datas do calendário eleitoral" (tse.jus.br) e texto da Resolução nº 23.760/2026.
+- **Desvio da spec:** nenhum.
+- **Testado:** migration aplicada em staging, `SELECT` confirmou 14 prazos sem nenhum "CONFERIR" nas descrições.
+
+---
+
+## [2026-07-22] Sistema de permissões delegáveis — migration 0040 + frontend (ref. specs.md mesma data)
+
+- **Arquivos alterados:** `supabase/migrations/0040_permissoes_delegaveis.sql` (novo — core do sistema), `apps/web/app/funcoes/{page.tsx,FuncaoForm.tsx,FuncaoCard.tsx}` (novo — tela de gestão de funções), `apps/web/app/usuarios/InviteUserForm.tsx` (dropdown de função no convite), `apps/web/app/api/usuarios/invite/route.ts` (aceita `funcao_id`), `apps/web/components/AppShell.tsx` (link "Funções e permissões" na sidebar).
+- **Decisões técnicas:**
+  - `funcoes_campanha` — funções customizáveis por campanha, com flag `sistema` para as 10 funções padrão criadas automaticamente. Coordenador de campanha é o único que pode criar/editar funções.
+  - `permissao_sistema` — enum com 22 permissões agrupadas em 5 categorias (Cadastros, Comunicação, Jurídico, Campo, Administração).
+  - `funcao_permissoes` — tabela de junção função↔permissão, com RLS: leitura para todos os membros ativos, escrita só para coord_campanha.
+  - `has_permission(p permissao_sistema)` — função SECURITY DEFINER central. `coord_campanha` sempre retorna `true`. Para outros papéis: se o usuário tem `funcao_id`, consulta `funcao_permissoes`; senão, fallback para mapeamento legado papel→permissões (backward-compatible, zero downtime).
+  - ~50 policies de RLS existentes migradas de `current_papel() IN (...)` para `has_permission('...')` — a semântica não muda para nenhum usuário existente (backfill garante), mas agora é configurável.
+  - 2 triggers atualizados (`restringir_aprovacao_pecas_conteudo`, `restringir_aprovacao_modelo_mensagem`) para usar `has_permission()` em vez de lista fixa de papéis.
+  - `criar_funcoes_padrao(p_campanha_id)` cria as 10 funções padrão com permissões corretas; chamada pelo `bootstrap_campanha()` e pelo backfill de campanhas existentes.
+  - Backfill: campanhas existentes recebem funções padrão; usuários existentes são vinculados à função correspondente ao seu papel via UPDATE.
+  - Controles não-delegáveis (editar campanha, gerenciar equipe, encaminhar à Justiça Eleitoral, enviar mensagem a eleitor, vincular cidadão a apoiador) permanecem hardcoded na `has_permission()` e nos triggers existentes — não entram no enum de permissões.
+  - Frontend: `/funcoes` lista funções com contagem de permissões/membros, cards expandíveis com checkboxes por grupo, edição inline (marcar/desmarcar todas), criação de função customizada, exclusão de função não-sistema. Dropdown de função no formulário de convite de usuário com fallback "automática pelo papel".
+- **Migration 0040 aplicada em staging sem erro.**
+- **Desvio da spec:** nenhum.
+- **Pendências para o Testador:** teste de navegador ponta a ponta (criar função customizada, editar permissões, convidar usuário com função) bloqueado por falta de login configurado. Teste de SQL (simulação de `has_permission()` com diferentes funcao_id) recomendado.
+
+---
+
+## [2026-07-24] Peças de conteúdo — geração de texto IA + arte programática (4 passos)
+
+- **Arquivos alterados:**
+  - `supabase/migrations/0041_fotos_campanha_conteudo_peca.sql` (novo — APLICADO ao staging)
+  - `apps/web/app/campanha/FotosCampanha.tsx` (novo — upload/preview de fotos do candidato)
+  - `apps/web/app/campanha/page.tsx` (seção "Fotos e logotipos")
+  - `apps/web/app/pecas-conteudo/PecaForm.tsx` (reescrito — campo foco, textarea de conteúdo, botão "Gerar com IA")
+  - `apps/web/app/pecas-conteudo/PecaCard.tsx` (campo conteudo, novos formatos, UI de geração de arte)
+  - `apps/web/app/pecas-conteudo/page.tsx` (conteudo no select, podeCriar no PecaCard)
+  - `apps/web/app/api/pecas/gerar-arte/route.tsx` (novo — gera PNG programático via satori + resvg)
+
+- **Decisões técnicas:**
+  - **Passo 1 (migration 0041):** tabela `fotos_campanha` com 6 tipos (foto_oficial, foto_campanha, foto_corpo_inteiro, logo_campanha, logo_partido, fundo_padrao), UNIQUE(campanha_id, tipo). Campo `conteudo TEXT` em `pecas_conteudo` (o texto gerado pela IA). Bucket `fotos-campanha` privado com RLS por pasta (campanha_id).
+  - **Passo 2 (fotos):** grid de 6 tipos com upload, preview (signed URL), replace e delete. Upsert pattern no storage. Só `coord_campanha` edita.
+  - **Passo 3 (IA no form):** botão "Gerar com IA" chama `/api/marketing/sugestao` existente, preenche o campo de conteúdo e marca `usou_ia`. Prompt usa o foco (tema) informado + base de conhecimento da campanha.
+  - **Passo 4 (arte programática):** 5 templates (post_instagram 1080×1080, stories 1080×1920, whatsapp 800×800, facebook 1200×630, twitter 1200×675). Usa satori (JSX→SVG) + @resvg/resvg-js (SVG→PNG) — sem binário nativo, sem dependência de Sharp. Layout: faixa de cor + foto oficial em círculo + texto resumido + rodapé com número/nome/partido/CNPJ. Foto e logo vêm de `fotos_campanha`; se não tiver foto, mostra placeholder com a inicial do nome de urna. Cor primária escolhida pelo usuário (color picker). PNG retornado inline, com preview e download no card.
+  - **Decisão de NÃO usar IA pra imagem:** peça eleitoral tem obrigações legais pixel-perfect (número do candidato, CNPJ, nome de urna) que geração de imagem por IA não garante. Templates programáticos são auditáveis e reprodutíveis.
+
+- **Desvio da spec:** nenhum — os 4 passos seguem o plano aprovado na sessão.
+- **Pendências para o Testador:** teste de navegador bloqueado por login. Verificar: (1) upload de foto em `/campanha`, (2) geração de texto IA em PecaForm (requer ANTHROPIC_API_KEY), (3) geração de arte PNG em PecaCard (requer foto_oficial ou aceitar placeholder).
+
+---
+
+## [2026-07-24] Operação de campo — GPS no cadastro de eleitor + heatmap no mapa
+
+- **Arquivos alterados:** `apps/web/app/cidadaos/CidadaoForm.tsx` (captura GPS), `apps/web/app/geolocalizacao/MapaCobertura.tsx` (heatmap + 3 modos de visualização), `apps/web/types/leaflet.heat.d.ts` (novo — declaração de tipos), `apps/web/package.json` (+ `leaflet.heat`).
+- **Contexto:** primeira entrega do módulo de operação de campo — captura de geolocalização no cadastro + mapa de calor. Sem migration nova — `cidadaos.geom GEOGRAPHY(POINT, 4326)` já existia desde a migration 0001, com GIST index e `mapa_eleitores()` RPC retornando lat/lng. Só faltava preencher.
+- **Decisões técnicas:**
+  - **GPS via `navigator.geolocation.getCurrentPosition`** com `enableHighAccuracy: true`. Botão "Capturar GPS" no formulário de eleitor — mostra coordenadas capturadas ou mensagem de erro (permissão negada, timeout). Botão "Limpar" pra remover. Salvamento como `POINT(lng lat)` direto no INSERT de `cidadaos.geom` (PostGIS WKT).
+  - **Heatmap via `leaflet.heat`** (5kb, sem dependência pesada). 3 modos de visualização via radio buttons: Oculto (padrão), Mapa de calor, Pontos (comportamento anterior). `HeatLayer` é um componente React que usa `useMap()` do react-leaflet + `L.heatLayer()` — adiciona/remove o layer via `useEffect` cleanup.
+  - **Sem migration nova.** Nenhuma mudança de schema — `cidadaos.geom` e `mapa_eleitores()` já cobriam tudo.
+- **Testado no navegador (dev local, contra staging):** botão de GPS renderiza no form, radio buttons de visualização renderizam no mapa com "0 com GPS" (correto — nenhum eleitor com coordenada ainda), mapa de Cambé com círculo de território. Zero erros de console.
+- **Desvio da spec:** nenhum.
+- **Pendências para o Testador:** (1) cadastrar eleitor com GPS real (requer HTTPS ou localhost no celular), (2) verificar heatmap com dados reais (precisa de eleitores com `geom` preenchido).
+
+---

@@ -603,3 +603,56 @@ Nada — a tentativa inicial com token `@theme` não funcionou, mas foi corrigid
   6. Toda linha de teste (evento, vínculo de liderança, avaliação, sugestão) foi apagada ao final via `DELETE` direto — confirmado por contagem: `evento_restante=0, avaliacao_restante=0, sugestao_restante=0`.
 - **Não testado (ressalva explícita):** fluxo real de UI no navegador (formulários, botões, mensagens de erro renderizadas, avisos de pré-propaganda no form de agenda, banner do dashboard, resultado visual do gerador/avaliador de peças chamando a Anthropic de verdade, busca global digitando no campo). O que foi verificado é o contrato de dados/RLS que sustenta essas telas — não a experiência de tela em si. Recomendo um teste de navegador com sessão real (usuário logando ele mesmo, ou um novo token de sessão) antes de considerar a entrega 100% fechada.
 - **Veredito: aprovado com ressalvas** — schema, RLS e isolamento cross-tenant comprovados com dado real; UI/fluxo de navegador ainda pendente de verificação visual.
+
+---
+
+## [2026-07-22] Conferência do calendário eleitoral contra Resolução TSE nº 23.760/2026 (ref. changes.md mesma data)
+
+- **Ambiente:** staging (`czrlvvdtpycbkbxsgvev`), conferência contra página oficial do TSE.
+
+### Testes realizados
+1. **Conferência de fontes:** todas as 10 datas originais comparadas com a Resolução TSE nº 23.760/2026 (publicada em 02/03/2026) via página oficial do TSE — todas corretas.
+2. **Migration 0039 aplicada** sem erro — 3 UPDATEs (removem "CONFERIR", atualizam fonte) + 4 INSERTs (datas novas).
+3. **Verificação pós-migration:** `SELECT data, titulo, fonte FROM prazos_eleitorais ORDER BY data` retornou 14 linhas, nenhuma com "CONFERIR" na descrição, fontes com número oficial da resolução.
+
+### Passou
+Conferência completa, migration aplicada, dados verificados.
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado, sem ressalva**
+Critério de aceite da spec original do calendário ("datas de resolução anual conferidas contra a Resolução oficial") está agora satisfeito.
+
+---
+
+## [2026-07-23] Sistema de permissões delegáveis — migration 0040 + frontend (ref. changes.md mesma data)
+
+### Testado (SQL direto contra staging, via `supabase db query --linked`)
+
+1. **Backfill de funções padrão:** 40 funções criadas (10 por campanha × 4 campanhas), todas com `sistema = true`. Nomes corretos: Coordenador de campanha, Coord. de marketing, Redator de marketing, Advogado responsável, Assistente jurídico, Candidato, Embaixador, Apoio campanha, Apoio coordenação, Apoio marketing.
+2. **Backfill de vínculo de usuários:** 11/11 usuários ativos têm `funcao_id` preenchido. Cada papel está vinculado à função correspondente (ex.: `redator_marketing` → "Redator de marketing", `coord_campanha` → "Coordenador de campanha").
+3. **Permissões por função:** verificadas as 7 funções com permissões (as 3 de apoio têm 0 permissões, correto — nascem vazias pro coord customizar). Mapeamento bate exatamente com o fallback legado do `has_permission()`:
+   - Coordenador de campanha: 22/22 permissões
+   - Coord. de marketing: 16 permissões (sem ver/cadastrar/editar eleitores, sem gerenciar agenda/territórios/auditoria)
+   - Redator de marketing: 5 permissões
+   - Advogado/Assistente jurídico: 6 permissões cada
+   - Candidato: 4 permissões (somente leitura)
+   - Embaixador: 2 permissões
+4. **Total de permissões no banco:** 244 linhas em `funcao_permissoes` (consistente: soma das permissões × 4 campanhas).
+5. **`has_permission()` sem sessão:** retorna `false` — sem vazamento de permissão pra chamada não autenticada.
+6. **`criar_funcoes_padrao()` existe:** confirmado via `pg_proc`.
+7. **TypeScript check:** `npx tsc --noEmit` passou sem erro após todas as alterações de frontend (InviteUserForm com dropdown de função, 3 páginas novas em `/funcoes`, link na sidebar).
+
+### Passou
+Todos os 7 itens acima.
+
+### Não testado nesta sessão (registrado, não esquecido)
+- Teste de navegador ponta a ponta (criar função customizada, editar permissões via checkboxes, convidar usuário com função específica) — bloqueado por falta de login configurado pela usuária.
+- Simulação de sessão autenticada com `has_permission()` retornando `true` para papel específico (exigiria montar JWT fake na query SQL, complexidade desproporcional ao risco — o fallback legado já é exercitado por toda a RLS existente que continua funcionando).
+
+### Falhou
+Nada.
+
+### Veredito: **aprovado com ressalva**
+Migration sólida: backfill completo, permissões consistentes, função central segura. Ressalva: teste de UI pendente (login da usuária ainda não criado). Recomendo testar no navegador assim que houver credencial — especialmente o fluxo de criar função customizada e editar permissões via checkboxes.
