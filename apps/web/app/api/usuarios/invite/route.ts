@@ -9,7 +9,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 // falharia clicando direto no banco.
 export async function POST(request: Request) {
   const body = await request.json();
-  const { email, nome, telefone, papel, territorio_id, exige_mfa, expira_em } = body as {
+  const { email, nome, telefone, papel, territorio_id, exige_mfa, expira_em, funcao_id } = body as {
     email: string;
     nome: string;
     telefone: string | null;
@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     territorio_id: string | null;
     exige_mfa: boolean;
     expira_em: string | null;
+    funcao_id: string | null;
   };
 
   if (!email || !nome || !papel || !telefone) {
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
     territorio_id: territorio_id || null,
     exige_mfa: !!exige_mfa,
     expira_em: expira_em || null,
+    funcao_id: funcao_id || null,
   });
 
   if (insertError) {

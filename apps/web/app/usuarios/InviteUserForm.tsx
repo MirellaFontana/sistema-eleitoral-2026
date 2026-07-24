@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Territorio = { id: string; nome_bairro: string | null };
+type Funcao = { id: string; nome: string };
 
 // "Embaixador" saiu das opções: liderança de campo não tem mais login — vira registro em
 // /liderancas (ref. specs.md [2026-07-15] "Remodelagem do campo"). O papel segue no banco
@@ -22,7 +23,7 @@ const PAPEIS = [
 
 const MFA_OBRIGATORIO = new Set(["coord_campanha", "candidato"]);
 
-export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
+export function InviteUserForm({ territorios, funcoes }: { territorios: Territorio[]; funcoes: Funcao[] }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
@@ -30,6 +31,7 @@ export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
   const [papel, setPapel] = useState("redator_marketing");
   const [territorioId, setTerritorioId] = useState("");
   const [expiraEm, setExpiraEm] = useState("");
+  const [funcaoId, setFuncaoId] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -58,6 +60,7 @@ export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
         territorio_id: precisaTerritorio ? territorioId : null,
         exige_mfa: MFA_OBRIGATORIO.has(papel),
         expira_em: precisaTerritorio ? expiraEm : null,
+        funcao_id: funcaoId || null,
       }),
     });
     const data = await res.json();
@@ -125,6 +128,22 @@ export function InviteUserForm({ territorios }: { territorios: Territorio[] }) {
             {PAPEIS.map((p) => (
               <option key={p.value} value={p.value}>
                 {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-neutral-500">Função (permissões)</label>
+          <select
+            value={funcaoId}
+            onChange={(e) => setFuncaoId(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+          >
+            <option value="">— automática pelo papel —</option>
+            {funcoes.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.nome}
               </option>
             ))}
           </select>

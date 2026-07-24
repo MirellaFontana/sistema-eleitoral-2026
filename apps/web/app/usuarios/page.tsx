@@ -62,6 +62,11 @@ export default async function UsuariosPage() {
     .select("id, nome_bairro")
     .order("nome_bairro");
 
+  const { data: funcoes } = await supabase
+    .from("funcoes_campanha")
+    .select("id, nome")
+    .order("nome");
+
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
   return (
@@ -72,7 +77,7 @@ export default async function UsuariosPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
               Convidar usuário
             </h2>
-            <InviteUserForm territorios={territorios ?? []} />
+            <InviteUserForm territorios={territorios ?? []} funcoes={funcoes ?? []} />
           </section>
         )}
 

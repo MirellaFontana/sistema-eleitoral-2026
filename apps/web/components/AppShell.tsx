@@ -28,6 +28,7 @@ import {
   IdCard,
   BookMarked,
   Radio,
+  Shield,
   Menu,
   X,
   type LucideIcon,
@@ -43,6 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/campanha", label: "Cadastro de campanha", icon: IdCard },
       { href: "/usuarios", label: "Usuários", icon: UserCog },
+      { href: "/funcoes", label: "Funções e permissões", icon: Shield },
     ],
   },
   {
