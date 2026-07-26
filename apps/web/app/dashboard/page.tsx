@@ -13,6 +13,9 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
+import { BriefingDiario } from "./BriefingDiario";
+
+const PAPEIS_BRIEFING_DIRETO = new Set(["candidato", "coord_campanha"]);
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Liderança de campo (legado)",
@@ -94,6 +97,8 @@ export default async function DashboardPage() {
   const hoje = new Date();
   const semanaInicial = new Date(inicioSemana(hoje).getTime() - 7 * SEMANA_MS);
   const hojeIso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const fimDia = new Date(inicioDia.getTime() + 86_400_000);
 
   // Contagens e detalhes respeitam a RLS da sessão — papel sem acesso a uma tabela vê
   // zero/vazio na seção correspondente, sem lógica extra por papel.
@@ -109,6 +114,9 @@ export default async function DashboardPage() {
     liderancasSemanaRes,
     territoriosRes,
     proximoPrazoRes,
+    briefingHojeRes,
+    eventosHoje,
+    podeIaRes,
   ] = await Promise.all([
     contar(supabase.from("cidadaos").select("*", { count: "exact", head: true })),
     contar(
@@ -138,11 +146,31 @@ export default async function DashboardPage() {
       .order("data")
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("briefings_diarios")
+      .select("conteudo, created_at")
+      .eq("data", hojeIso)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    contar(
+      supabase
+        .from("eventos_campanha")
+        .select("*", { count: "exact", head: true })
+        .gte("data_inicio", inicioDia.toISOString())
+        .lt("data_inicio", fimDia.toISOString())
+        .neq("status", "cancelado")
+    ),
+    PAPEIS_BRIEFING_DIRETO.has(eu.papel)
+      ? Promise.resolve({ data: true })
+      : supabase.rpc("has_permission", { p: "usar_ia" }),
   ]);
 
   const cidadaosDet = cidadaosDetRes.data ?? [];
   const territorios = territoriosRes.data ?? [];
   const proximoPrazo = proximoPrazoRes.data;
+  const briefingHoje = briefingHojeRes.data;
+  const podeGerarBriefing = podeIaRes.data === true;
 
   // ── Crescimento semanal (8 semanas, seg a dom) ─────────────────────────────
   const semanas = Array.from({ length: 8 }, (_, i) => new Date(semanaInicial.getTime() + i * SEMANA_MS));
@@ -212,6 +240,12 @@ export default async function DashboardPage() {
             ? `Visão geral da campanha ${campanha.nome_candidato}`
             : "Visão geral da campanha"}
         </p>
+
+        <BriefingDiario
+          briefingInicial={briefingHoje ?? null}
+          podeGerar={podeGerarBriefing}
+          eventosHoje={eventosHoje}
+        />
 
         {proximoPrazo && diasPrazo !== null && (
           <Link

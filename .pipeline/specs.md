@@ -1240,3 +1240,93 @@ O `bootstrap_campanha()` será atualizado para criar essas funções padrão ao 
 
 ### Dependências
 - Nenhuma credencial nova. Migration(s) nova(s) na sequência.
+
+---
+
+## [2026-07-24] Briefing Diário do Candidato (Dia 1 do plano de inteligência)
+
+- **Objetivo:** briefing sintético gerado por IA na tela inicial, cruzando a agenda do dia com
+  demandas observadas da região, lideranças vinculadas aos eventos e a base de conhecimento —
+  para o candidato chegar preparado em cada evento (3 demandas da região, lideranças presentes,
+  3–5 talking points).
+
+### Modelo de dados
+- **`briefings_diarios`** (migration 0042): campanha_id, data DATE, conteudo, contexto_usado
+  (auditoria), modelo_ia, gerado_por. Sem UNIQUE por data — regenerar cria linha nova, UI mostra
+  a mais recente. Sem UPDATE/DELETE (histórico imutável, padrão das gerações de IA).
+- RLS: SELECT para todo papel interno da campanha; INSERT para `candidato` OU `has_permission('usar_ia')`.
+
+### Rota
+- `POST /api/briefing`: autentica → papel candidato/coord_campanha direto, demais via RPC
+  `has_permission('usar_ia')` → busca eventos de hoje (status ≠ cancelado, com território),
+  lideranças vinculadas (`eventos_liderancas`), 50 demandas mais recentes (todas as regiões —
+  o modelo seleciona e cita origem), 30 itens da base de conhecimento → prompt
+  `SISTEMA_BRIEFING_DIARIO` → grava e retorna. Sem eventos hoje: retorna `{semEventos: true}`
+  sem chamar a IA (sem custo, sem invenção).
+
+### UI
+- Componente `BriefingDiario` no topo do dashboard: botão "Gerar briefing de hoje" (só para quem
+  pode gerar), briefing mais recente do dia visível para todos os papéis, aviso de apoio à decisão.
+
+### Critérios de aceite
+- [ ] Candidato e coordenação geram; papel sem `usar_ia` recebe 403.
+- [ ] Sem eventos hoje → mensagem clara, sem chamada de IA.
+- [ ] Briefing só usa dados fornecidos; regiões sem demanda são apontadas como lacuna.
+- [ ] Isolamento cross-tenant em `briefings_diarios`.
+
+### Risco TSE/LGPD
+- Baixo: nenhum dado nominal de eleitor entra no contexto (agenda, demandas sem autor,
+  lideranças internas, propostas). Prompt proíbe ataque a adversário e invenção de posição.
+
+### Dependências
+- `ANTHROPIC_API_KEY` (já configurada em 2026-07-24). Migration 0042 na sequência.
+
+---
+
+## [2026-07-25] Central de Copywriting e Adaptação de Mensagens (Dia 4 do plano de inteligência)
+
+- **Objetivo:** dada uma MENSAGEM CENTRAL (mensagem-mãe da campanha — proposta, resposta,
+  posicionamento), a IA gera N VARIAÇÕES adaptadas a diferentes públicos+canais
+  (WhatsApp para idosos, post curto Instagram, e-mail para empresários, Reel para jovens,
+  etc.) mantendo a essência da mensagem e a persona do candidato.
+
+### Modelo de dados
+- **`adaptacoes_mensagem`** (migration 0043): campanha_id, `lote_id` (agrupa variações da
+  mesma mensagem central geradas juntas), mensagem_central, publico_alvo, canal, variacao,
+  modelo_ia, solicitado_por. Uma linha por variação.
+- RLS: `campanha_id = current_campanha_id() AND has_permission('usar_ia')` para SELECT/INSERT.
+  Sem UPDATE/DELETE — histórico imutável, mesmo padrão de `sugestoes_conteudo`.
+
+### Rota
+- `POST /api/marketing/adaptar`: valida (mensagem ≤4000 chars, ≤6 adaptações por lote),
+  autentica, checa `has_permission('usar_ia')`, monta contexto único (identidade +
+  base de conhecimento + mensagem central) e dispara N chamadas Anthropic **em paralelo**
+  (uma por variação — falha em uma não derruba as outras). Grava só as que deram certo;
+  as falhas voltam pro cliente com o erro específico.
+
+### UI
+- Nova seção "Adaptar mensagem para vários públicos" em `/marketing`: textarea da mensagem
+  central + 6 combos pré-definidos + campo custom (público+canal). Botão gera; resultado
+  aparece em cards lado a lado com botão de copiar. Falhas parciais mostradas em bloco
+  amarelo separado. Histórico agrupado por lote_id.
+
+### Prompt (SISTEMA_ADAPTADOR_MENSAGEM)
+- Mantém essência da mensagem; nunca inventa fato/dado/promessa fora da mensagem+base;
+  nunca simula eleitor; adapta tom/tamanho/formato ao público+canal (regras específicas
+  por combo — idoso via WhatsApp, jovem via Reel, empresário via e-mail, etc.).
+
+### Critérios de aceite
+- [ ] Papel sem `usar_ia` recebe 403 antes da chamada à IA.
+- [ ] Mensagem central preservada nas variações (essência, números, promessas).
+- [ ] Falha parcial: 2 das 4 variações falham → 2 são gravadas e mostradas, 2 aparecem
+  em bloco de falha com erro específico.
+- [ ] Limite de 6 adaptações por lote respeitado no cliente e no servidor.
+- [ ] Isolamento cross-tenant em `adaptacoes_mensagem`.
+
+### Risco TSE/LGPD
+- Baixo: nenhum dado pessoal de eleitor entra no contexto. Prompt proíbe difamação de
+  adversário e simulação de eleitor. Todas as variações passam por revisão humana antes
+  de qualquer publicação (mesmo aviso do gerador de peças).
+
+### Dependências
+- `ANTHROPIC_API_KEY` já configurada. Migration 0043 na sequência.

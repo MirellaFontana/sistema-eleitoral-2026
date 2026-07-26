@@ -682,3 +682,36 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** (1) cadastrar eleitor com GPS real (requer HTTPS ou localhost no celular), (2) verificar heatmap com dados reais (precisa de eleitores com `geom` preenchido).
 
 ---
+
+## [2026-07-24] Briefing Diário do Candidato — migration 0042 + rota + dashboard (ref. specs.md mesma data)
+
+- **Arquivos alterados:** `supabase/migrations/0042_briefing_diario.sql` (novo — NÃO aplicado ao staging ainda, ver pendências), `apps/web/lib/anthropic.ts` (novo prompt `SISTEMA_BRIEFING_DIARIO`), `apps/web/app/api/briefing/route.ts` (novo), `apps/web/app/dashboard/BriefingDiario.tsx` (novo), `apps/web/app/dashboard/page.tsx` (seção do briefing no topo + 3 consultas novas no Promise.all).
+- **Decisões técnicas:**
+  - Tabela `briefings_diarios` sem UNIQUE por data (histórico preservado; UI mostra o mais recente do dia) e sem policy de UPDATE/DELETE — geração de IA é imutável, mesmo padrão de `sugestoes_conteudo`.
+  - INSERT permitido para papel `candidato` OU `has_permission('usar_ia')` — primeira tabela que integra o papel candidato ao sistema de permissões delegáveis da 0040.
+  - Rota: se não há evento hoje, retorna `{semEventos: true}` sem chamar a Anthropic — sem custo e sem briefing vazio inventado.
+  - Demandas entram TODAS (50 mais recentes) no contexto em vez de filtro SQL por região — `demandas_observadas.regiao/cidade` é texto livre e `territorios.nome_bairro` nem sempre bate; o prompt exige que o modelo priorize a região do evento e cite a origem quando usar demanda de outra região. Filtro textual frágil trocado por instrução explícita + auditoria do contexto.
+  - Contexto enviado é resumido em `contexto_usado` (contagens) para auditoria, como nas demais gerações.
+- **Verificado:** `npx tsc --noEmit` passou sem erro.
+- **Desvio da spec:** nenhum.
+- **Pendências:**
+  - **Migration 0042 aplicada em staging** (2026-07-25 01:09 via `npx supabase db push --linked`, após `supabase login`).
+  - **`.env.local` reconstruído** (2026-07-25): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy) e `SUPABASE_SERVICE_ROLE_KEY` (legacy) restauradas via Add-Content preservando a `ANTHROPIC_API_KEY`. **Chaves foram expostas em chat — rotacionar quando possível.**
+  - Teste de navegador ponta a ponta (gerar briefing com evento real na agenda) pendente — usuária optou por empilhar Dia 4 antes de testar.
+
+---
+
+## [2026-07-25] Central de Copywriting e Adaptação de Mensagens — migration 0043 + rota + UI (Dia 4, ref. specs.md mesma data)
+
+- **Arquivos alterados:** `supabase/migrations/0043_adaptacoes_mensagem.sql` (novo — APLICADO ao staging), `apps/web/lib/anthropic.ts` (novo prompt `SISTEMA_ADAPTADOR_MENSAGEM`), `apps/web/app/api/marketing/adaptar/route.ts` (novo), `apps/web/app/marketing/AdaptarForm.tsx` (novo — client component), `apps/web/app/marketing/page.tsx` (nova seção "Adaptar mensagem" + histórico agrupado por lote_id).
+- **Decisões técnicas:**
+  - Tabela `adaptacoes_mensagem` com `lote_id UUID` (sem FK — gerado no servidor via `randomUUID()`) para agrupar as N variações da mesma mensagem-mãe geradas juntas. Uma linha por variação (mensagem central duplicada em todas as linhas do lote — leve redundância pra evitar tabela pai e simplificar consultas).
+  - RLS unificada em `has_permission('usar_ia')` — mesma permissão que já governa os demais geradores de IA (sugestões, análise, resposta). Papel `candidato` não gera (pra ele o valor está no briefing do Dia 1).
+  - Rota chama a Anthropic em **paralelo** (uma call por variação) — falha isolada em uma variação não derruba as outras, e as falhas voltam com o erro específico pra UI mostrar em bloco separado.
+  - Limites duros no cliente e no servidor: mensagem central ≤4000 chars, ≤6 adaptações por lote — evita explosão de custo/token num único clique.
+  - 6 combos pré-definidos (WhatsApp/idosos, Instagram/jovens, Reel/jovens, e-mail/empresários, fala presencial, WhatsApp/trabalhadores) + campo custom (público+canal). Adicionar novos combos é uma linha em `COMBOS_PRE`, sem migration.
+- **Verificado:** `npx tsc --noEmit` passou sem erro; migration 0043 aplicada em staging via `supabase db push --linked` sem erro.
+- **Desvio da spec:** nenhum.
+- **Pendências para o Testador:** teste de navegador ponta a ponta ainda não feito. Será feito em conjunto com o Dia 1 (briefing) na próxima sessão. Verificar: (1) usuária com papel `coord_marketing`/`redator_marketing` vê a nova seção; (2) mensagem central + 2–3 combos → variações mantêm a essência sem inventar dados; (3) botão de copiar funciona; (4) falha parcial (ex.: ANTHROPIC_API_KEY revogada temporariamente) mostra bloco amarelo.
+
+---

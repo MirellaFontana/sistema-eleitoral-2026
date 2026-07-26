@@ -6,6 +6,7 @@ import { FaqForm } from "./FaqForm";
 import { SugestaoForm } from "./SugestaoForm";
 import { AvaliacaoForm } from "./AvaliacaoForm";
 import { AnaliseButton } from "./AnaliseButton";
+import { AdaptarForm } from "./AdaptarForm";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -73,9 +74,11 @@ export default async function MarketingPage() {
 
   const podeGerar  = PAPEIS_QUE_GERAM.has(eu.papel);
   const podeAvaliar = PAPEIS_QUE_AVALIAM.has(eu.papel);
+  const { data: podeAdaptarRpc } = await supabase.rpc("has_permission", { p: "usar_ia" });
+  const podeAdaptar = podeAdaptarRpc === true;
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const [faqsRes, sugestoesRes, analisesRes] = await Promise.all([
+  const [faqsRes, sugestoesRes, analisesRes, adaptacoesRes] = await Promise.all([
     supabase.from("faqs").select("id, pergunta, resposta").order("created_at", { ascending: false }),
     supabase
       .from("sugestoes_conteudo")
@@ -87,7 +90,40 @@ export default async function MarketingPage() {
       .select("id, analise, created_at")
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase
+      .from("adaptacoes_mensagem")
+      .select("id, lote_id, publico_alvo, canal, variacao, mensagem_central, created_at")
+      .order("created_at", { ascending: false })
+      .limit(24),
   ]);
+
+  // Agrupa o histórico de adaptações por lote_id (uma mensagem central → suas variações),
+  // pra UI mostrar "essa mensagem gerou 3 variações" em vez de linhas soltas.
+  type LinhaAdaptacao = {
+    id: string;
+    lote_id: string;
+    publico_alvo: string;
+    canal: string;
+    variacao: string;
+    mensagem_central: string;
+    created_at: string;
+  };
+  const lotesAdaptacao = new Map<
+    string,
+    { lote_id: string; mensagem_central: string; created_at: string; variacoes: LinhaAdaptacao[] }
+  >();
+  for (const linha of (adaptacoesRes.data ?? []) as LinhaAdaptacao[]) {
+    const lote = lotesAdaptacao.get(linha.lote_id);
+    if (lote) lote.variacoes.push(linha);
+    else
+      lotesAdaptacao.set(linha.lote_id, {
+        lote_id: linha.lote_id,
+        mensagem_central: linha.mensagem_central,
+        created_at: linha.created_at,
+        variacoes: [linha],
+      });
+  }
+  const lotesArr = Array.from(lotesAdaptacao.values()).slice(0, 5);
 
   const avaliacoes = podeAvaliar
     ? (
@@ -144,6 +180,65 @@ export default async function MarketingPage() {
             ))}
           </ul>
         </section>
+
+        {/* ── CENTRAL DE COPYWRITING (adaptação multi-público) ────── */}
+        {podeAdaptar && (
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Adaptar mensagem para vários públicos
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Escreva uma mensagem-mãe (proposta, resposta, posicionamento) e a IA gera
+                variações adaptadas a cada público+canal — mantendo a essência da mensagem
+                e a persona da campanha, sem inventar dados novos.
+              </p>
+            </div>
+            <AdaptarForm />
+          </section>
+        )}
+
+        {podeAdaptar && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Histórico de adaptações
+            </h2>
+            {lotesArr.length === 0 && (
+              <p className="text-sm text-neutral-400">Nenhuma adaptação gerada ainda.</p>
+            )}
+            <ul className="space-y-2">
+              {lotesArr.map((lote) => (
+                <li key={lote.lote_id} className="rounded border border-neutral-200 p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-neutral-500">
+                      {lote.variacoes.length} variação(ões)
+                    </span>
+                    <span className="ml-auto text-xs text-neutral-400">
+                      {new Date(lote.created_at).toLocaleString("pt-BR", {
+                        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  <p className="line-clamp-2 text-sm text-neutral-700" title={lote.mensagem_central}>
+                    <span className="font-medium">Mensagem: </span>
+                    {lote.mensagem_central}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {lote.variacoes.map((v) => (
+                      <span
+                        key={v.id}
+                        className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
+                        title={`${v.publico_alvo} · ${v.canal}`}
+                      >
+                        {v.publico_alvo} · {v.canal}
+                      </span>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* ── AVALIADOR DE PEÇAS ───────────────────────────────────── */}
         {podeAvaliar && (
