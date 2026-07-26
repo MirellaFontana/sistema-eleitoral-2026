@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { MonitoramentoWorkspace } from "./MonitoramentoWorkspace";
+import { FontesPanel } from "./FontesPanel";
 import { VerCapturaButton } from "./VerCapturaButton";
 import type { TermoView } from "./TermosMonitoramento";
 
@@ -83,7 +84,7 @@ export default async function MonitoramentoPage() {
     }
   }
 
-  const [{ data: itens }, { data: termosData }] = await Promise.all([
+  const [{ data: itens }, { data: termosData }, { data: fontesData }] = await Promise.all([
     supabase
       .from("monitoramento_itens")
       .select("id, url, descricao, categoria, gravidade, status, captura_path, hash_evidencia, created_at")
@@ -92,9 +93,15 @@ export default async function MonitoramentoPage() {
       .from("termos_monitoramento")
       .select("id, termo, rotulo, ativo")
       .order("created_at"),
+    supabase
+      .from("fontes_monitoramento")
+      .select("id, dominio, nome, tier, regiao, ativo")
+      .order("tier")
+      .order("nome"),
   ]);
 
   const termos: TermoView[] = termosData ?? [];
+  const fontes = fontesData ?? [];
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -106,6 +113,8 @@ export default async function MonitoramentoPage() {
             menções de sentimento e oportunidades de marketing. Registro manual por enquanto.
           </p>
         </div>
+
+        <FontesPanel fontes={fontes} podeEditar={podeRegistrar} />
 
         {podeRegistrar && (
           <section className="space-y-3">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAnthropicClient, MODELO_IA, SISTEMA_AVALIADOR_PECAS } from "@/lib/anthropic";
+import { SISTEMA_AVALIADOR_PECAS } from "@/lib/anthropic";
+import { criarClienteIA } from "@/lib/ia-client";
 
 const PAPEIS_QUE_AVALIAM = new Set([
   "coord_campanha",
@@ -48,10 +49,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const anthropic = createAnthropicClient();
-  if (!anthropic) {
+  const ia = await criarClienteIA(supabase);
+  if (!ia) {
     return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY não configurada — peça pro administrador configurar." },
+      { error: "Nenhuma chave de IA configurada. Vá em Cadastro de Campanha > Chaves de API." },
       { status: 400 }
     );
   }
@@ -77,16 +78,11 @@ export async function POST(request: Request) {
 
   let raw: string;
   try {
-    const msg = await anthropic.messages.create({
-      model: MODELO_IA,
-      max_tokens: 1800,
-      system: SISTEMA_AVALIADOR_PECAS,
-      messages: [{ role: "user", content: mensagemUsuario }],
+    raw = await ia.gerar({
+      sistema: SISTEMA_AVALIADOR_PECAS,
+      mensagens: [{ role: "user", content: mensagemUsuario }],
+      maxTokens: 1800,
     });
-    raw = msg.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("")
-      .trim();
   } catch (err) {
     const m = err instanceof Error ? err.message : "erro desconhecido";
     return NextResponse.json({ error: `Falha ao avaliar peça: ${m}` }, { status: 502 });
@@ -111,7 +107,7 @@ export async function POST(request: Request) {
       canal,
       descricao_peca: descricao_peca.trim(),
       avaliacao_json: parsed,
-      modelo_ia: MODELO_IA,
+      modelo_ia: ia.provedor,
       solicitado_por: user.id,
     })
     .select("id, avaliacao_json, created_at")

@@ -29,6 +29,7 @@ export function FaqForm({ campanhaId }: { campanhaId: string }) {
     }
 
     setSucesso("FAQ adicionada.");
+    setTimeout(() => setSucesso(null), 3000);
     setPergunta("");
     setResposta("");
     router.refresh();

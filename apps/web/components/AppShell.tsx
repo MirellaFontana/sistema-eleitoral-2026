@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   UserCog,
@@ -164,12 +165,18 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
+  const [devMode, setDevMode] = useState(false);
 
-  // Fecha o menu mobile automaticamente ao trocar de rota — sem isso, o drawer ficaria
-  // aberto por cima da tela nova depois de navegar.
   useEffect(() => {
     setMenuAberto(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.rpc("is_dev_plataforma").then(({ data }) => {
+      if (data === true) setDevMode(true);
+    });
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-1">
@@ -241,6 +248,14 @@ export function AppShell({
                 {campanhaNome}
                 {papel ? ` · ${papel}` : ""}
               </p>
+            )}
+            {devMode && (
+              <Link
+                href="/dev/campanhas"
+                className="hidden items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 hover:bg-amber-200 sm:inline-flex"
+              >
+                Dev
+              </Link>
             )}
           </div>
           <BuscaGlobalForm />

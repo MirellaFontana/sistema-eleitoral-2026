@@ -81,6 +81,7 @@ export function ItemForm({ campanhaId, temas }: { campanhaId: string; temas: Tem
 
     setCarregando(false);
     setSucesso(`"${titulo}" adicionado.`);
+    setTimeout(() => setSucesso(null), 3000);
     setTitulo("");
     setDescricao("");
     setArquivo(null);

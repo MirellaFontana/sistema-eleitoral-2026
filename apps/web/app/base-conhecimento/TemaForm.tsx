@@ -28,6 +28,7 @@ export function TemaForm({ campanhaId, proximaOrdem }: { campanhaId: string; pro
       return;
     }
     setSucesso(`Tema "${nome}" criado.`);
+    setTimeout(() => setSucesso(null), 3000);
     setNome("");
     router.refresh();
   }

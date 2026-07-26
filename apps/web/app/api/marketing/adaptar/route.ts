@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
-import { createAnthropicClient, MODELO_IA, SISTEMA_ADAPTADOR_MENSAGEM } from "@/lib/anthropic";
+import {
+  SISTEMA_ADAPTADOR_MENSAGEM,
+  montarContextoConhecimento,
+  type TemaComItens,
+} from "@/lib/anthropic";
+import { criarClienteIA } from "@/lib/ia-client";
 
 type PedidoAdaptacao = { publico_alvo: string; canal: string };
 
-// Limites conservadores pra não estourar tokens nem custo em um único clique:
-// mensagem-mãe até 4000 chars (~1000 tokens) e no máximo 6 variações por lote.
 const LIMITE_MENSAGEM = 4000;
 const LIMITE_ADAPTACOES = 6;
 
@@ -77,9 +80,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "usuário sem vínculo de campanha" }, { status: 403 });
   }
 
-  // Papel gate delegado pra RLS via has_permission('usar_ia') — mesmo padrão dos demais
-  // geradores. Se falhar aqui, o INSERT abaixo devolve 42501, mas antecipamos com RPC pra
-  // não gastar chamada de IA em quem não pode.
   const { data: podeIa } = await supabase.rpc("has_permission", { p: "usar_ia" });
   if (!podeIa) {
     return NextResponse.json(
@@ -88,20 +88,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const anthropic = createAnthropicClient();
-  if (!anthropic) {
+  const ia = await criarClienteIA(supabase);
+  if (!ia) {
     return NextResponse.json(
-      { error: "API key da Anthropic ainda não configurada — peça pro administrador configurar ANTHROPIC_API_KEY." },
+      { error: "Nenhuma chave de IA configurada. Vá em Cadastro de Campanha > Chaves de API." },
       { status: 400 }
     );
   }
 
-  const { data: itens } = await supabase
-    .from("base_conhecimento_itens")
-    .select("titulo, descricao")
-    .not("descricao", "is", null)
-    .order("titulo")
+  const { data: temasDb } = await supabase
+    .from("temas_campanha")
+    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
+    .order("ordem")
     .limit(30);
+
+  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
+    nome: t.nome,
+    publicos_alvo: t.publicos_alvo ?? [],
+    regioes_prioritarias: t.regioes_prioritarias ?? [],
+    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
+  }));
 
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
@@ -114,34 +120,25 @@ export async function POST(request: Request) {
     `Coligação: ${campanha?.coligacao ?? "–"}`,
   ].join("\n");
 
-  const conhecimento = (itens ?? [])
-    .map((item) => `### ${item.titulo}\n${item.descricao}`)
-    .join("\n\n");
+  const conhecimento = montarContextoConhecimento(temasCtx);
 
   const contextoBase = [
     `IDENTIDADE DA CAMPANHA:\n${identidade}`,
-    conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA (persona/tom e propostas):\n${conhecimento}` : "",
+    conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA (público-alvo e regiões por tema):\n${conhecimento}` : "",
     `MENSAGEM CENTRAL A ADAPTAR:\n${mensagem_central}`,
   ]
     .filter(Boolean)
     .join("\n\n");
 
-  // Geração em paralelo — cada variação é uma chamada independente pra evitar que uma
-  // limitação de contexto afete as outras. Erro numa não derruba as outras.
   const resultados = await Promise.all(
     adaptacoes.map(async (a): Promise<{ pedido: PedidoAdaptacao; variacao?: string; erro?: string }> => {
       const pedidoTxt = `PÚBLICO-ALVO: ${a.publico_alvo}\nCANAL: ${a.canal}\n\nProduza a variação adaptada.`;
       try {
-        const msg = await anthropic.messages.create({
-          model: MODELO_IA,
-          max_tokens: 1200,
-          system: SISTEMA_ADAPTADOR_MENSAGEM,
-          messages: [{ role: "user", content: `${contextoBase}\n\n${pedidoTxt}` }],
+        const texto = await ia.gerar({
+          sistema: SISTEMA_ADAPTADOR_MENSAGEM,
+          mensagens: [{ role: "user", content: `${contextoBase}\n\n${pedidoTxt}` }],
+          maxTokens: 1200,
         });
-        const texto = msg.content
-          .map((b) => (b.type === "text" ? b.text : ""))
-          .join("\n")
-          .trim();
         if (!texto) return { pedido: a, erro: "resposta vazia da IA" };
         return { pedido: a, variacao: texto };
       } catch (err) {
@@ -153,8 +150,6 @@ export async function POST(request: Request) {
 
   const lote_id = randomUUID();
 
-  // Grava só as variações que deram certo — as com erro voltam pro cliente, mas não
-  // poluem o histórico.
   const linhasParaInserir = resultados
     .filter((r) => r.variacao)
     .map((r) => ({
@@ -164,7 +159,7 @@ export async function POST(request: Request) {
       publico_alvo: r.pedido.publico_alvo,
       canal: r.pedido.canal,
       variacao: r.variacao!,
-      modelo_ia: MODELO_IA,
+      modelo_ia: ia.provedor,
       solicitado_por: user.id,
     }));
 

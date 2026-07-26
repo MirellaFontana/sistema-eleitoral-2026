@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAnthropicClient, MODELO_IA, SISTEMA_RESPOSTA_REDES } from "@/lib/anthropic";
+import {
+  SISTEMA_RESPOSTA_REDES,
+  montarContextoConhecimento,
+  type TemaComItens,
+} from "@/lib/anthropic";
+import { criarClienteIA } from "@/lib/ia-client";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -34,34 +39,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "seu papel não gera resposta sugerida" }, { status: 403 });
   }
 
-  const anthropic = createAnthropicClient();
-  if (!anthropic) {
+  const ia = await criarClienteIA(supabase);
+  if (!ia) {
     return NextResponse.json(
-      { error: "API key da Anthropic ainda não configurada — peça pro administrador configurar ANTHROPIC_API_KEY." },
+      { error: "Nenhuma chave de IA configurada. Vá em Cadastro de Campanha > Chaves de API." },
       { status: 400 }
     );
   }
 
-  // Conhecimento da própria sessão do usuário — a RLS de base_conhecimento_itens já garante
-  // que só vem o que pertence à campanha dele, mesma consulta que /marketing já faz.
-  const { data: itens } = await supabase
-    .from("base_conhecimento_itens")
-    .select("titulo, descricao")
-    .not("descricao", "is", null)
-    .order("titulo");
+  const { data: temasDb } = await supabase
+    .from("temas_campanha")
+    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
+    .order("ordem");
 
-  const conhecimento = (itens ?? [])
-    .map((i) => `- ${i.titulo}: ${i.descricao}`)
-    .join("\n")
-    .slice(0, 12000); // limite generoso, evita prompt gigante se a base crescer muito
+  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
+    nome: t.nome,
+    publicos_alvo: t.publicos_alvo ?? [],
+    regioes_prioritarias: t.regioes_prioritarias ?? [],
+    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
+  }));
+
+  const conhecimento = montarContextoConhecimento(temasCtx).slice(0, 12000);
 
   let respostaSugerida: string;
   try {
-    const msg = await anthropic.messages.create({
-      model: MODELO_IA,
-      max_tokens: 1000,
-      system: SISTEMA_RESPOSTA_REDES,
-      messages: [
+    respostaSugerida = await ia.gerar({
+      sistema: SISTEMA_RESPOSTA_REDES,
+      mensagens: [
         {
           role: "user",
           content: `Canal: ${canal_origem}\n\nPergunta recebida:\n${pergunta}\n\nConhecimento da campanha disponível:\n${
@@ -69,10 +73,10 @@ export async function POST(request: Request) {
           }${contexto_adicional?.trim() ? `\n\nContexto adicional fornecido:\n${contexto_adicional}` : ""}`,
         },
       ],
+      maxTokens: 1000,
     });
-    respostaSugerida = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("\n").trim();
   } catch (err) {
-    const mensagem = err instanceof Error ? err.message : "erro desconhecido ao chamar a Anthropic";
+    const mensagem = err instanceof Error ? err.message : "erro desconhecido ao chamar IA";
     return NextResponse.json({ error: `Falha ao gerar resposta: ${mensagem}` }, { status: 502 });
   }
 
@@ -83,7 +87,7 @@ export async function POST(request: Request) {
       pergunta,
       canal_origem,
       contexto_adicional: contexto_adicional?.trim() || null,
-      modelo_ia: MODELO_IA,
+      modelo_ia: ia.provedor,
       resposta_sugerida: respostaSugerida,
       solicitado_por: user.id,
     })

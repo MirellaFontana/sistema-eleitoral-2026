@@ -72,6 +72,7 @@ export function InviteUserForm({ territorios, funcoes }: { territorios: Territor
     }
 
     setSucesso(`Convite enviado para ${email}.`);
+    setTimeout(() => setSucesso(null), 3000);
     setEmail("");
     setNome("");
     setTelefone("");

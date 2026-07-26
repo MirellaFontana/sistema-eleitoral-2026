@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { CampanhaForm } from "./CampanhaForm";
 import { FotosCampanha } from "./FotosCampanha";
+import { ChavesApiPanel } from "./ChavesApiPanel";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -42,10 +43,30 @@ export default async function CampanhaPage() {
   const isCoordCampanha = eu.papel === "coord_campanha";
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const { data: fotos } = await supabase
-    .from("fotos_campanha")
-    .select("id, tipo, nome_original, path, largura, altura")
-    .order("tipo");
+  const [{ data: fotos }, { data: chavesData }] = await Promise.all([
+    supabase
+      .from("fotos_campanha")
+      .select("id, tipo, nome_original, path, largura, altura")
+      .order("tipo"),
+    isCoordCampanha
+      ? supabase
+          .from("chaves_api")
+          .select("provedor, ativo, auxiliar")
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const TODOS_PROVEDORES = [
+    "anthropic", "openai", "google_gemini", "xai_grok", "google_cse",
+    "meta_ad_library", "whatsapp_campanha", "whatsapp_denuncias",
+  ];
+  const chavesStatus = TODOS_PROVEDORES.map((p) => {
+    const found = (chavesData ?? []).find((c: { provedor: string }) => c.provedor === p);
+    return {
+      provedor: p,
+      configurada: !!found?.ativo,
+      auxiliar: (found as { auxiliar?: string | null } | undefined)?.auxiliar ?? null,
+    };
+  });
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -95,6 +116,10 @@ export default async function CampanhaPage() {
             />
           )}
         </section>
+
+        {isCoordCampanha && (
+          <ChavesApiPanel chavesIniciais={chavesStatus} />
+        )}
       </main>
     </AppShell>
   );

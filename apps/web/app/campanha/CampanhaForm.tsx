@@ -65,6 +65,7 @@ export function CampanhaForm({ dados }: { dados: DadosCampanha }) {
       return;
     }
     setSucesso(true);
+    setTimeout(() => setSucesso(false), 3000);
     router.refresh();
   }
 

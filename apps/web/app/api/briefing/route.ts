@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAnthropicClient, MODELO_IA, SISTEMA_BRIEFING_DIARIO } from "@/lib/anthropic";
+import {
+  SISTEMA_BRIEFING_DIARIO,
+  montarContextoConhecimento,
+  type TemaComItens,
+} from "@/lib/anthropic";
+import { criarClienteIA } from "@/lib/ia-client";
 
 // Quem pode gerar direto pelo papel (candidato é o dono do briefing; coordenação prepara
 // pra ele). Outros papéis passam pela permissão delegável 'usar_ia' (migration 0040).
@@ -75,10 +80,10 @@ export async function POST() {
     return NextResponse.json({ semEventos: true, data: hojeIso });
   }
 
-  const anthropic = createAnthropicClient();
-  if (!anthropic) {
+  const ia = await criarClienteIA(supabase);
+  if (!ia) {
     return NextResponse.json(
-      { error: "API key da Anthropic ainda não configurada — peça pro administrador configurar ANTHROPIC_API_KEY." },
+      { error: "Nenhuma chave de IA configurada. Vá em Cadastro de Campanha > Chaves de API e configure Anthropic, OpenAI ou Gemini." },
       { status: 400 }
     );
   }
@@ -96,17 +101,23 @@ export async function POST() {
   // por evento e indica a origem quando usar demanda de outra região).
   const { data: demandas } = await supabase
     .from("demandas_observadas")
-    .select("regiao, cidade, tema, demanda, created_at")
+    .select("regiao, cidades, tema, demanda, created_at")
     .order("created_at", { ascending: false })
     .limit(50);
 
-  // Base de conhecimento (mesmo limite da rota de sugestão — não explodir tokens).
-  const { data: itens } = await supabase
-    .from("base_conhecimento_itens")
-    .select("titulo, descricao")
-    .not("descricao", "is", null)
-    .order("titulo")
+  // Temas + itens agrupados — público-alvo e regiões prioritárias enriquecem o contexto.
+  const { data: temasDb } = await supabase
+    .from("temas_campanha")
+    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
+    .order("ordem")
     .limit(30);
+
+  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
+    nome: t.nome,
+    publicos_alvo: t.publicos_alvo ?? [],
+    regioes_prioritarias: t.regioes_prioritarias ?? [],
+    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
+  }));
 
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
@@ -147,14 +158,13 @@ export async function POST() {
 
   const blocoDemandas = (demandas ?? [])
     .map((d) => {
-      const onde = [d.regiao, d.cidade].filter(Boolean).join(", ");
+      const cidadesTxt = Array.isArray(d.cidades) && d.cidades.length > 0 ? d.cidades.join(", ") : null;
+      const onde = [d.regiao, cidadesTxt].filter(Boolean).join(", ");
       return `- [${onde || "região não informada"}]${d.tema ? ` (${d.tema})` : ""} ${d.demanda}`;
     })
     .join("\n");
 
-  const conhecimento = (itens ?? [])
-    .map((item) => `### ${item.titulo}\n${item.descricao}`)
-    .join("\n\n");
+  const conhecimento = montarContextoConhecimento(temasCtx);
 
   const mensagemUsuario = [
     `IDENTIDADE DA CAMPANHA:\n${identidade}`,
@@ -163,28 +173,22 @@ export async function POST() {
       ? `DEMANDAS OBSERVADAS DA POPULAÇÃO (mais recentes primeiro):\n${blocoDemandas}`
       : "DEMANDAS OBSERVADAS: nenhuma registrada na campanha.",
     conhecimento
-      ? `BASE DE CONHECIMENTO DA CAMPANHA (propostas e posições):\n${conhecimento}`
+      ? `BASE DE CONHECIMENTO DA CAMPANHA (propostas, posições, público-alvo e regiões por tema):\n${conhecimento}`
       : "BASE DE CONHECIMENTO: nenhum item cadastrado.",
   ].join("\n\n");
 
   let conteudo: string;
   try {
-    const msg = await anthropic.messages.create({
-      model: MODELO_IA,
-      max_tokens: 2000,
-      system: SISTEMA_BRIEFING_DIARIO,
-      messages: [{ role: "user", content: mensagemUsuario }],
+    conteudo = await ia.gerar({
+      sistema: SISTEMA_BRIEFING_DIARIO,
+      mensagens: [{ role: "user", content: mensagemUsuario }],
     });
-    conteudo = msg.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("\n")
-      .trim();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "erro desconhecido ao chamar a Anthropic";
+    const msg = err instanceof Error ? err.message : "erro desconhecido ao chamar IA";
     return NextResponse.json({ error: `Falha ao gerar briefing: ${msg}` }, { status: 502 });
   }
 
-  const contextoUsado = `${eventos.length} evento(s) da agenda, ${demandas?.length ?? 0} demanda(s) observada(s), ${vinculos?.length ?? 0} vínculo(s) de liderança, ${itens?.length ?? 0} item(ns) da base de conhecimento`;
+  const contextoUsado = `${eventos.length} evento(s) da agenda, ${demandas?.length ?? 0} demanda(s) observada(s), ${vinculos?.length ?? 0} vínculo(s) de liderança, ${temasCtx.reduce((n, t) => n + t.itens.length, 0)} item(ns) da base de conhecimento em ${temasCtx.length} tema(s)`;
 
   const { data: row, error } = await supabase
     .from("briefings_diarios")
@@ -193,7 +197,7 @@ export async function POST() {
       data: hojeIso,
       conteudo,
       contexto_usado: contextoUsado,
-      modelo_ia: MODELO_IA,
+      modelo_ia: ia.provedor,
       gerado_por: user.id,
     })
     .select("id, data, conteudo, contexto_usado, created_at")

@@ -4,10 +4,37 @@ export const MODELO_IA = "claude-sonnet-5";
 
 // Server-only — nunca importar isto num Client Component. Sem a key, retorna null e quem
 // chamou decide como avisar o usuário (não lança erro genérico de SDK).
-export function createAnthropicClient(): Anthropic | null {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-  return new Anthropic({ apiKey });
+// Se receber uma chave explícita (da campanha), usa ela; senão tenta a env var como fallback.
+export function createAnthropicClient(apiKey?: string | null): Anthropic | null {
+  const key = apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  return new Anthropic({ apiKey: key });
+}
+
+export type TemaComItens = {
+  nome: string;
+  publicos_alvo: string[];
+  regioes_prioritarias: string[];
+  itens: { titulo: string; descricao: string | null }[];
+};
+
+export function montarContextoConhecimento(temas: TemaComItens[]): string {
+  if (temas.length === 0) return "";
+  return temas
+    .map((t) => {
+      const meta: string[] = [];
+      if (t.publicos_alvo.length > 0)
+        meta.push(`Público-alvo: ${t.publicos_alvo.join(", ")}`);
+      if (t.regioes_prioritarias.length > 0)
+        meta.push(`Regiões prioritárias: ${t.regioes_prioritarias.join(", ")}`);
+      const cabecalho = meta.length > 0 ? `\n${meta.join(" | ")}` : "";
+      const itens = t.itens
+        .filter((i) => i.descricao)
+        .map((i) => `- ${i.titulo}: ${i.descricao}`)
+        .join("\n");
+      return `## ${t.nome}${cabecalho}\n${itens || "(sem itens cadastrados)"}`;
+    })
+    .join("\n\n");
 }
 
 export const SISTEMA_SUGESTAO_CONTEUDO = `Você é um assistente de marketing de campanha eleitoral brasileira.

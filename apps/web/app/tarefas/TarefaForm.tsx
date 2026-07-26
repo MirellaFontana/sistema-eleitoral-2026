@@ -45,6 +45,7 @@ export function TarefaForm({
     }
 
     setSucesso("Tarefa criada.");
+    setTimeout(() => setSucesso(null), 3000);
     setTitulo("");
     setDescricao("");
     setResponsavelId("");

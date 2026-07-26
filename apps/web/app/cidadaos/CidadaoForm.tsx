@@ -114,6 +114,7 @@ export function CidadaoForm({
     }
 
     setSucesso(`Eleitor "${nome}" cadastrado com consentimento registrado.`);
+    setTimeout(() => setSucesso(null), 3000);
     setNome("");
     setWhatsapp("");
     setEmail("");

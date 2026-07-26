@@ -71,6 +71,7 @@ export function LiderancaForm({
 
     setCarregando(false);
     setSucesso(`Liderança "${nome}" criada.`);
+    setTimeout(() => setSucesso(null), 3000);
     setNome("");
     setTelefone("");
     setCidade("");

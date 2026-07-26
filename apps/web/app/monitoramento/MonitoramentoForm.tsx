@@ -117,6 +117,7 @@ export function MonitoramentoForm({
     }
 
     setSucesso("Item registrado.");
+    setTimeout(() => setSucesso(null), 3000);
     setUrl("");
     setDescricao("");
     setGravidade("");

@@ -75,6 +75,7 @@ export function TerritorioForm({ campanhaId }: { campanhaId: string }) {
     }
     const nomeExibido = [nomeBairro.trim(), cidade.trim()].filter(Boolean).join(" · ");
     setSucesso(`Território "${nomeExibido}" adicionado${temCoordenada ? " com coordenada" : ""}.`);
+    setTimeout(() => setSucesso(null), 3000);
     setNomeBairro("");
     setCidade("");
     setZonaEleitoral("");

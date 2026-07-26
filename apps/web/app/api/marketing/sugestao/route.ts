@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAnthropicClient, MODELO_IA, SISTEMA_GERADOR_PECAS } from "@/lib/anthropic";
+import {
+  SISTEMA_GERADOR_PECAS,
+  montarContextoConhecimento,
+  type TemaComItens,
+} from "@/lib/anthropic";
+import { criarClienteIA } from "@/lib/ia-client";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -32,21 +37,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "seu papel não gera sugestão de conteúdo" }, { status: 403 });
   }
 
-  const anthropic = createAnthropicClient();
-  if (!anthropic) {
+  const ia = await criarClienteIA(supabase);
+  if (!ia) {
     return NextResponse.json(
-      { error: "API key da Anthropic ainda não configurada — peça pro administrador configurar ANTHROPIC_API_KEY." },
+      { error: "Nenhuma chave de IA configurada. Vá em Cadastro de Campanha > Chaves de API." },
       { status: 400 }
     );
   }
 
-  // Busca base de conhecimento automaticamente (até 30 itens para não explodir tokens)
-  const { data: itens } = await supabase
-    .from("base_conhecimento_itens")
-    .select("titulo, descricao")
-    .not("descricao", "is", null)
-    .order("titulo")
+  const { data: temasDb } = await supabase
+    .from("temas_campanha")
+    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
+    .order("ordem")
     .limit(30);
+
+  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
+    nome: t.nome,
+    publicos_alvo: t.publicos_alvo ?? [],
+    regioes_prioritarias: t.regioes_prioritarias ?? [],
+    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
+  }));
 
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
@@ -60,13 +70,11 @@ export async function POST(request: Request) {
     `CNPJ da campanha: ${campanha?.cnpj_campanha ?? "–"}`,
   ].join("\n");
 
-  const conhecimento = (itens ?? [])
-    .map((item) => `### ${item.titulo}\n${item.descricao}`)
-    .join("\n\n");
+  const conhecimento = montarContextoConhecimento(temasCtx);
 
   const mensagemUsuario = [
     `IDENTIDADE DA CAMPANHA:\n${identidade}`,
-    conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA:\n${conhecimento}` : "",
+    conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA (público-alvo e regiões por tema):\n${conhecimento}` : "",
     `FORMATO PEDIDO: ${formato}`,
     foco?.trim() ? `FOCO / TEMA ESPECÍFICO: ${foco.trim()}` : "",
   ]
@@ -75,18 +83,13 @@ export async function POST(request: Request) {
 
   let sugestao: string;
   try {
-    const msg = await anthropic.messages.create({
-      model: MODELO_IA,
-      max_tokens: 1500,
-      system: SISTEMA_GERADOR_PECAS,
-      messages: [{ role: "user", content: mensagemUsuario }],
+    sugestao = await ia.gerar({
+      sistema: SISTEMA_GERADOR_PECAS,
+      mensagens: [{ role: "user", content: mensagemUsuario }],
+      maxTokens: 1500,
     });
-    sugestao = msg.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("\n")
-      .trim();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "erro desconhecido ao chamar a Anthropic";
+    const msg = err instanceof Error ? err.message : "erro desconhecido ao chamar IA";
     return NextResponse.json({ error: `Falha ao gerar sugestão: ${msg}` }, { status: 502 });
   }
 
@@ -100,7 +103,7 @@ export async function POST(request: Request) {
       campanha_id: eu.campanha_id,
       formato,
       contexto_usado: contextoAuditoria,
-      modelo_ia: MODELO_IA,
+      modelo_ia: ia.provedor,
       sugestao,
       solicitado_por: user.id,
     })

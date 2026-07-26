@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { DemandaForm } from "./DemandaForm";
+import { DemandasLista } from "./DemandasLista";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -41,10 +42,35 @@ export default async function DemandasObservadasPage() {
   const podeEditar = PAPEIS_QUE_EDITAM.has(eu.papel);
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const { data: demandas } = await supabase
-    .from("demandas_observadas")
-    .select("id, regiao, cidade, tema, demanda, created_at")
-    .order("created_at", { ascending: false });
+  const [demandasRes, temasRes, territoriosRes, liderancasRes] = await Promise.all([
+    supabase
+      .from("demandas_observadas")
+      .select("id, regiao, cidades, tema, demanda, created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("temas_campanha")
+      .select("id, nome")
+      .order("ordem"),
+    supabase
+      .from("territorios")
+      .select("cidade")
+      .not("cidade", "is", null),
+    supabase
+      .from("liderancas")
+      .select("cidade")
+      .not("cidade", "is", null),
+  ]);
+  const demandas = demandasRes.data;
+  const temas = temasRes.data ?? [];
+
+  const cidadesSet = new Set<string>();
+  for (const t of territoriosRes.data ?? []) if (t.cidade) cidadesSet.add(t.cidade);
+  for (const l of liderancasRes.data ?? []) if (l.cidade) cidadesSet.add(l.cidade);
+  for (const d of demandas ?? []) {
+    const arr = d.cidades as string[] | null;
+    if (arr) for (const c of arr) cidadesSet.add(c);
+  }
+  const cidadesConhecidas = Array.from(cidadesSet).sort();
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -62,37 +88,19 @@ export default async function DemandasObservadasPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
               Registrar demanda
             </h2>
-            <DemandaForm campanhaId={eu.campanha_id} />
+            <DemandaForm campanhaId={eu.campanha_id} temas={temas} cidadesConhecidas={cidadesConhecidas} />
           </section>
         )}
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            Registradas
-          </h2>
-
-          {(demandas ?? []).length === 0 && (
-            <p className="text-sm text-neutral-400">Nenhuma demanda registrada ainda.</p>
-          )}
-
-          <ul className="space-y-2">
-            {(demandas ?? []).map((d) => (
-              <li key={d.id} className="rounded border border-neutral-200 p-3 space-y-1">
-                <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
-                  {d.tema && <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium">{d.tema}</span>}
-                  {(d.regiao || d.cidade) && (
-                    <span>
-                      {d.regiao}
-                      {d.regiao && d.cidade ? " · " : ""}
-                      {d.cidade}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm">{d.demanda}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <DemandasLista
+          demandas={(demandas ?? []).map((d) => ({
+            ...d,
+            cidades: (d.cidades as string[] | null) ?? [],
+          }))}
+          cidadesConhecidas={cidadesConhecidas}
+          temas={temas}
+          podeEditar={podeEditar}
+        />
       </main>
     </AppShell>
   );

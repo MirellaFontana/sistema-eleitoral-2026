@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isDev } from "@/lib/dev";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -16,5 +17,8 @@ export default async function Home() {
     .eq("id", user.id)
     .maybeSingle();
 
-  redirect(usuarioInterno ? "/dashboard" : "/onboarding");
+  if (usuarioInterno) redirect("/dashboard");
+
+  const dev = await isDev(supabase);
+  redirect(dev ? "/dev/campanhas" : "/onboarding");
 }

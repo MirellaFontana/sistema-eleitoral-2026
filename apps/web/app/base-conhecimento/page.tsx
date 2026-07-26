@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { TemaForm } from "./TemaForm";
+import { TemaDetalhes } from "./TemaDetalhes";
 import { ItemForm } from "./ItemForm";
 import { ItemCard } from "./ItemCard";
 
@@ -56,7 +57,7 @@ export default async function BaseConhecimentoPage() {
 
   const { data: temas } = await supabase
     .from("temas_campanha")
-    .select("id, nome, ordem")
+    .select("id, nome, ordem, publicos_alvo, regioes_prioritarias")
     .order("ordem");
 
   const { data: itens } = await supabase
@@ -113,6 +114,12 @@ export default async function BaseConhecimentoPage() {
             return (
               <div key={tema.id} id={`tema-${slugTema(tema.nome)}`} className="scroll-mt-6 space-y-2">
                 <h3 className="text-sm font-semibold">{tema.nome}</h3>
+                <TemaDetalhes
+                  temaId={tema.id}
+                  publicosAlvo={tema.publicos_alvo ?? []}
+                  regioesPrioritarias={tema.regioes_prioritarias ?? []}
+                  podeEditar={podeEditar}
+                />
                 {itensDoTema.length === 0 ? (
                   <p className="text-sm text-neutral-400">Nenhum item neste tema ainda.</p>
                 ) : (

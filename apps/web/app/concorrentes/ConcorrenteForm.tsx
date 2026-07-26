@@ -39,6 +39,7 @@ export function ConcorrenteForm({ campanhaId }: { campanhaId: string }) {
     }
 
     setSucesso(`"${nome}" adicionado.`);
+    setTimeout(() => setSucesso(null), 3000);
     setNome("");
     setPartido("");
     setPontosFortes("");

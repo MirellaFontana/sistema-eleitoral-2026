@@ -95,6 +95,7 @@ export function PecaForm({ campanhaId, criadoPor }: { campanhaId: string; criado
     }
 
     setSucesso("Rascunho criado.");
+    setTimeout(() => setSucesso(null), 3000);
     setConteudo("");
     setFoco("");
     setFerramenta("");

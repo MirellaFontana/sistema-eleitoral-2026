@@ -715,3 +715,16 @@ Formato sugerido por entrada:
 - **Pendências para o Testador:** teste de navegador ponta a ponta ainda não feito. Será feito em conjunto com o Dia 1 (briefing) na próxima sessão. Verificar: (1) usuária com papel `coord_marketing`/`redator_marketing` vê a nova seção; (2) mensagem central + 2–3 combos → variações mantêm a essência sem inventar dados; (3) botão de copiar funciona; (4) falha parcial (ex.: ANTHROPIC_API_KEY revogada temporariamente) mostra bloco amarelo.
 
 ---
+
+## [2026-07-25] Público-alvo e regiões prioritárias nos temas da campanha — migration 0044 + helper + UI + 5 rotas IA
+
+- **Arquivos alterados:** `supabase/migrations/0044_temas_publico_regioes.sql` (novo — APLICADO ao staging), `apps/web/lib/anthropic.ts` (novo helper `montarContextoConhecimento` + tipo `TemaComItens`), `apps/web/app/base-conhecimento/TemaDetalhes.tsx` (novo — componente de edição tag-input), `apps/web/app/base-conhecimento/page.tsx` (integra TemaDetalhes + busca novas colunas), `apps/web/app/api/briefing/route.ts`, `apps/web/app/api/marketing/sugestao/route.ts`, `apps/web/app/api/marketing/adaptar/route.ts`, `apps/web/app/api/marketing/analise/route.ts`, `apps/web/app/api/marketing/resposta/route.ts` (todas as 5 rotas IA agora buscam temas agrupados com público-alvo e regiões).
+- **Decisões técnicas:**
+  - Colunas `publicos_alvo TEXT[]` e `regioes_prioritarias TEXT[]` direto em `temas_campanha` (arrays Postgres), sem tabela extra — listas curtas (~5-10 itens por tema), consumidas como texto nas prompts.
+  - Helper `montarContextoConhecimento()` centraliza a formatação: agrupa itens por tema, exibe "Público-alvo: X, Y | Regiões prioritárias: A, B" como subcabeçalho de cada tema. Todas as 5 rotas IA usam o mesmo helper em vez de cada uma formatar independentemente.
+  - Query mudou de `base_conhecimento_itens.select("titulo, descricao")` para `temas_campanha.select("..., base_conhecimento_itens(titulo, descricao)")` — join via FK reversa, traz tudo agrupado por tema numa única query.
+  - UI: componente `TemaDetalhes` com tag-input (Enter ou botão +, clique em x pra remover), botão "Salvar" aparece só quando há mudança, usa `supabase.update()`. Quem não pode editar vê os valores como texto simples.
+- **Verificado:** `npx tsc --noEmit` passou sem erro; migration 0044 aplicada em staging.
+- **Desvio da spec:** não havia spec prévia — funcionalidade pedida pela usuária durante a sessão.
+
+---

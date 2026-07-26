@@ -74,6 +74,7 @@ export function ApoiadorForm({
     }
 
     setSucesso(`Apoiador "${nome}" cadastrado.`);
+    setTimeout(() => setSucesso(null), 3000);
     setNome("");
     setTelefone("");
     setCidade("");
