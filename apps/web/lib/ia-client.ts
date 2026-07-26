@@ -102,27 +102,71 @@ function criarClienteGrok(apiKey: string): ClienteIA {
 
 const ORDEM_PROVEDORES: ProvedorIA[] = ["anthropic", "openai", "google_gemini", "xai_grok"];
 
+const FABRICAS: Record<ProvedorIA, (key: string) => ClienteIA> = {
+  anthropic: criarClienteAnthropic,
+  openai: criarClienteOpenAI,
+  google_gemini: criarClienteGemini,
+  xai_grok: criarClienteGrok,
+};
+
+function isErroDeAcesso(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("permission") ||
+    msg.includes("denied") ||
+    msg.includes("disabled") ||
+    msg.includes("unauthorized") ||
+    msg.includes("invalid") ||
+    msg.includes("403") ||
+    msg.includes("401") ||
+    msg.includes("quota")
+  );
+}
+
+type ClienteIAComFallback = ClienteIA & {
+  _provedoresDisponiveis: { provedor: ProvedorIA; chave: string }[];
+};
+
 export async function criarClienteIA(supabase: SupabaseClient): Promise<ClienteIA | null> {
+  const disponiveis: { provedor: ProvedorIA; chave: string }[] = [];
+
   for (const provedor of ORDEM_PROVEDORES) {
     const chave = await obterChaveApi(supabase, provedor);
-    if (chave) {
-      switch (provedor) {
-        case "anthropic":
-          return criarClienteAnthropic(chave);
-        case "openai":
-          return criarClienteOpenAI(chave);
-        case "google_gemini":
-          return criarClienteGemini(chave);
-        case "xai_grok":
-          return criarClienteGrok(chave);
-      }
-    }
+    if (chave) disponiveis.push({ provedor, chave });
   }
 
   const envKey = process.env.ANTHROPIC_API_KEY;
-  if (envKey) return criarClienteAnthropic(envKey);
+  if (envKey) disponiveis.push({ provedor: "anthropic", chave: envKey });
 
-  return null;
+  if (disponiveis.length === 0) return null;
+
+  const primeiro = disponiveis[0];
+  const clienteBase = FABRICAS[primeiro.provedor](primeiro.chave);
+
+  if (disponiveis.length === 1) return clienteBase;
+
+  const cliente: ClienteIAComFallback = {
+    provedor: primeiro.provedor,
+    _provedoresDisponiveis: disponiveis,
+    async gerar(opts) {
+      for (let i = 0; i < disponiveis.length; i++) {
+        const { provedor, chave } = disponiveis[i];
+        const c = FABRICAS[provedor](chave);
+        try {
+          const resultado = await c.gerar(opts);
+          cliente.provedor = provedor;
+          return resultado;
+        } catch (err) {
+          const ultimo = i === disponiveis.length - 1;
+          if (ultimo || !isErroDeAcesso(err)) throw err;
+        }
+      }
+      throw new Error("Todos os provedores de IA falharam");
+    },
+  };
+
+  return cliente;
 }
 
 export { MODELOS as MODELOS_IA };
