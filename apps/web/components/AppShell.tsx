@@ -87,7 +87,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/alertas", label: "Alertas", icon: Bell },
       { href: "/respostas", label: "Respostas", icon: Reply },
       { href: "/marketing", label: "Marketing", icon: Megaphone },
-      { href: "/marketing#impulsionamento", label: "Impulsionamento (Ads)", icon: Rocket },
+      { href: "/marketing/impulsionamento", label: "Impulsionamento (Ads)", icon: Rocket },
       { href: "/pecas-conteudo", label: "Peças de conteúdo", icon: FileText },
     ],
   },

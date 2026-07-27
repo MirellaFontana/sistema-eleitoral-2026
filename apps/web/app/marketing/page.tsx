@@ -8,8 +8,6 @@ import { AvaliacaoForm } from "./AvaliacaoForm";
 import { AnaliseButton } from "./AnaliseButton";
 import { AdaptarForm } from "./AdaptarForm";
 import { GerarImagemForm } from "./GerarImagemForm";
-import { ImpulsionamentoForm } from "./ImpulsionamentoForm";
-import { PlanoImpulsionamentoCard, type PlanoRow } from "./PlanoImpulsionamentoCard";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -81,7 +79,7 @@ export default async function MarketingPage() {
   const podeAdaptar = podeAdaptarRpc === true;
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const [faqsRes, sugestoesRes, analisesRes, adaptacoesRes, planosRes] = await Promise.all([
+  const [faqsRes, sugestoesRes, analisesRes, adaptacoesRes] = await Promise.all([
     supabase.from("faqs").select("id, pergunta, resposta").order("created_at", { ascending: false }),
     supabase
       .from("sugestoes_conteudo")
@@ -98,15 +96,6 @@ export default async function MarketingPage() {
       .select("id, lote_id, publico_alvo, canal, variacao, mensagem_central, created_at")
       .order("created_at", { ascending: false })
       .limit(24),
-    podeGerar
-      ? supabase
-          .from("planos_impulsionamento")
-          .select(
-            "id, peca_descricao, objetivo, publico_prioritario, orcamento_total, prazo_dias, plano_json, created_at",
-          )
-          .order("created_at", { ascending: false })
-          .limit(5)
-      : Promise.resolve({ data: [] as PlanoRow[] }),
   ]);
 
   // Agrupa o histórico de adaptações por lote_id (uma mensagem central → suas variações),
@@ -192,36 +181,6 @@ export default async function MarketingPage() {
             ))}
           </ul>
         </section>
-
-        {/* ── IMPULSIONAMENTO (método Sobral) ────────────────────────── */}
-        {podeGerar && (
-          <section id="impulsionamento" className="space-y-3 scroll-mt-6">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-                Impulsionamento pago (Meta Ads)
-              </h2>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                Método Pedro Sobral adaptado a campanha eleitoral. A IA monta plano com
-                estrutura CBO, teste 3×3, benchmarks BR, kill/scale rules e compliance
-                (autorização Meta, CNPJ, número, selo IA).
-              </p>
-            </div>
-            <ImpulsionamentoForm />
-          </section>
-        )}
-
-        {podeGerar && (planosRes.data ?? []).length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Planos de impulsionamento
-            </h2>
-            <ul className="space-y-2">
-              {(planosRes.data as PlanoRow[]).map((p) => (
-                <PlanoImpulsionamentoCard key={p.id} plano={p} />
-              ))}
-            </ul>
-          </section>
-        )}
 
         {/* ── GERAR IMAGEM DE FUNDO (Gemini nano-banana) ─────────────── */}
         {podeGerar && (
