@@ -20,7 +20,7 @@ export type ClienteIA = {
 const MODELOS: Record<ProvedorIA, string> = {
   anthropic: "claude-sonnet-4-20250514",
   openai: "gpt-4.1",
-  google_gemini: "gemini-2.5-flash",
+  google_gemini: "gemini-flash-latest",
   xai_grok: "grok-3",
 };
 
@@ -136,8 +136,14 @@ export async function criarClienteIA(supabase: SupabaseClient): Promise<ClienteI
     if (chave) disponiveis.push({ provedor, chave });
   }
 
-  const envKey = process.env.ANTHROPIC_API_KEY;
-  if (envKey) disponiveis.push({ provedor: "anthropic", chave: envKey });
+  const envAnthropic = process.env.ANTHROPIC_API_KEY;
+  if (envAnthropic) disponiveis.push({ provedor: "anthropic", chave: envAnthropic });
+
+  const envGemini = process.env.GEMINI_API_KEY;
+  if (envGemini) disponiveis.push({ provedor: "google_gemini", chave: envGemini });
+
+  const envOpenAI = process.env.OPENAI_API_KEY;
+  if (envOpenAI) disponiveis.push({ provedor: "openai", chave: envOpenAI });
 
   if (disponiveis.length === 0) return null;
 
