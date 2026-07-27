@@ -52,7 +52,7 @@ export default async function PecasConteudoPage() {
   const { data: pecas } = await supabase
     .from("pecas_conteudo")
     .select(
-      "id, tipo, canal, conteudo, usou_ia, ferramenta, rotulo_aplicado, rotulo_texto, aprovador_id, status, publicado_em, created_at"
+      "id, tipo, canal, conteudo, arte_path, arte_mime, usou_ia, ferramenta, rotulo_aplicado, rotulo_texto, revisao_ia_json, revisao_ia_em, aprovador_id, status, publicado_em, created_at"
     )
     .order("created_at", { ascending: false });
 
@@ -62,16 +62,18 @@ export default async function PecasConteudoPage() {
         <div>
           <h1 className="text-lg font-semibold">Peças de conteúdo</h1>
           <p className="text-sm text-neutral-500">
-            Conformidade e rotulagem IA (Módulo Jurídico) — toda peça gerada ou significativamente
-            alterada por IA precisa de rótulo aplicado e aprovação humana antes de publicar. Peças
-            sintéticas novas não publicam na janela de silêncio de 72h antes / 24h depois do pleito.
+            Suba a peça pronta (arte finalizada e/ou texto) e rode a revisão da IA para checar
+            compliance eleitoral: número do candidato, nome de urna, CNPJ, coligação, selo IA
+            quando aplicável. Toda peça gerada por IA precisa de rótulo e aprovação humana antes
+            de publicar. Peças sintéticas novas não publicam na janela de silêncio de 72h
+            antes / 24h depois do pleito.
           </p>
         </div>
 
         {podeCriar && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Novo rascunho
+              Enviar nova peça
             </h2>
             <PecaForm campanhaId={eu.campanha_id} criadoPor={user.id} />
           </section>

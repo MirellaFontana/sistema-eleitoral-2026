@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const TIPOS = [
@@ -38,50 +38,53 @@ export function PecaForm({ campanhaId, criadoPor }: { campanhaId: string; criado
 
   const [tipo, setTipo] = useState(TIPOS[0].value);
   const [canal, setCanal] = useState(CANAIS[0].value);
-  const [foco, setFoco] = useState("");
   const [conteudo, setConteudo] = useState("");
+  const [arte, setArte] = useState<File | null>(null);
   const [usouIa, setUsouIa] = useState(false);
   const [ferramenta, setFerramenta] = useState("");
   const [prompt, setPrompt] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
-  const [gerando, setGerando] = useState(false);
-
-  async function gerarComIa() {
-    setErro(null);
-    setGerando(true);
-
-    const res = await fetch("/api/marketing/sugestao", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ formato: tipo, foco: foco.trim() || undefined }),
-    });
-    const data = await res.json();
-    setGerando(false);
-
-    if (!res.ok) {
-      setErro(data.error ?? "Erro ao gerar conteúdo");
-      return;
-    }
-
-    setConteudo(data.sugestao);
-    setUsouIa(true);
-    setFerramenta("Claude (Anthropic)");
-    setPrompt(foco.trim() || "(gerado a partir da base de conhecimento)");
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
     setSucesso(null);
+
+    if (!conteudo.trim() && !arte) {
+      setErro("Adicione o texto da peça, uma imagem ou os dois.");
+      return;
+    }
+
     setCarregando(true);
+
+    let artePath: string | null = null;
+    let arteMime: string | null = null;
+
+    if (arte) {
+      const ext = arte.name.split(".").pop() || "bin";
+      const path = `${campanhaId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const up = await supabase.storage.from("pecas-arte").upload(path, arte, {
+        contentType: arte.type || "application/octet-stream",
+        upsert: false,
+      });
+      if (up.error) {
+        setCarregando(false);
+        setErro(`Falha ao subir arquivo: ${up.error.message}`);
+        return;
+      }
+      artePath = path;
+      arteMime = arte.type || "application/octet-stream";
+    }
 
     const { error } = await supabase.from("pecas_conteudo").insert({
       campanha_id: campanhaId,
       tipo,
       canal,
       conteudo: conteudo.trim() || null,
+      arte_path: artePath,
+      arte_mime: arteMime,
       usou_ia: usouIa,
       ferramenta: usouIa && ferramenta.trim() ? ferramenta.trim() : null,
       prompt: usouIa && prompt.trim() ? prompt.trim() : null,
@@ -94,19 +97,27 @@ export function PecaForm({ campanhaId, criadoPor }: { campanhaId: string; criado
       return;
     }
 
-    setSucesso("Rascunho criado.");
-    setTimeout(() => setSucesso(null), 3000);
+    setSucesso("Peça enviada. Use \"Revisar com IA\" no card para checar compliance.");
+    setTimeout(() => setSucesso(null), 4000);
     setConteudo("");
-    setFoco("");
+    setArte(null);
     setFerramenta("");
     setPrompt("");
     setUsouIa(false);
+    (document.getElementById("peca-arte-input") as HTMLInputElement | null)?.value &&
+      ((document.getElementById("peca-arte-input") as HTMLInputElement).value = "");
     router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded border border-neutral-200 p-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <p className="text-xs text-neutral-500">
+        Suba a peça pronta produzida pela equipe (imagem final e/ou texto). Depois clique em
+        &quot;Revisar com IA&quot; no card para verificar se está em conformidade com a legislação
+        eleitoral (número, nome de urna, CNPJ, coligação, selo IA).
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Formato</label>
           <select
@@ -132,75 +143,69 @@ export function PecaForm({ campanhaId, criadoPor }: { campanhaId: string; criado
             ))}
           </select>
         </div>
-
-        <div className="space-y-1">
-          <label className="block text-xs font-medium text-neutral-500">
-            Tema / foco (opcional)
-          </label>
-          <input
-            type="text"
-            placeholder="Ex.: saúde pública, educação..."
-            value={foco}
-            onChange={(e) => setFoco(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-          />
-        </div>
       </div>
 
       <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <label className="block text-xs font-medium text-neutral-500">Conteúdo da peça</label>
-          <button
-            type="button"
-            onClick={gerarComIa}
-            disabled={gerando}
-            className="flex items-center gap-1 rounded bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Sparkles size={12} strokeWidth={2} />
-            {gerando ? "Gerando…" : "Gerar com IA"}
-          </button>
-        </div>
+        <label className="block text-xs font-medium text-neutral-500">
+          Arte da peça (PNG/JPG — opcional se a peça for só texto)
+        </label>
+        <label
+          htmlFor="peca-arte-input"
+          className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-neutral-300 px-3 py-2 text-xs text-neutral-500 hover:bg-neutral-50"
+        >
+          <Upload size={14} strokeWidth={2} />
+          {arte ? arte.name : "Clique para selecionar imagem"}
+        </label>
+        <input
+          id="peca-arte-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={(e) => setArte(e.target.files?.[0] ?? null)}
+          className="hidden"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">
+          Texto / legenda da peça (opcional se for só imagem)
+        </label>
         <textarea
-          rows={8}
+          rows={6}
           value={conteudo}
           onChange={(e) => setConteudo(e.target.value)}
-          placeholder="Escreva o conteúdo ou clique em 'Gerar com IA' para criar automaticamente a partir das propostas da campanha."
+          placeholder="Cole aqui a copy, legenda ou roteiro que acompanha a peça."
           className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
         />
       </div>
 
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={usouIa} onChange={(e) => setUsouIa(e.target.checked)} />
+        Peça gerada ou significativamente alterada por IA (exige rótulo antes de publicar)
+      </label>
+
       {usouIa && (
-        <div className="space-y-3 rounded bg-amber-50 p-3">
-          <p className="text-xs text-amber-700">
-            Peça gerada com IA — exige rótulo e aprovação antes de publicar.
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-neutral-500">Ferramenta/modelo</label>
-              <input
-                type="text"
-                value={ferramenta}
-                onChange={(e) => setFerramenta(e.target.value)}
-                className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-neutral-500">Prompt / contexto</label>
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-              />
-            </div>
+        <div className="grid grid-cols-1 gap-3 rounded bg-amber-50 p-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-500">Ferramenta/modelo</label>
+            <input
+              type="text"
+              value={ferramenta}
+              onChange={(e) => setFerramenta(e.target.value)}
+              placeholder="Ex.: Midjourney, Gemini nano-banana"
+              className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-500">Prompt utilizado</label>
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+            />
           </div>
         </div>
       )}
-
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={usouIa} onChange={(e) => setUsouIa(e.target.checked)} />
-        Gerado ou significativamente alterado por IA
-      </label>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}
       {sucesso && <p className="text-sm text-green-700">{sucesso}</p>}
@@ -210,7 +215,7 @@ export function PecaForm({ campanhaId, criadoPor }: { campanhaId: string; criado
         disabled={carregando}
         className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
-        {carregando ? "Criando…" : "Criar rascunho"}
+        {carregando ? "Enviando…" : "Enviar peça"}
       </button>
     </form>
   );

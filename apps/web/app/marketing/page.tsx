@@ -7,6 +7,7 @@ import { SugestaoForm } from "./SugestaoForm";
 import { AvaliacaoForm } from "./AvaliacaoForm";
 import { AnaliseButton } from "./AnaliseButton";
 import { AdaptarForm } from "./AdaptarForm";
+import { GerarImagemForm } from "./GerarImagemForm";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -180,6 +181,23 @@ export default async function MarketingPage() {
             ))}
           </ul>
         </section>
+
+        {/* ── GERAR IMAGEM DE FUNDO (Gemini nano-banana) ─────────────── */}
+        {podeGerar && (
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Gerar imagem por IA
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Escreva o prompt exato da cena. A Gemini nano-banana gera uma imagem crua
+                (sem texto legal) — a equipe monta a arte final e sobe em Peças de Conteúdo
+                para revisão de compliance.
+              </p>
+            </div>
+            <GerarImagemForm />
+          </section>
+        )}
 
         {/* ── CENTRAL DE COPYWRITING (adaptação multi-público) ────── */}
         {podeAdaptar && (

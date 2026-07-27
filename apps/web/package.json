@@ -34,5 +34,8 @@
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "@resvg/resvg-js-win32-x64-msvc": "^2.6.2"
   }
 }
