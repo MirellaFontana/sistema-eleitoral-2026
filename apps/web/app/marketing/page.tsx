@@ -195,7 +195,7 @@ export default async function MarketingPage() {
 
         {/* ── IMPULSIONAMENTO (método Sobral) ────────────────────────── */}
         {podeGerar && (
-          <section className="space-y-3">
+          <section id="impulsionamento" className="space-y-3 scroll-mt-6">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
                 Impulsionamento pago (Meta Ads)
