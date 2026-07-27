@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     sugestao = await ia.gerar({
       sistema: SISTEMA_GERADOR_PECAS,
       mensagens: [{ role: "user", content: mensagemUsuario }],
-      maxTokens: 1500,
+      maxTokens: 3000,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "erro desconhecido ao chamar IA";
