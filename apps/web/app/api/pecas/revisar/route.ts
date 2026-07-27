@@ -185,6 +185,7 @@ export async function POST(request: Request) {
         sistema: SISTEMA_REVISOR_COMPLIANCE,
         mensagens: [{ role: "user", content: contextoTexto }],
         maxTokens: 1200,
+        jsonMode: true,
       });
     } catch (err) {
       const m = err instanceof Error ? err.message : "erro na IA";

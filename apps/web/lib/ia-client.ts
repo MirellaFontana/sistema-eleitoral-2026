@@ -14,6 +14,9 @@ export type ClienteIA = {
     sistema: string;
     mensagens: MensagemIA[];
     maxTokens?: number;
+    // Quando true, pede ao provedor pra devolver estritamente JSON.
+    // Gemini/OpenAI/Grok tem modo nativo; Anthropic segue só via prompt (nao ha modo nativo).
+    jsonMode?: boolean;
   }) => Promise<string>;
 };
 
@@ -47,10 +50,11 @@ function criarClienteOpenAI(apiKey: string): ClienteIA {
   const client = new OpenAI({ apiKey });
   return {
     provedor: "openai",
-    async gerar({ sistema, mensagens, maxTokens = 2000 }) {
+    async gerar({ sistema, mensagens, maxTokens = 2000, jsonMode }) {
       const resp = await client.chat.completions.create({
         model: MODELOS.openai,
         max_tokens: maxTokens,
+        response_format: jsonMode ? { type: "json_object" } : undefined,
         messages: [
           { role: "system", content: sistema },
           ...mensagens.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
@@ -65,12 +69,13 @@ function criarClienteGemini(apiKey: string): ClienteIA {
   const ai = new GoogleGenAI({ apiKey });
   return {
     provedor: "google_gemini",
-    async gerar({ sistema, mensagens, maxTokens = 2000 }) {
+    async gerar({ sistema, mensagens, maxTokens = 2000, jsonMode }) {
       const resp = await ai.models.generateContent({
         model: MODELOS.google_gemini,
         config: {
           maxOutputTokens: maxTokens,
           systemInstruction: sistema,
+          ...(jsonMode ? { responseMimeType: "application/json" } : {}),
         },
         contents: mensagens.map((m) => ({
           role: m.role === "assistant" ? "model" : "user",
@@ -86,10 +91,11 @@ function criarClienteGrok(apiKey: string): ClienteIA {
   const client = new OpenAI({ apiKey, baseURL: "https://api.x.ai/v1" });
   return {
     provedor: "xai_grok",
-    async gerar({ sistema, mensagens, maxTokens = 2000 }) {
+    async gerar({ sistema, mensagens, maxTokens = 2000, jsonMode }) {
       const resp = await client.chat.completions.create({
         model: MODELOS.xai_grok,
         max_tokens: maxTokens,
+        response_format: jsonMode ? { type: "json_object" } : undefined,
         messages: [
           { role: "system", content: sistema },
           ...mensagens.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),

@@ -176,6 +176,7 @@ export async function POST(request: Request) {
       sistema: SISTEMA_PLANO_IMPULSIONAMENTO,
       mensagens: [{ role: "user", content: mensagemUsuario }],
       maxTokens: 3500,
+      jsonMode: true,
     });
   } catch (err) {
     const m = err instanceof Error ? err.message : "erro na IA";

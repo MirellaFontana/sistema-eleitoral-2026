@@ -142,8 +142,8 @@ export function ImpulsionamentoForm() {
               {sugerindoPublico ? "Analisando peça…" : "Sugerir com IA"}
             </button>
           </div>
-          <input
-            type="text"
+          <textarea
+            rows={3}
             value={publico}
             onChange={(e) => setPublico(e.target.value)}
             required

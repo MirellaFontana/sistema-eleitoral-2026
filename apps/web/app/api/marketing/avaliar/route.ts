@@ -82,6 +82,7 @@ export async function POST(request: Request) {
       sistema: SISTEMA_AVALIADOR_PECAS,
       mensagens: [{ role: "user", content: mensagemUsuario }],
       maxTokens: 1800,
+      jsonMode: true,
     });
   } catch (err) {
     const m = err instanceof Error ? err.message : "erro desconhecido";
