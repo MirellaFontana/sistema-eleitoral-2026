@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Rocket } from "lucide-react";
+import { Rocket, Sparkles } from "lucide-react";
 
 const OBJETIVOS = [
   { value: "alcance", label: "Alcance (marca / notoriedade)" },
@@ -23,7 +23,33 @@ export function ImpulsionamentoForm() {
   const [orcamento, setOrcamento] = useState<string>("");
   const [prazo, setPrazo] = useState<string>("7");
   const [gerando, setGerando] = useState(false);
+  const [sugerindoPublico, setSugerindoPublico] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  async function sugerirPublico() {
+    if (!pecaDescricao.trim()) {
+      setErro("Escreva a descrição/copy da peça antes de sugerir o público.");
+      return;
+    }
+    setErro(null);
+    setSugerindoPublico(true);
+    try {
+      const res = await fetch("/api/marketing/sugerir-publico", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peca_descricao: pecaDescricao.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error ?? "Erro ao sugerir público");
+      } else if (data.publico) {
+        setPublico(data.publico);
+      }
+    } catch {
+      setErro("Erro de rede ao sugerir público");
+    }
+    setSugerindoPublico(false);
+  }
 
   async function gerar(e: React.FormEvent) {
     e.preventDefault();
@@ -104,13 +130,24 @@ export function ImpulsionamentoForm() {
           </select>
         </div>
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-neutral-500">Público prioritário</label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-medium text-neutral-500">Público prioritário</label>
+            <button
+              type="button"
+              onClick={sugerirPublico}
+              disabled={sugerindoPublico || !pecaDescricao.trim()}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-40"
+            >
+              <Sparkles size={11} strokeWidth={2} />
+              {sugerindoPublico ? "Analisando peça…" : "Sugerir com IA"}
+            </button>
+          </div>
           <input
             type="text"
             value={publico}
             onChange={(e) => setPublico(e.target.value)}
             required
-            placeholder="Ex.: mulheres 35-55, região metropolitana de Curitiba"
+            placeholder="Clique em Sugerir com IA ou digite manualmente"
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
         </div>
