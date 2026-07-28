@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SWRegistrar } from "@/components/SWRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Sistema Eleitoral 2026",
-  description: "Plataforma de campanha — cadastro e gestão de usuários internos",
+  description: "Plataforma de inteligência e gestão de campanha eleitoral",
+  manifest: "/manifest.json",
+  themeColor: "#4f46e5",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Eleitoral 2026",
+  },
 };
 
 export default function RootLayout({
@@ -24,10 +32,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <SWRegistrar />
+        {children}
+      </body>
     </html>
   );
 }

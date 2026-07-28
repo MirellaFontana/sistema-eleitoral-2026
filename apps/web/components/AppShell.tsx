@@ -61,6 +61,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/funcoes", label: "Funções e permissões", icon: Shield },
       { href: "/auditoria", label: "Trilha de auditoria", icon: FileSearch },
       { href: "/quarentena", label: "Quarentena de dados", icon: Shield },
+      { href: "/retencao", label: "Retenção de dados", icon: CalendarClock },
     ],
   },
   {
