@@ -1,0 +1,61 @@
+import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/service";
+
+export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "não autorizado" }, { status: 401 });
+  }
+
+  const supabase = createServiceClient();
+
+  const { data: configs } = await supabase
+    .from("configuracoes_retencao")
+    .select("tabela, dias_retencao, acao")
+    .eq("ativo", true)
+    .neq("acao", "manter");
+
+  if (!configs || configs.length === 0) {
+    return NextResponse.json({ message: "nenhuma regra ativa" });
+  }
+
+  const resultados: { tabela: string; acao: string; afetados: number; erro?: string }[] = [];
+
+  for (const cfg of configs) {
+    const limite = new Date(Date.now() - cfg.dias_retencao * 86_400_000).toISOString();
+
+    try {
+      if (cfg.acao === "excluir") {
+        const { count } = await supabase
+          .from(cfg.tabela)
+          .delete({ count: "exact" })
+          .lt("created_at", limite);
+        resultados.push({ tabela: cfg.tabela, acao: "excluir", afetados: count ?? 0 });
+      } else if (cfg.acao === "anonimizar" && cfg.tabela === "cidadaos") {
+        const { data: antigos } = await supabase
+          .from("cidadaos")
+          .select("id")
+          .lt("created_at", limite)
+          .limit(500);
+
+        if (antigos && antigos.length > 0) {
+          const ids = antigos.map((r) => r.id);
+          const { count } = await supabase
+            .from("cidadaos")
+            .update({ nome: "***", telefone: null, email: null, endereco: null })
+            .in("id", ids);
+          resultados.push({ tabela: cfg.tabela, acao: "anonimizar", afetados: count ?? antigos.length });
+        } else {
+          resultados.push({ tabela: cfg.tabela, acao: "anonimizar", afetados: 0 });
+        }
+      } else {
+        resultados.push({ tabela: cfg.tabela, acao: cfg.acao, afetados: 0, erro: "ação não implementada para esta tabela" });
+      }
+    } catch (e) {
+      resultados.push({ tabela: cfg.tabela, acao: cfg.acao, afetados: 0, erro: String(e) });
+    }
+  }
+
+  return NextResponse.json({ resultados });
+}

@@ -49,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/diretrizes", label: "Diretrizes da Campanha", icon: ScrollText },
       { href: "/propostas", label: "Propostas", icon: FileText },
+      { href: "/decisoes", label: "Decisões", icon: Gavel },
       { href: "/recomendacoes", label: "Recomendações", icon: Lightbulb },
       { href: "/narrativas", label: "Narrativas", icon: BookOpen },
     ],
