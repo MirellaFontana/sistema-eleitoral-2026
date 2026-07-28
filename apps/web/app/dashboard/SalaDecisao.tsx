@@ -24,11 +24,19 @@ type ItemDecisao = {
   link?: string;
 };
 
+type Resumo = {
+  fontesComProblema: number;
+  normativasDesatualizadas: number;
+  temasIncoerentes: number;
+  decisoesAtivas: number;
+};
+
 type DadosSala = {
   decidaAgora: ItemDecisao[];
   facaHoje: ItemDecisao[];
   fiqueAtento: ItemDecisao[];
   oQueMudou: ItemDecisao[];
+  resumo?: Resumo;
 };
 
 const QUADRANTES = [
@@ -66,7 +74,34 @@ export function SalaDecisao() {
 
   if (!dados) return null;
 
+  const r = dados.resumo;
+
   return (
+    <>
+      {r && (r.fontesComProblema > 0 || r.normativasDesatualizadas > 0 || r.temasIncoerentes > 0 || r.decisoesAtivas > 0) && (
+        <div className="mb-3 flex flex-wrap gap-2 text-xs">
+          {r.decisoesAtivas > 0 && (
+            <Link href="/decisoes" className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-indigo-700 hover:bg-indigo-100">
+              {r.decisoesAtivas} {r.decisoesAtivas === 1 ? "decisão ativa" : "decisões ativas"}
+            </Link>
+          )}
+          {r.temasIncoerentes > 0 && (
+            <Link href="/narrativas" className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-700 hover:bg-amber-100">
+              {r.temasIncoerentes} {r.temasIncoerentes === 1 ? "tema com baixa coerência" : "temas com baixa coerência"}
+            </Link>
+          )}
+          {r.fontesComProblema > 0 && (
+            <Link href="/fontes" className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-red-700 hover:bg-red-100">
+              {r.fontesComProblema} {r.fontesComProblema === 1 ? "fonte com problema" : "fontes com problema"}
+            </Link>
+          )}
+          {r.normativasDesatualizadas > 0 && (
+            <Link href="/base-normativa" className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-orange-700 hover:bg-orange-100">
+              {r.normativasDesatualizadas} {r.normativasDesatualizadas === 1 ? "norma alterada" : "normas alteradas"}
+            </Link>
+          )}
+        </div>
+      )}
     <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
       {QUADRANTES.map((q) => {
         const itens = dados[q.key];
@@ -104,6 +139,7 @@ export function SalaDecisao() {
         );
       })}
     </div>
+    </>
   );
 }
 

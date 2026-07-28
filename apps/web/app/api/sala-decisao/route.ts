@@ -31,7 +31,7 @@ export async function GET() {
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
-    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes,
+    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -87,6 +87,9 @@ export async function GET() {
       .eq("status", "resultado_avaliado")
       .gte("updated_at", ontem)
       .order("updated_at", { ascending: false }).limit(5),
+    supabase.from("narrativas_analises")
+      .select("analise, created_at")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -102,6 +105,11 @@ export async function GET() {
   const fontesComProblema = fontesRes.data ?? [];
   const normativasDesatualizadas = normativasRes.data ?? [];
   const recsAvaliadas = recsAvaliadasRes.data ?? [];
+  const narrativa = narrativaRes.data;
+
+  type TemaAnalise = { tema?: string; consistencia?: string; lacunas?: string[]; ressonancia_propria?: { nivel?: string } };
+  const temasNarrativa = (narrativa?.analise ?? []) as TemaAnalise[];
+  const temasIncoerentes = temasNarrativa.filter((t) => t.consistencia === "baixa" || t.consistencia === "media");
 
   const decidaAgora: Item[] = recs
     .filter((r) => r.urgencia === "critica" || r.status === "aguardando_revisao")
@@ -261,6 +269,20 @@ export async function GET() {
     });
   }
 
+  for (const t of temasIncoerentes) {
+    const lacunas = t.lacunas?.join("; ") ?? "";
+    fiqueAtento.push({
+      id: `coer-${t.tema ?? "geral"}`,
+      titulo: `Coerência ${t.consistencia}: ${t.tema ?? "geral"}`,
+      descricao: lacunas.slice(0, 150),
+      tipo: "coerencia",
+      urgencia: t.consistencia === "baixa" ? "alta" : "media",
+      fonte: "Narrativas",
+      porqueEstouVendo: `A última análise de narrativas detectou consistência "${t.consistencia}" no tema "${t.tema ?? "geral"}"${t.ressonancia_propria?.nivel ? ` com ressonância ${t.ressonancia_propria.nivel}` : ""}.`,
+      link: "/narrativas",
+    });
+  }
+
   const oQueMudou: Item[] = [];
   if (snapshot?.analise_ia) {
     const dt = new Date(snapshot.created_at).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -306,5 +328,12 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json({ decidaAgora, facaHoje, fiqueAtento, oQueMudou });
+  const resumo = {
+    fontesComProblema: fontesComProblema.length,
+    normativasDesatualizadas: normativasDesatualizadas.length,
+    temasIncoerentes: temasIncoerentes.length,
+    decisoesAtivas: decisoesAtivas.length,
+  };
+
+  return NextResponse.json({ decidaAgora, facaHoje, fiqueAtento, oQueMudou, resumo });
 }
