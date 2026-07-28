@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { ConcorrenteForm } from "./ConcorrenteForm";
+import { AnunciosConcorrente } from "./AnunciosConcorrente";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -99,6 +100,7 @@ export default async function ConcorrentesPage() {
                     {c.promessas}
                   </p>
                 )}
+                <AnunciosConcorrente nome={c.nome} />
               </li>
             ))}
           </ul>

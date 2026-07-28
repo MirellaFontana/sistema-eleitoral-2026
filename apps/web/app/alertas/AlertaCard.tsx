@@ -41,6 +41,7 @@ type Alerta = {
   itemCategoria: string;
   itemGravidade: string | null;
   itemUrl: string | null;
+  textoIA: string | null;
 };
 
 export function AlertaCard({
@@ -89,13 +90,20 @@ export function AlertaCard({
   }
 
   const jaEncaminhado = !!alerta.encaminhadoEm;
+  const isAlertaIA = !!alerta.textoIA;
 
   return (
     <li className="space-y-2 rounded border border-red-200 bg-red-50 p-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded-full bg-red-600 px-2 py-0.5 font-medium text-white">
-          {CATEGORIA_LABEL[alerta.itemCategoria] ?? alerta.itemCategoria}
-        </span>
+        {isAlertaIA ? (
+          <span className="rounded-full bg-indigo-600 px-2 py-0.5 font-medium text-white">
+            Alerta da IA
+          </span>
+        ) : (
+          <span className="rounded-full bg-red-600 px-2 py-0.5 font-medium text-white">
+            {CATEGORIA_LABEL[alerta.itemCategoria] ?? alerta.itemCategoria}
+          </span>
+        )}
         {alerta.itemGravidade && (
           <span className="rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-800">
             Gravidade: {GRAVIDADE_LABEL[alerta.itemGravidade] ?? alerta.itemGravidade}
@@ -111,7 +119,7 @@ export function AlertaCard({
         )}
       </div>
 
-      <p className="text-sm">{alerta.itemDescricao}</p>
+      <p className="text-sm">{isAlertaIA ? alerta.textoIA : alerta.itemDescricao}</p>
 
       {alerta.itemUrl && (
         <a

@@ -42,7 +42,7 @@ export default async function AlertasPage() {
   const { data: alertas } = await supabase
     .from("alertas")
     .select(
-      "id, destinatario_papel, canal, status_envio, lido_em, encaminhado_por, encaminhado_em, encaminhado_nota, created_at, monitoramento_itens(descricao, categoria, gravidade, url, captura_path), usuarios_internos!encaminhado_por(nome)"
+      "id, destinatario_papel, canal, status_envio, lido_em, encaminhado_por, encaminhado_em, encaminhado_nota, texto_ia, created_at, monitoramento_itens(descricao, categoria, gravidade, url, captura_path), usuarios_internos!encaminhado_por(nome)"
     )
     .order("created_at", { ascending: false });
 
@@ -83,6 +83,7 @@ export default async function AlertasPage() {
                   itemCategoria: item?.categoria ?? "",
                   itemGravidade: item?.gravidade ?? null,
                   itemUrl: item?.url ?? null,
+                  textoIA: a.texto_ia ?? null,
                 }}
                 podeEncaminhar={podeEncaminhar}
                 currentUserId={user.id}

@@ -6,6 +6,7 @@ import { proximaRotaMfa } from "@/lib/mfa";
 import { MonitoramentoWorkspace } from "./MonitoramentoWorkspace";
 import { FontesPanel } from "./FontesPanel";
 import { VerCapturaButton } from "./VerCapturaButton";
+import { UltimoSnapshot } from "./UltimoSnapshot";
 import type { TermoView } from "./TermosMonitoramento";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -68,6 +69,16 @@ export default async function MonitoramentoPage() {
   const podeRegistrar = PAPEIS_QUE_REGISTRAM.has(eu.papel);
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
+  let intervaloMonitoramento: number | null = 3;
+  const { data: configCampanha } = await supabase
+    .from("campanhas")
+    .select("intervalo_monitoramento_horas")
+    .eq("id", eu.campanha_id)
+    .maybeSingle();
+  if (configCampanha) {
+    intervaloMonitoramento = configCampanha.intervalo_monitoramento_horas;
+  }
+
   // Semeia o próprio candidato como primeiro termo monitorado, uma única vez por campanha —
   // mantém o comportamento de antes (buscava o candidato automaticamente) sem exigir que
   // alguém cadastre isso manualmente antes de usar a busca pela primeira vez.
@@ -84,7 +95,7 @@ export default async function MonitoramentoPage() {
     }
   }
 
-  const [{ data: itens }, { data: termosData }, { data: fontesData }] = await Promise.all([
+  const [{ data: itens }, { data: termosData }, { data: fontesData }, { data: snapshotsData }] = await Promise.all([
     supabase
       .from("monitoramento_itens")
       .select("id, url, descricao, categoria, gravidade, status, captura_path, hash_evidencia, created_at")
@@ -98,10 +109,16 @@ export default async function MonitoramentoPage() {
       .select("id, dominio, nome, tier, regiao, ativo")
       .order("tier")
       .order("nome"),
+    supabase
+      .from("monitoramento_snapshots")
+      .select("id, total_mencoes, analise_ia, provedor_ia, erro, created_at")
+      .order("created_at", { ascending: false })
+      .limit(1),
   ]);
 
   const termos: TermoView[] = termosData ?? [];
   const fontes = fontesData ?? [];
+  const ultimoSnapshot = snapshotsData?.[0] ?? null;
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -115,6 +132,17 @@ export default async function MonitoramentoPage() {
         </div>
 
         <FontesPanel fontes={fontes} podeEditar={podeRegistrar} />
+
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Busca automática
+          </h2>
+          <UltimoSnapshot
+            snapshot={ultimoSnapshot}
+            intervaloAtual={intervaloMonitoramento}
+            podeConfigurar={podeRegistrar}
+          />
+        </section>
 
         {podeRegistrar && (
           <section className="space-y-3">

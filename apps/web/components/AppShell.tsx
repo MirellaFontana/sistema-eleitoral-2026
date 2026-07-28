@@ -76,6 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Jurídico",
     items: [
+      { href: "/juridico/consulta", label: "Tira-dúvidas", icon: Search },
       { href: "/dossie-juridico", label: "Dossiê jurídico", icon: Scale },
       { href: "/calendario-eleitoral", label: "Calendário eleitoral", icon: CalendarClock },
     ],
