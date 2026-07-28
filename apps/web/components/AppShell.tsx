@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  Activity,
   LayoutDashboard,
   UserCog,
   Users,
@@ -116,6 +117,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/base-conhecimento", label: "Base de conhecimento", icon: BookOpen },
       { href: "/base-normativa", label: "Código eleitoral", icon: Gavel },
       { href: "/concorrentes", label: "Concorrentes", icon: Target },
+      { href: "/fontes", label: "Saúde das fontes", icon: Activity },
       { href: "/demandas-observadas", label: "Demandas", icon: ClipboardList },
     ],
   },

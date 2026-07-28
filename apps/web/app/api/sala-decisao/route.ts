@@ -31,7 +31,7 @@ export async function GET() {
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
-    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes,
+    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -82,6 +82,11 @@ export async function GET() {
       .select("id, titulo, data_verificacao")
       .eq("status", "desatualizada")
       .limit(5),
+    supabase.from("recomendacoes")
+      .select("id, titulo, resultado_texto, avaliacao_qualidade, updated_at")
+      .eq("status", "resultado_avaliado")
+      .gte("updated_at", ontem)
+      .order("updated_at", { ascending: false }).limit(5),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -96,6 +101,7 @@ export async function GET() {
   const decisoesAtivas = decisoesRes.data ?? [];
   const fontesComProblema = fontesRes.data ?? [];
   const normativasDesatualizadas = normativasRes.data ?? [];
+  const recsAvaliadas = recsAvaliadasRes.data ?? [];
 
   const decidaAgora: Item[] = recs
     .filter((r) => r.urgencia === "critica" || r.status === "aguardando_revisao")
@@ -281,6 +287,21 @@ export async function GET() {
       urgencia: r.urgencia,
       fonte: "Recomendação nova",
       porqueEstouVendo: "Recomendação gerada nas últimas 24h.",
+      link: "/recomendacoes",
+    });
+  }
+
+  for (const ra of recsAvaliadas) {
+    const qualidade = ra.avaliacao_qualidade as string | null;
+    const emoji = qualidade === "sucesso" ? "Sucesso" : qualidade === "parcial" ? "Parcial" : qualidade === "falha" ? "Falha" : "Avaliada";
+    oQueMudou.push({
+      id: `recav-${ra.id}`,
+      titulo: `${emoji}: ${ra.titulo}`,
+      descricao: ra.resultado_texto?.slice(0, 150) ?? "",
+      tipo: "resultado",
+      urgencia: qualidade === "falha" ? "alta" : "media",
+      fonte: "Resultado de recomendação",
+      porqueEstouVendo: `Recomendação avaliada nas últimas 24h com resultado "${qualidade ?? "sem avaliação"}".`,
       link: "/recomendacoes",
     });
   }

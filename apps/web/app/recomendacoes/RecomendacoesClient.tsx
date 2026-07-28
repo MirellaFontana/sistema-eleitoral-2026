@@ -416,6 +416,28 @@ function RecCard({
             </div>
           )}
 
+          {/* Criar decisão formal */}
+          {podeDecidir && (rec.status === "aprovada" || rec.status === "convertida_acao") && (
+            <button
+              onClick={async () => {
+                await fetch("/api/decisoes", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    titulo: rec.titulo,
+                    descricao: rec.descricao,
+                    evidencias: [{ tipo: "recomendacao", id: rec.id, titulo: rec.titulo }],
+                    recomendacao_id: rec.id,
+                  }),
+                });
+                window.location.href = "/decisoes";
+              }}
+              className="mt-2 flex items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+            >
+              <ArrowRight size={13} /> Criar decisão formal
+            </button>
+          )}
+
           {/* Registrar resultado */}
           {podeDecidir && rec.status === "convertida_acao" && (
             <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
