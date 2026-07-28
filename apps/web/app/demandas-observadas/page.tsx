@@ -42,10 +42,10 @@ export default async function DemandasObservadasPage() {
   const podeEditar = PAPEIS_QUE_EDITAM.has(eu.papel);
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const [demandasRes, temasRes, territoriosRes, liderancasRes] = await Promise.all([
+  const [demandasRes, temasRes, territoriosRes, liderancasRes, membrosRes] = await Promise.all([
     supabase
       .from("demandas_observadas")
-      .select("id, regiao, cidades, tema, demanda, created_at")
+      .select("id, regiao, cidades, tema, demanda, status, prioridade, responsavel_id, encaminhamento, resposta, origem, created_at")
       .order("created_at", { ascending: false }),
     supabase
       .from("temas_campanha")
@@ -59,6 +59,10 @@ export default async function DemandasObservadasPage() {
       .from("liderancas")
       .select("cidade")
       .not("cidade", "is", null),
+    supabase
+      .from("usuarios_internos")
+      .select("id, nome")
+      .order("nome"),
   ]);
   const demandas = demandasRes.data;
   const temas = temasRes.data ?? [];
@@ -76,10 +80,10 @@ export default async function DemandasObservadasPage() {
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
         <div>
-          <h1 className="text-lg font-semibold">Demandas observadas</h1>
+          <h1 className="text-lg font-semibold">Demandas</h1>
           <p className="text-sm text-neutral-500">
-            Nota de referência dos temas que mais aparecem por região — não é o fluxo formal de
-            cidadão relata/mandato encaminha (isso vem depois, como módulo próprio).
+            Registro e acompanhamento de demandas da população por região — com ciclo operacional
+            de triagem, encaminhamento e resolução.
           </p>
         </div>
 
@@ -100,6 +104,7 @@ export default async function DemandasObservadasPage() {
           cidadesConhecidas={cidadesConhecidas}
           temas={temas}
           podeEditar={podeEditar}
+          membros={(membrosRes.data ?? []).map((m) => ({ id: m.id, nome: m.nome }))}
         />
       </main>
     </AppShell>

@@ -10,10 +10,42 @@ type Demanda = {
   cidades: string[] | null;
   tema: string | null;
   demanda: string;
+  status: string;
+  prioridade: string;
+  responsavel_id: string | null;
+  encaminhamento: string | null;
+  resposta: string | null;
+  origem: string | null;
   created_at: string;
 };
 
 type Tema = { id: string; nome: string };
+type Membro = { id: string; nome: string };
+
+const STATUS_BADGE: Record<string, string> = {
+  registrada: "bg-neutral-100 text-neutral-600",
+  em_analise: "bg-blue-100 text-blue-700",
+  encaminhada: "bg-amber-100 text-amber-700",
+  em_andamento: "bg-indigo-100 text-indigo-700",
+  resolvida: "bg-green-100 text-green-700",
+  descartada: "bg-red-100 text-red-700",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  registrada: "Registrada",
+  em_analise: "Em análise",
+  encaminhada: "Encaminhada",
+  em_andamento: "Em andamento",
+  resolvida: "Resolvida",
+  descartada: "Descartada",
+};
+
+const PRIORIDADE_BADGE: Record<string, string> = {
+  critica: "bg-red-100 text-red-700",
+  alta: "bg-orange-100 text-orange-700",
+  media: "bg-neutral-100 text-neutral-600",
+  baixa: "bg-green-100 text-green-700",
+};
 
 function CidadesAutocomplete({
   cidades,
@@ -101,12 +133,14 @@ function DemandaCard({
   temas,
   podeEditar,
   onSaved,
+  membros,
 }: {
   d: Demanda;
   cidadesConhecidas: string[];
   temas: Tema[];
   podeEditar: boolean;
   onSaved: () => void;
+  membros: Membro[];
 }) {
   const supabase = createClient();
   const [editando, setEditando] = useState(false);
@@ -161,16 +195,45 @@ function DemandaCard({
     onSaved();
   }
 
+  async function atualizarStatus(novoStatus: string) {
+    setSalvando(true);
+    const campos: Record<string, unknown> = { status: novoStatus, updated_at: new Date().toISOString() };
+    if (novoStatus === "resolvida") campos.resolvida_em = new Date().toISOString();
+    await supabase.from("demandas_observadas").update(campos).eq("id", d.id);
+    setSalvando(false);
+    onSaved();
+  }
+
+  async function atribuirResponsavel(respId: string) {
+    await supabase.from("demandas_observadas").update({
+      responsavel_id: respId || null,
+      status: respId ? "encaminhada" : d.status,
+      updated_at: new Date().toISOString(),
+    }).eq("id", d.id);
+    onSaved();
+  }
+
+  const responsavelNome = membros.find((m) => m.id === d.responsavel_id)?.nome;
+
   if (!editando) {
     return (
       <li className="rounded border border-neutral-200 p-3 space-y-1">
         <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+          <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_BADGE[d.status] ?? STATUS_BADGE.registrada}`}>
+            {STATUS_LABEL[d.status] ?? d.status}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 font-medium ${PRIORIDADE_BADGE[d.prioridade] ?? PRIORIDADE_BADGE.media}`}>
+            {d.prioridade}
+          </span>
           {d.tema && (
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium">{d.tema}</span>
           )}
           {d.regiao && <span>{d.regiao}</span>}
           {(d.cidades ?? []).length > 0 && (
             <span>{(d.cidades as string[]).join(", ")}</span>
+          )}
+          {responsavelNome && (
+            <span className="text-indigo-600">→ {responsavelNome}</span>
           )}
           {podeEditar && (
             <button
@@ -183,6 +246,31 @@ function DemandaCard({
           )}
         </div>
         <p className="text-sm">{d.demanda}</p>
+        {d.encaminhamento && (
+          <p className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">Encaminhamento: {d.encaminhamento}</p>
+        )}
+        {d.resposta && (
+          <p className="text-xs text-green-700 bg-green-50 rounded px-2 py-1">Resposta: {d.resposta}</p>
+        )}
+        {podeEditar && d.status !== "resolvida" && d.status !== "descartada" && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {d.status === "registrada" && (
+              <button onClick={() => atualizarStatus("em_analise")} disabled={salvando} className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-200">Analisar</button>
+            )}
+            {(d.status === "em_analise" || d.status === "registrada") && (
+              <select
+                onChange={(e) => { if (e.target.value) atribuirResponsavel(e.target.value); }}
+                defaultValue=""
+                className="rounded border border-neutral-200 px-1.5 py-0.5 text-[10px]"
+              >
+                <option value="">Encaminhar para…</option>
+                {membros.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select>
+            )}
+            <button onClick={() => atualizarStatus("resolvida")} disabled={salvando} className="rounded bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 hover:bg-green-200">Resolver</button>
+            <button onClick={() => atualizarStatus("descartada")} disabled={salvando} className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-200">Descartar</button>
+          </div>
+        )}
       </li>
     );
   }
@@ -290,11 +378,13 @@ export function DemandasLista({
   cidadesConhecidas,
   temas,
   podeEditar,
+  membros = [],
 }: {
   demandas: Demanda[];
   cidadesConhecidas: string[];
   temas: Tema[];
   podeEditar: boolean;
+  membros?: Membro[];
 }) {
   const router = useRouter();
   const [filtro, setFiltro] = useState("");
@@ -360,6 +450,7 @@ export function DemandasLista({
             temas={temas}
             podeEditar={podeEditar}
             onSaved={() => router.refresh()}
+            membros={membros}
           />
         ))}
       </ul>

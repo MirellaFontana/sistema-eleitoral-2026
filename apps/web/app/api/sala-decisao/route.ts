@@ -31,7 +31,7 @@ export async function GET() {
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
-    snapshotRes, recsRecentesRes,
+    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -60,6 +60,15 @@ export async function GET() {
       .select("id, titulo, tipo, urgencia, created_at")
       .gte("created_at", ontem)
       .order("created_at", { ascending: false }).limit(5),
+    supabase.from("demandas_observadas")
+      .select("id, tema, demanda, prioridade, status")
+      .in("status", ["registrada", "em_analise"])
+      .order("created_at", { ascending: false }).limit(5),
+    supabase.from("sinais_campo")
+      .select("id, tema, frase_representativa, intensidade, created_at")
+      .eq("intensidade", "forte")
+      .gte("created_at", new Date(hoje.getTime() - 3 * 86_400_000).toISOString())
+      .order("created_at", { ascending: false }).limit(5),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -69,6 +78,8 @@ export async function GET() {
   const diretSemDef = diretrizesRes.data ?? [];
   const snapshot = snapshotRes.data;
   const recsRecentes = recsRecentesRes.data ?? [];
+  const demandasPendentes = demandasRes.data ?? [];
+  const sinaisFortes = sinaisCampoRes.data ?? [];
 
   const decidaAgora: Item[] = recs
     .filter((r) => r.urgencia === "critica" || r.status === "aguardando_revisao")
@@ -157,6 +168,30 @@ export async function GET() {
       fonte: "Recomendação IA",
       porqueEstouVendo: r.fatos_utilizados ?? "Risco identificado pela análise de IA.",
       link: "/recomendacoes",
+    });
+  }
+  for (const dem of demandasPendentes) {
+    fiqueAtento.push({
+      id: `dem-${dem.id}`,
+      titulo: `Demanda: ${dem.tema ?? "sem tema"}`,
+      descricao: dem.demanda.slice(0, 150),
+      tipo: "demanda",
+      urgencia: dem.prioridade === "critica" ? "critica" : "media",
+      fonte: "Demandas",
+      porqueEstouVendo: `Demanda com status "${dem.status}" e prioridade ${dem.prioridade} aguardando ação.`,
+      link: "/demandas-observadas",
+    });
+  }
+  for (const sc of sinaisFortes) {
+    fiqueAtento.push({
+      id: `sc-${sc.id}`,
+      titulo: sc.frase_representativa ?? `Sinal forte: ${sc.tema ?? "campo"}`,
+      descricao: sc.tema ? `Tema: ${sc.tema}` : "",
+      tipo: "campo",
+      urgencia: "alta",
+      fonte: "Escuta de campo",
+      porqueEstouVendo: `Sinal de campo com intensidade forte nos últimos 3 dias${sc.tema ? ` sobre "${sc.tema}"` : ""}.`,
+      link: "/campo",
     });
   }
 
