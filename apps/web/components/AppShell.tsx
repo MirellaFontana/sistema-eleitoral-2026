@@ -33,6 +33,7 @@ import {
   Shield,
   ScrollText,
   Lightbulb,
+  FileSearch,
   Menu,
   X,
   type LucideIcon,
@@ -57,6 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/campanha", label: "Cadastro de campanha", icon: IdCard },
       { href: "/usuarios", label: "Usuários", icon: UserCog },
       { href: "/funcoes", label: "Funções e permissões", icon: Shield },
+      { href: "/auditoria", label: "Trilha de auditoria", icon: FileSearch },
     ],
   },
   {
@@ -87,7 +89,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Jurídico",
     items: [
       { href: "/juridico/consulta", label: "Tira-dúvidas", icon: Search },
-      { href: "/dossie-juridico", label: "Dossiê jurídico", icon: Scale },
+      { href: "/base-normativa", label: "Base Normativa", icon: Scale },
+      { href: "/dossie-juridico", label: "Dossiê jurídico", icon: Gavel },
       { href: "/calendario-eleitoral", label: "Calendário eleitoral", icon: CalendarClock },
     ],
   },
@@ -106,7 +109,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Conhecimento",
     items: [
       { href: "/base-conhecimento", label: "Base de conhecimento", icon: BookOpen },
-      { href: "/base-conhecimento#tema-codigo-eleitoral", label: "Código eleitoral", icon: Gavel },
+      { href: "/base-normativa", label: "Código eleitoral", icon: Gavel },
       { href: "/concorrentes", label: "Concorrentes", icon: Target },
       { href: "/demandas-observadas", label: "Demandas", icon: ClipboardList },
     ],

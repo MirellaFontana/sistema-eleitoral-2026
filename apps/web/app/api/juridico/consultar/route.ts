@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
 import { SISTEMA_CONSULTA_JURIDICA } from "@/lib/anthropic";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { obterContextoNormativo } from "@/lib/normativa-context";
 
 export async function POST(request: Request) {
   const { pergunta } = (await request.json()) as { pergunta?: string };
@@ -49,11 +50,12 @@ export async function POST(request: Request) {
   }
 
   const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
+  const normativa = await obterContextoNormativo(supabase, eu.campanha_id);
 
   try {
     const resposta = await ia.gerar({
       sistema: SISTEMA_CONSULTA_JURIDICA + contexto,
-      mensagens: [{ role: "user", content: [diretrizes || null, pergunta.trim()].filter(Boolean).join("\n\n") }],
+      mensagens: [{ role: "user", content: [diretrizes || null, normativa || null, pergunta.trim()].filter(Boolean).join("\n\n") }],
       maxTokens: 4000,
     });
     return NextResponse.json({ resposta, provedor: ia.provedor });
