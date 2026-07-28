@@ -31,7 +31,7 @@ export async function GET() {
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
-    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes,
+    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -73,6 +73,11 @@ export async function GET() {
       .select("id, titulo, status, acao_planejada, prazo, resultado")
       .in("status", ["decidida", "em_execucao"])
       .order("updated_at", { ascending: false }).limit(5),
+    supabase.from("fontes_monitoramento")
+      .select("id, nome, falhas_consecutivas, ultimo_acesso_em")
+      .eq("ativo", true)
+      .gte("falhas_consecutivas", 3)
+      .limit(5),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -85,6 +90,7 @@ export async function GET() {
   const demandasPendentes = demandasRes.data ?? [];
   const sinaisFortes = sinaisCampoRes.data ?? [];
   const decisoesAtivas = decisoesRes.data ?? [];
+  const fontesComProblema = fontesRes.data ?? [];
 
   const decidaAgora: Item[] = recs
     .filter((r) => r.urgencia === "critica" || r.status === "aguardando_revisao")
@@ -215,6 +221,19 @@ export async function GET() {
       fonte: "Escuta de campo",
       porqueEstouVendo: `Sinal de campo com intensidade forte nos últimos 3 dias${sc.tema ? ` sobre "${sc.tema}"` : ""}.`,
       link: "/campo",
+    });
+  }
+
+  for (const f of fontesComProblema) {
+    fiqueAtento.push({
+      id: `fonte-${f.id}`,
+      titulo: `Fonte fora do ar: ${f.nome}`,
+      descricao: `${f.falhas_consecutivas} falhas consecutivas`,
+      tipo: "fonte",
+      urgencia: f.falhas_consecutivas >= 5 ? "critica" : "alta",
+      fonte: "Fontes de monitoramento",
+      porqueEstouVendo: `A fonte "${f.nome}" está com ${f.falhas_consecutivas} falhas consecutivas — os dados de monitoramento podem estar desatualizados.`,
+      link: "/monitoramento",
     });
   }
 

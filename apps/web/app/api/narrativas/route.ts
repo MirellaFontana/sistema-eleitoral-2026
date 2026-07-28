@@ -15,7 +15,7 @@ export async function GET() {
 
   const { data } = await supabase
     .from("narrativas_analises")
-    .select("id, analise, resumo, provedor_ia, created_at")
+    .select("id, analise, resumo, provedor_ia, territorio_id, canal, periodo_inicio, periodo_fim, temas, tipo, created_at")
     .eq("campanha_id", eu.campanha_id)
     .order("created_at", { ascending: false })
     .limit(10);
