@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { ConcorrenteForm } from "./ConcorrenteForm";
 import { AnunciosConcorrente } from "./AnunciosConcorrente";
+import { SinaisConcorrente } from "./SinaisConcorrente";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -100,6 +101,7 @@ export default async function ConcorrentesPage() {
                     {c.promessas}
                   </p>
                 )}
+                <SinaisConcorrente concorrenteId={c.id} podeRegistrar={podeEditar} />
                 <AnunciosConcorrente nome={c.nome} />
               </li>
             ))}

@@ -59,6 +59,7 @@ export async function POST() {
 
   const [
     alertasRes, demandasRes, concorrentesRes, temasRes, snapshotRes, tarefasRes,
+    sinaisConcRes, propostasRes, sinaisCampoRes,
   ] = await Promise.all([
     supabase.from("alertas").select("texto_ia, created_at")
       .eq("status_envio", "pendente_configuracao").order("created_at", { ascending: false }).limit(20),
@@ -72,6 +73,12 @@ export async function POST() {
       .select("analise_ia, created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("tarefas").select("titulo, status, prioridade")
       .eq("status", "a_fazer").order("created_at", { ascending: false }).limit(15),
+    supabase.from("sinais_concorrentes").select("titulo, tipo, descricao, impacto, concorrentes(nome)")
+      .order("created_at", { ascending: false }).limit(20),
+    supabase.from("propostas").select("titulo, tema, status")
+      .in("status", ["aprovada", "em_revisao"]).order("created_at", { ascending: false }).limit(20),
+    supabase.from("sinais_campo").select("tema, frase_representativa, intensidade, perguntas_objecoes, reacao_discurso")
+      .order("created_at", { ascending: false }).limit(20),
   ]);
 
   const temasCtx: TemaComItens[] = (temasRes.data ?? []).map((t) => ({
@@ -107,6 +114,28 @@ export async function POST() {
     .map((t) => `- [${t.prioridade ?? "normal"}] ${t.titulo}`)
     .join("\n") || "(nenhuma tarefa pendente)";
 
+  const sinaisConcTxt = (sinaisConcRes.data ?? [])
+    .map((s) => {
+      const conc = Array.isArray(s.concorrentes) ? s.concorrentes[0] : s.concorrentes;
+      return `- [${s.tipo}] ${conc?.nome ?? "?"}: ${s.titulo}${s.impacto ? ` (impacto: ${s.impacto})` : ""}`;
+    })
+    .join("\n") || "(nenhum sinal de concorrente)";
+
+  const propostasTxt = (propostasRes.data ?? [])
+    .map((p) => `- [${p.status}] ${p.titulo}${p.tema ? ` (tema: ${p.tema})` : ""}`)
+    .join("\n") || "(nenhuma proposta ativa)";
+
+  const sinaisCampoTxt = (sinaisCampoRes.data ?? [])
+    .map((s) => {
+      const partes = [`[${s.intensidade}]`];
+      if (s.tema) partes.push(s.tema + ":");
+      if (s.frase_representativa) partes.push(`"${s.frase_representativa}"`);
+      if (s.reacao_discurso) partes.push(`reação: ${s.reacao_discurso}`);
+      if (s.perguntas_objecoes?.length) partes.push(`perguntas: ${s.perguntas_objecoes.join("; ")}`);
+      return `- ${partes.join(" ")}`;
+    })
+    .join("\n") || "(nenhum sinal de campo)";
+
   const mensagem = [
     `CANDIDATO: ${campanha?.nome_candidato ?? "(não cadastrado)"}`,
     diretrizes || null,
@@ -114,6 +143,9 @@ export async function POST() {
     `ALERTAS PENDENTES:\n${alertasTxt}`,
     `DEMANDAS OBSERVADAS:\n${demandasTxt}`,
     `CONCORRENTES:\n${concorrentesTxt}`,
+    `SINAIS DE INTELIGÊNCIA CONCORRENTES:\n${sinaisConcTxt}`,
+    `PROPOSTAS DA CAMPANHA:\n${propostasTxt}`,
+    `SINAIS DE CAMPO:\n${sinaisCampoTxt}`,
     `MONITORAMENTO:\n${monitoramentoTxt}`,
     `TAREFAS PENDENTES:\n${tarefasTxt}`,
   ].filter(Boolean).join("\n\n");
