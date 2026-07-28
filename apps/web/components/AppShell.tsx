@@ -59,6 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/usuarios", label: "Usuários", icon: UserCog },
       { href: "/funcoes", label: "Funções e permissões", icon: Shield },
       { href: "/auditoria", label: "Trilha de auditoria", icon: FileSearch },
+      { href: "/quarentena", label: "Quarentena de dados", icon: Shield },
     ],
   },
   {
@@ -74,6 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/tarefas", label: "Tarefas", icon: ListChecks },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
+      { href: "/campo", label: "Escuta de campo", icon: Radio },
       { href: "/geolocalizacao", label: "Mapa", icon: MapPin },
     ],
   },
