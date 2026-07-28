@@ -232,6 +232,8 @@ export default async function DashboardPage() {
   const diasPrazo = proximoPrazo ? diasAte(proximoPrazo.data, hoje) : null;
   const prazoUrgente = diasPrazo !== null && diasPrazo <= 7;
 
+  const visaoExecutiva = eu.papel === "candidato";
+
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="flex-1 px-6 py-6">
@@ -267,6 +269,7 @@ export default async function DashboardPage() {
           </Link>
         )}
 
+        {!visaoExecutiva && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {cards.map((c) => (
             <div
@@ -285,7 +288,9 @@ export default async function DashboardPage() {
             </div>
           ))}
         </div>
+        )}
 
+        {!visaoExecutiva && (
         <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Secao titulo="Crescimento semanal (últimas 8 semanas)">
             <div className="flex items-end gap-1.5">
@@ -407,6 +412,7 @@ export default async function DashboardPage() {
             )}
           </Secao>
         </div>
+        )}
       </main>
     </AppShell>
   );

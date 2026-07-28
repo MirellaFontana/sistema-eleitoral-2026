@@ -9,6 +9,8 @@ import {
 } from "@/lib/anthropic";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
+import { parseJsonSeguro } from "@/lib/parse-json-seguro";
+
 const OBJETIVOS_VALIDOS = new Set([
   "alcance",
   "trafego",
@@ -18,57 +20,6 @@ const OBJETIVOS_VALIDOS = new Set([
   "mensagens",
   "seguidores",
 ]);
-
-function parseJsonSeguro(raw: string): Record<string, unknown> | null {
-  // Remove fences de markdown, em qualquer posição.
-  let limpo = raw.replace(/```(?:json)?/gi, "").trim();
-
-  // Se o modelo escreveu prosa antes do JSON, ache o primeiro '{' e vá até o '}' final balanceado.
-  const inicio = limpo.indexOf("{");
-  if (inicio === -1) return null;
-  limpo = limpo.slice(inicio);
-
-  // Tenta JSON direto.
-  try {
-    return JSON.parse(limpo);
-  } catch {}
-
-  // Extração balanceada: percorre contando { e } respeitando strings e escapes.
-  let profundidade = 0;
-  let dentroDeString = false;
-  let escape = false;
-  let fim = -1;
-  for (let i = 0; i < limpo.length; i++) {
-    const c = limpo[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (c === "\\") {
-      escape = true;
-      continue;
-    }
-    if (c === '"') {
-      dentroDeString = !dentroDeString;
-      continue;
-    }
-    if (dentroDeString) continue;
-    if (c === "{") profundidade++;
-    else if (c === "}") {
-      profundidade--;
-      if (profundidade === 0) {
-        fim = i;
-        break;
-      }
-    }
-  }
-  if (fim === -1) return null;
-  try {
-    return JSON.parse(limpo.slice(0, fim + 1));
-  } catch {
-    return null;
-  }
-}
 
 export async function POST(request: Request) {
   const body = await request.json();
