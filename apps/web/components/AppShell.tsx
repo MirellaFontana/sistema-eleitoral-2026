@@ -32,6 +32,7 @@ import {
   Rocket,
   Shield,
   ScrollText,
+  Lightbulb,
   Menu,
   X,
   type LucideIcon,
@@ -46,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Estratégia",
     items: [
       { href: "/diretrizes", label: "Diretrizes da Campanha", icon: ScrollText },
+      { href: "/recomendacoes", label: "Recomendações", icon: Lightbulb },
     ],
   },
   {

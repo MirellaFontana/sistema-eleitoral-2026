@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { BriefingDiario } from "./BriefingDiario";
+import { SalaDecisao } from "./SalaDecisao";
 
 const PAPEIS_BRIEFING_DIRETO = new Set(["candidato", "coord_campanha"]);
 
@@ -234,12 +235,14 @@ export default async function DashboardPage() {
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="flex-1 px-6 py-6">
-        <h1 className="text-lg font-semibold">Dashboard</h1>
+        <h1 className="text-lg font-semibold">Sala de Decisão</h1>
         <p className="mb-6 text-sm text-neutral-500">
           {campanha?.nome_candidato
-            ? `Visão geral da campanha ${campanha.nome_candidato}`
-            : "Visão geral da campanha"}
+            ? `Inteligência da campanha ${campanha.nome_candidato}`
+            : "Inteligência da campanha"}
         </p>
+
+        <SalaDecisao />
 
         <BriefingDiario
           briefingInicial={briefingHoje ?? null}
