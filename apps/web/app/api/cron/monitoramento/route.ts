@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { executarSnapshotCampanha } from "@/lib/monitoramento-snapshot";
+import { verificarCronAuth } from "@/lib/cron-auth";
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "não autorizado" }, { status: 401 });
-  }
+  const authErr = verificarCronAuth(request);
+  if (authErr) return authErr;
 
   const supabase = createServiceClient();
 

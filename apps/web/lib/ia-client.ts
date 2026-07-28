@@ -115,7 +115,7 @@ const FABRICAS: Record<ProvedorIA, (key: string) => ClienteIA> = {
   xai_grok: criarClienteGrok,
 };
 
-function isErroDeAcesso(err: unknown): boolean {
+export function isErroDeAcesso(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   const msg = err.message.toLowerCase();
   return (
