@@ -31,7 +31,7 @@ export async function GET() {
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
-    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes,
+    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -78,6 +78,10 @@ export async function GET() {
       .eq("ativo", true)
       .gte("falhas_consecutivas", 3)
       .limit(5),
+    supabase.from("fontes_normativas")
+      .select("id, titulo, data_verificacao")
+      .eq("status", "desatualizada")
+      .limit(5),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -91,6 +95,7 @@ export async function GET() {
   const sinaisFortes = sinaisCampoRes.data ?? [];
   const decisoesAtivas = decisoesRes.data ?? [];
   const fontesComProblema = fontesRes.data ?? [];
+  const normativasDesatualizadas = normativasRes.data ?? [];
 
   const decidaAgora: Item[] = recs
     .filter((r) => r.urgencia === "critica" || r.status === "aguardando_revisao")
@@ -221,6 +226,19 @@ export async function GET() {
       fonte: "Escuta de campo",
       porqueEstouVendo: `Sinal de campo com intensidade forte nos últimos 3 dias${sc.tema ? ` sobre "${sc.tema}"` : ""}.`,
       link: "/campo",
+    });
+  }
+
+  for (const n of normativasDesatualizadas) {
+    fiqueAtento.push({
+      id: `norm-${n.id}`,
+      titulo: `Norma alterada: ${n.titulo}`,
+      descricao: n.data_verificacao ? `Verificada em ${new Date(n.data_verificacao + "T12:00:00").toLocaleDateString("pt-BR")}` : "",
+      tipo: "normativa",
+      urgencia: "alta",
+      fonte: "Base normativa",
+      porqueEstouVendo: `A fonte normativa "${n.titulo}" foi detectada como alterada — o conteúdo pode ter mudado desde a última validação.`,
+      link: "/base-normativa",
     });
   }
 

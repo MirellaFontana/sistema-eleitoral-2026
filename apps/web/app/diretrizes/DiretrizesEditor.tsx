@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Save, CheckCircle, AlertTriangle, Plus, Trash2, History, ChevronDown } from "lucide-react";
+import { Save, CheckCircle, AlertTriangle, Plus, Trash2, History, ChevronDown, Sparkles } from "lucide-react";
 
 type Tema = { id: string; nome: string };
 type MensagemMae = { tema: string; mensagem: string; adaptacoes: string };
@@ -260,8 +260,54 @@ export function DiretrizesEditor({
     setMensagensMae(mensagensMae.filter((_, i) => i !== idx));
   }
 
+  const [onboardingAberto, setOnboardingAberto] = useState(false);
+  const [onbNome, setOnbNome] = useState("");
+  const [onbCargo, setOnbCargo] = useState("");
+  const [onbPartido, setOnbPartido] = useState("");
+  const [onbCidade, setOnbCidade] = useState("");
+  const [onbBiografia, setOnbBiografia] = useState("");
+  const [onbTemas, setOnbTemas] = useState("");
+  const [onbGerando, setOnbGerando] = useState(false);
+
+  async function gerarOnboarding() {
+    if (!onbNome.trim() || !onbCargo.trim()) return;
+    setOnbGerando(true);
+    setErro(null);
+    try {
+      const res = await fetch("/api/diretrizes/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: onbNome.trim(),
+          cargo: onbCargo.trim(),
+          partido: onbPartido.trim() || undefined,
+          cidade: onbCidade.trim() || undefined,
+          biografia: onbBiografia.trim() || undefined,
+          temas_prioritarios: onbTemas.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErro(data.error); return; }
+      const r = data.rascunho;
+      if (r.identidade) setIdentidade(r.identidade);
+      if (r.valores) setValores(r.valores);
+      if (r.vocabulario_preferido) setVocabPreferido(r.vocabulario_preferido);
+      if (r.vocabulario_proibido) setVocabProibido(r.vocabulario_proibido);
+      if (r.assuntos_sensiveis) setSensiveis(r.assuntos_sensiveis);
+      if (r.limites) setLimites(r.limites);
+      if (r.mensagens_mae) setMensagensMae(r.mensagens_mae);
+      setOnboardingAberto(false);
+      flash("Rascunho gerado pela IA — revise e salve");
+    } catch {
+      setErro("Falha ao gerar rascunho.");
+    } finally {
+      setOnbGerando(false);
+    }
+  }
+
   if (carregando) return <p className="text-sm text-neutral-400">Carregando diretrizes…</p>;
 
+  const diretrizVazia = !diretriz || (!diretriz.identidade && !diretriz.valores && diretriz.mensagens_mae.length === 0);
   const statusInfo = STATUS_BADGE[diretriz?.status ?? "rascunho"] ?? STATUS_BADGE.rascunho;
   const temasComPosicao = new Set(posicoes.filter((p) => p.tema_id).map((p) => p.tema_id));
   const temasSemPosicao = temas.filter((t) => !temasComPosicao.has(t.id));
@@ -290,6 +336,58 @@ export function DiretrizesEditor({
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}
       {sucesso && <p className="text-sm text-emerald-600">{sucesso}</p>}
+
+      {/* Onboarding IA */}
+      {podeEditar && diretrizVazia && !onboardingAberto && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+          <div className="flex items-start gap-3">
+            <Sparkles size={18} className="mt-0.5 shrink-0 text-indigo-600" />
+            <div>
+              <p className="text-sm font-medium text-indigo-900">Configure suas diretrizes com ajuda da IA</p>
+              <p className="mt-0.5 text-xs text-indigo-700">
+                Responda algumas perguntas sobre o candidato e a IA gerará um rascunho completo para você revisar.
+              </p>
+              <button
+                onClick={() => setOnboardingAberto(true)}
+                className="mt-2 rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+              >
+                Iniciar onboarding
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {onboardingAberto && (
+        <div className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-4">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-indigo-600" />
+            <h3 className="text-sm font-semibold text-indigo-900">Onboarding assistido por IA</h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input value={onbNome} onChange={(e) => setOnbNome(e.target.value)} placeholder="Nome do candidato *" className="rounded border border-neutral-300 px-3 py-1.5 text-sm" required />
+            <input value={onbCargo} onChange={(e) => setOnbCargo(e.target.value)} placeholder="Cargo pretendido * (ex.: Prefeito)" className="rounded border border-neutral-300 px-3 py-1.5 text-sm" required />
+            <input value={onbPartido} onChange={(e) => setOnbPartido(e.target.value)} placeholder="Partido (opcional)" className="rounded border border-neutral-300 px-3 py-1.5 text-sm" />
+            <input value={onbCidade} onChange={(e) => setOnbCidade(e.target.value)} placeholder="Cidade / região (opcional)" className="rounded border border-neutral-300 px-3 py-1.5 text-sm" />
+          </div>
+          <textarea value={onbBiografia} onChange={(e) => setOnbBiografia(e.target.value)} placeholder="Breve biografia e trajetória do candidato (opcional)" rows={3} className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm" />
+          <input value={onbTemas} onChange={(e) => setOnbTemas(e.target.value)} placeholder="Temas prioritários separados por vírgula (ex.: saúde, educação, segurança)" className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm" />
+          <div className="flex gap-2">
+            <button
+              onClick={gerarOnboarding}
+              disabled={onbGerando || !onbNome.trim() || !onbCargo.trim()}
+              className="flex items-center gap-1.5 rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              <Sparkles size={13} />
+              {onbGerando ? "Gerando rascunho…" : "Gerar diretrizes"}
+            </button>
+            <button onClick={() => setOnboardingAberto(false)} className="text-xs text-neutral-500 hover:text-neutral-700">
+              Cancelar
+            </button>
+          </div>
+          {onbGerando && <p className="text-xs text-indigo-600">A IA está analisando as informações e gerando o rascunho. Isso pode levar alguns segundos…</p>}
+        </div>
+      )}
 
       {/* Alerta: temas sem posição */}
       {temasSemPosicao.length > 0 && (
