@@ -6,6 +6,7 @@ import {
   type TemaComItens,
 } from "@/lib/anthropic";
 import { criarClienteIA } from "@/lib/ia-client";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 // Quem pode gerar direto pelo papel (candidato é o dono do briefing; coordenação prepara
 // pra ele). Outros papéis passam pela permissão delegável 'usar_ia' (migration 0040).
@@ -165,9 +166,11 @@ export async function POST() {
     .join("\n");
 
   const conhecimento = montarContextoConhecimento(temasCtx);
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
 
   const mensagemUsuario = [
     `IDENTIDADE DA CAMPANHA:\n${identidade}`,
+    diretrizes || null,
     `AGENDA DE HOJE (${hojeIso}):\n${blocosEventos}`,
     blocoDemandas
       ? `DEMANDAS OBSERVADAS DA POPULAÇÃO (mais recentes primeiro):\n${blocoDemandas}`
@@ -175,7 +178,7 @@ export async function POST() {
     conhecimento
       ? `BASE DE CONHECIMENTO DA CAMPANHA (propostas, posições, público-alvo e regiões por tema):\n${conhecimento}`
       : "BASE DE CONHECIMENTO: nenhum item cadastrado.",
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 
   let conteudo: string;
   try {

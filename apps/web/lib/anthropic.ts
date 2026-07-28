@@ -18,6 +18,65 @@ export type TemaComItens = {
   itens: { titulo: string; descricao: string | null }[];
 };
 
+export type DiretrizCompleta = {
+  identidade: string | null;
+  valores: string | null;
+  vocabulario_preferido: string[];
+  vocabulario_proibido: string[];
+  assuntos_sensiveis: string[];
+  limites: string | null;
+  mensagens_mae: { tema: string; mensagem: string; adaptacoes: string }[];
+  status: string;
+  posicoes: {
+    tema_nome: string | null;
+    tema_livre: string | null;
+    posicao: string;
+    evidencias: string | null;
+    status: string;
+  }[];
+};
+
+export function montarContextoDiretrizes(d: DiretrizCompleta | null): string {
+  if (!d) return "";
+  const partes: string[] = [];
+  partes.push(`# DIRETRIZES DA CAMPANHA (status: ${d.status})`);
+  partes.push("ATENÇÃO: Estas diretrizes são a FONTE DE VERDADE do discurso. Nunca contradiga, invente posição não listada, ou use vocabulário proibido.");
+
+  if (d.identidade) partes.push(`\n## Identidade e trajetória\n${d.identidade}`);
+  if (d.valores) partes.push(`\n## Valores, causas e compromissos\n${d.valores}`);
+
+  if (d.vocabulario_preferido.length > 0)
+    partes.push(`\n## Vocabulário preferido (USAR)\n${d.vocabulario_preferido.join(", ")}`);
+  if (d.vocabulario_proibido.length > 0)
+    partes.push(`\n## Vocabulário proibido (NUNCA USAR)\n${d.vocabulario_proibido.join(", ")}`);
+  if (d.assuntos_sensiveis.length > 0)
+    partes.push(`\n## Assuntos sensíveis (tratar com cuidado)\n${d.assuntos_sensiveis.join(", ")}`);
+  if (d.limites) partes.push(`\n## Limites (o que NUNCA fazer ou dizer)\n${d.limites}`);
+
+  if (d.mensagens_mae.length > 0) {
+    const msgs = d.mensagens_mae
+      .map((m) => `- ${m.tema}: "${m.mensagem}"${m.adaptacoes ? ` (adaptações: ${m.adaptacoes})` : ""}`)
+      .join("\n");
+    partes.push(`\n## Mensagens-mãe\n${msgs}`);
+  }
+
+  if (d.posicoes.length > 0) {
+    const pos = d.posicoes.map((p) => {
+      const tema = p.tema_nome ?? p.tema_livre ?? "Geral";
+      const statusTag = p.status === "sem_definicao" ? " [SEM DEFINIÇÃO]" : p.status === "em_revisao" ? " [EM REVISÃO]" : "";
+      return `- ${tema}${statusTag}: ${p.posicao}${p.evidencias ? ` | Evidências: ${p.evidencias}` : ""}`;
+    }).join("\n");
+    partes.push(`\n## Posições por tema\n${pos}`);
+
+    const semDef = d.posicoes.filter((p) => p.status === "sem_definicao");
+    if (semDef.length > 0) {
+      partes.push(`\n⚠ TEMAS SEM DEFINIÇÃO: ${semDef.map((p) => p.tema_nome ?? p.tema_livre).join(", ")}. Para estes temas, diga "Diretrizes sem Definição" em vez de inventar posição.`);
+    }
+  }
+
+  return partes.join("\n");
+}
+
 export function montarContextoConhecimento(temas: TemaComItens[]): string {
   if (temas.length === 0) return "";
   return temas

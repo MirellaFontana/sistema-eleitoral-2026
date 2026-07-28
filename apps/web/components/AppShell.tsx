@@ -31,6 +31,7 @@ import {
   Radio,
   Rocket,
   Shield,
+  ScrollText,
   Menu,
   X,
   type LucideIcon,
@@ -41,6 +42,12 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 type NavGroup = { label: string; items: NavItem[] };
 
 const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Estratégia",
+    items: [
+      { href: "/diretrizes", label: "Diretrizes da Campanha", icon: ScrollText },
+    ],
+  },
   {
     label: "Administração",
     items: [

@@ -7,6 +7,7 @@ import {
   type TemaComItens,
 } from "@/lib/anthropic";
 import { criarClienteIA } from "@/lib/ia-client";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 type PedidoAdaptacao = { publico_alvo: string; canal: string };
 
@@ -121,9 +122,11 @@ export async function POST(request: Request) {
   ].join("\n");
 
   const conhecimento = montarContextoConhecimento(temasCtx);
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
 
   const contextoBase = [
     `IDENTIDADE DA CAMPANHA:\n${identidade}`,
+    diretrizes || null,
     conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA (público-alvo e regiões por tema):\n${conhecimento}` : "",
     `MENSAGEM CENTRAL A ADAPTAR:\n${mensagem_central}`,
   ]

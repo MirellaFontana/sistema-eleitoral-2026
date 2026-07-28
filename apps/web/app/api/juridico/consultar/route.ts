@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
 import { SISTEMA_CONSULTA_JURIDICA } from "@/lib/anthropic";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 export async function POST(request: Request) {
   const { pergunta } = (await request.json()) as { pergunta?: string };
@@ -47,10 +48,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nenhuma chave de IA configurada." }, { status: 400 });
   }
 
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
+
   try {
     const resposta = await ia.gerar({
       sistema: SISTEMA_CONSULTA_JURIDICA + contexto,
-      mensagens: [{ role: "user", content: pergunta.trim() }],
+      mensagens: [{ role: "user", content: [diretrizes || null, pergunta.trim()].filter(Boolean).join("\n\n") }],
       maxTokens: 4000,
     });
     return NextResponse.json({ resposta, provedor: ia.provedor });

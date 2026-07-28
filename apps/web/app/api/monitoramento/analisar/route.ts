@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
 import { SISTEMA_ANALISE_MONITORAMENTO } from "@/lib/anthropic";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_QUE_ANALISAM = new Set([
   "coord_campanha",
@@ -97,11 +98,13 @@ export async function POST(request: Request) {
     )
     .join("\n");
 
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
   const mensagemUsuario = [
     `CANDIDATO DA CAMPANHA: ${candidato}`,
+    diretrizes || null,
     `TOTAL DE MENÇÕES: ${mencoesLimitadas.length}`,
     `\nLISTA DE MENÇÕES:\n${listaFormatada}`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
   let raw: string;
   try {

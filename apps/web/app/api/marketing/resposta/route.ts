@@ -6,6 +6,7 @@ import {
   type TemaComItens,
 } from "@/lib/anthropic";
 import { criarClienteIA } from "@/lib/ia-client";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
   }));
 
   const conhecimento = montarContextoConhecimento(temasCtx).slice(0, 12000);
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
 
   let respostaSugerida: string;
   try {
@@ -68,9 +70,12 @@ export async function POST(request: Request) {
       mensagens: [
         {
           role: "user",
-          content: `Canal: ${canal_origem}\n\nPergunta recebida:\n${pergunta}\n\nConhecimento da campanha disponível:\n${
-            conhecimento || "(nenhum item de base de conhecimento cadastrado ainda)"
-          }${contexto_adicional?.trim() ? `\n\nContexto adicional fornecido:\n${contexto_adicional}` : ""}`,
+          content: [
+            diretrizes || null,
+            `Canal: ${canal_origem}\n\nPergunta recebida:\n${pergunta}`,
+            `Conhecimento da campanha disponível:\n${conhecimento || "(nenhum item de base de conhecimento cadastrado ainda)"}`,
+            contexto_adicional?.trim() ? `Contexto adicional fornecido:\n${contexto_adicional}` : null,
+          ].filter(Boolean).join("\n\n"),
         },
       ],
       maxTokens: 1000,

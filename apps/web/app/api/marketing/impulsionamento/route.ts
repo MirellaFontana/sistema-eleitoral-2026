@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 import {
   SISTEMA_PLANO_IMPULSIONAMENTO,
   montarContextoConhecimento,
@@ -157,9 +158,11 @@ export async function POST(request: Request) {
       : []) as { titulo: string; descricao: string | null }[],
   }));
   const conhecimento = montarContextoConhecimento(temasCtx);
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
 
   const mensagemUsuario = [
     `IDENTIDADE DA CAMPANHA:\n${identidade}`,
+    diretrizes || null,
     conhecimento ? `BASE DE CONHECIMENTO (temas, públicos e regiões):\n${conhecimento}` : "",
     `PEÇA A IMPULSIONAR:\n${peca_descricao.trim()}`,
     `OBJETIVO DESEJADO: ${objetivo}`,

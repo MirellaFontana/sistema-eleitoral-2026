@@ -2,6 +2,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 import { criarClienteIA } from "./ia-client";
 import { SISTEMA_ANALISE_MONITORAMENTO } from "./anthropic";
 import { buscarTermo, type GrupoResultado } from "./monitoramento-busca";
+import { obterContextoDiretrizes } from "./diretrizes-context";
 
 function parseJsonSeguro(raw: string): Record<string, unknown> | null {
   let limpo = raw.replace(/```(?:json)?/gi, "").trim();
@@ -95,11 +96,13 @@ export async function executarSnapshotCampanha(
         )
         .join("\n");
 
+      const diretrizes = await obterContextoDiretrizes(supabase, campanhaId);
       const mensagem = [
         `CANDIDATO DA CAMPANHA: ${nomeCandidato ?? "(não cadastrado)"}`,
+        diretrizes || null,
         `TOTAL DE MENÇÕES: ${flatLimitado.length}`,
         `\nLISTA DE MENÇÕES:\n${listaFormatada}`,
-      ].join("\n");
+      ].filter(Boolean).join("\n");
 
       try {
         const raw = await ia.gerar({

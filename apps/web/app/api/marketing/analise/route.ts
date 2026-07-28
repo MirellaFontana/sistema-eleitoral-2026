@@ -6,6 +6,7 @@ import {
   type TemaComItens,
 } from "@/lib/anthropic";
 import { criarClienteIA } from "@/lib/ia-client";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -66,7 +67,13 @@ export async function POST() {
     })
     .join("\n") || "(nenhuma demanda observada cadastrada ainda)";
 
-  const contexto = `PROPOSTAS DA CAMPANHA (público-alvo e regiões por tema):\n${propostasTxt}\n\nCONCORRENTES:\n${concorrentesTxt}\n\nDEMANDAS OBSERVADAS:\n${demandasTxt}`;
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
+  const contexto = [
+    diretrizes || null,
+    `PROPOSTAS DA CAMPANHA (público-alvo e regiões por tema):\n${propostasTxt}`,
+    `CONCORRENTES:\n${concorrentesTxt}`,
+    `DEMANDAS OBSERVADAS:\n${demandasTxt}`,
+  ].filter(Boolean).join("\n\n");
 
   let analise: string;
   try {

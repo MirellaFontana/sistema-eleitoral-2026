@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
 import { montarContextoConhecimento, type TemaComItens } from "@/lib/anthropic";
+import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
 
   const { data: eu } = await supabase
     .from("usuarios_internos")
-    .select("papel, campanhas(nome_candidato, cargo, uf)")
+    .select("papel, campanha_id, campanhas(nome_candidato, cargo, uf)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -69,12 +70,14 @@ export async function POST(request: Request) {
   }));
 
   const conhecimento = montarContextoConhecimento(temasCtx);
+  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
   const mensagem = [
     campanha
       ? `IDENTIDADE: ${campanha.nome_candidato ?? "–"} (${campanha.cargo ?? "–"} / ${campanha.uf ?? "–"})`
       : "",
+    diretrizes || null,
     conhecimento ? `BASE DE CONHECIMENTO:\n${conhecimento}` : "",
     `PEÇA:\n${peca_descricao.trim()}`,
   ]
