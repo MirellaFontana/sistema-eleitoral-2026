@@ -355,6 +355,7 @@ export async function GET() {
     normativasDesatualizadas: normativasDesatualizadas.length,
     temasIncoerentes: temasIncoerentes.length,
     decisoesAtivas: decisoesAtivas.length,
+    demandasComPrazo: demandasComPrazo.length,
   };
 
   return NextResponse.json({ decidaAgora, facaHoje, fiqueAtento, oQueMudou, resumo });

@@ -29,6 +29,7 @@ type Resumo = {
   normativasDesatualizadas: number;
   temasIncoerentes: number;
   decisoesAtivas: number;
+  demandasComPrazo: number;
 };
 
 type DadosSala = {
@@ -78,7 +79,7 @@ export function SalaDecisao() {
 
   return (
     <>
-      {r && (r.fontesComProblema > 0 || r.normativasDesatualizadas > 0 || r.temasIncoerentes > 0 || r.decisoesAtivas > 0) && (
+      {r && (r.fontesComProblema > 0 || r.normativasDesatualizadas > 0 || r.temasIncoerentes > 0 || r.decisoesAtivas > 0 || r.demandasComPrazo > 0) && (
         <div className="mb-3 flex flex-wrap gap-2 text-xs">
           {r.decisoesAtivas > 0 && (
             <Link href="/decisoes" className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-indigo-700 hover:bg-indigo-100">
@@ -98,6 +99,11 @@ export function SalaDecisao() {
           {r.normativasDesatualizadas > 0 && (
             <Link href="/base-normativa" className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-orange-700 hover:bg-orange-100">
               {r.normativasDesatualizadas} {r.normativasDesatualizadas === 1 ? "norma alterada" : "normas alteradas"}
+            </Link>
+          )}
+          {r.demandasComPrazo > 0 && (
+            <Link href="/demandas-observadas" className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-purple-700 hover:bg-purple-100">
+              {r.demandasComPrazo} {r.demandasComPrazo === 1 ? "demanda com prazo próximo" : "demandas com prazo próximo"}
             </Link>
           )}
         </div>
