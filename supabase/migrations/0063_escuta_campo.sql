@@ -11,7 +11,7 @@ CREATE TABLE sinais_campo (
 
     -- Contexto
     territorio_id UUID REFERENCES territorios(id),
-    evento_id UUID REFERENCES agenda_campanha(id),
+    evento_id UUID REFERENCES eventos_campanha(id),
     local_descricao TEXT,
     data_registro DATE NOT NULL DEFAULT CURRENT_DATE,
 
