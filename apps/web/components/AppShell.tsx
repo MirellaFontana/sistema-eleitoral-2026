@@ -217,7 +217,7 @@ export function AppShell({
         }`}
       >
         <div className="flex items-center justify-between px-2">
-          <p className="text-sm font-semibold text-white">Sistema Eleitoral 2026</p>
+          <p className="text-sm font-semibold text-white">Gestão Eleitoral Inteligente</p>
           <button
             onClick={() => setMenuAberto(false)}
             className="rounded p-1 text-neutral-400 hover:bg-[#2c323c] hover:text-white md:hidden"

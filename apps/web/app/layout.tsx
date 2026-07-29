@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistema Eleitoral 2026",
+  title: "Gestão Eleitoral Inteligente",
   description: "Plataforma de inteligência e gestão de campanha eleitoral",
   manifest: "/manifest.json",
   themeColor: "#4f46e5",
