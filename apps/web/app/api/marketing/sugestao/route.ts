@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 import {
   SISTEMA_GERADOR_PECAS,
   montarContextoConhecimento,
@@ -104,8 +105,8 @@ export async function POST(request: Request) {
     .from("sugestoes_conteudo")
     .insert({
       campanha_id: eu.campanha_id,
-      formato,
-      contexto_usado: contextoAuditoria,
+      formato: sanitizarTexto(formato, 200),
+      contexto_usado: sanitizarTexto(contextoAuditoria, 2000),
       modelo_ia: ia.provedor,
       sugestao,
       solicitado_por: user.id,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 const PAPEIS_EDITAM = new Set(["coord_campanha", "candidato"]);
 
@@ -28,9 +29,9 @@ export async function POST(request: Request) {
   const { error } = await supabase.from("diretrizes_posicoes").insert({
     campanha_id: eu.campanha_id,
     tema_id: body.tema_id || null,
-    tema_livre: body.tema_livre?.trim() || null,
-    posicao: body.posicao.trim(),
-    evidencias: body.evidencias?.trim() || null,
+    tema_livre: sanitizarTextoOpcional(body.tema_livre, 200),
+    posicao: sanitizarTexto(body.posicao, 5000),
+    evidencias: sanitizarTextoOpcional(body.evidencias, 5000),
     status: body.status || "definida",
     atualizada_por: user.id,
   });
@@ -68,10 +69,10 @@ export async function PUT(request: Request) {
   const { error } = await supabase
     .from("diretrizes_posicoes")
     .update({
-      posicao: body.posicao?.trim(),
-      evidencias: body.evidencias?.trim() || null,
+      posicao: body.posicao ? sanitizarTexto(body.posicao, 5000) : undefined,
+      evidencias: sanitizarTextoOpcional(body.evidencias, 5000),
       status: body.status || "definida",
-      tema_livre: body.tema_livre?.trim() || null,
+      tema_livre: sanitizarTextoOpcional(body.tema_livre, 200),
       atualizada_por: user.id,
       updated_at: new Date().toISOString(),
     })

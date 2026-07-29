@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
+import { sanitizarTexto } from "@/lib/sanitizar";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 import {
   SISTEMA_PLANO_IMPULSIONAMENTO,
@@ -155,9 +156,9 @@ export async function POST(request: Request) {
     .insert({
       campanha_id: eu.campanha_id,
       peca_conteudo_id: peca_conteudo_id ?? null,
-      peca_descricao: peca_descricao.trim(),
+      peca_descricao: sanitizarTexto(peca_descricao, 2000),
       objetivo,
-      publico_prioritario: publico_prioritario.trim(),
+      publico_prioritario: sanitizarTexto(publico_prioritario, 500),
       orcamento_total,
       prazo_dias,
       plano_json: plano,

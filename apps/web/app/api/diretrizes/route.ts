@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 const PAPEIS_EDITAM = new Set(["coord_campanha", "candidato"]);
 
@@ -62,13 +63,13 @@ export async function PUT(request: Request) {
 
   const body = await request.json();
   const campos = {
-    identidade: body.identidade ?? null,
-    valores: body.valores ?? null,
-    vocabulario_preferido: body.vocabulario_preferido ?? [],
-    vocabulario_proibido: body.vocabulario_proibido ?? [],
-    assuntos_sensiveis: body.assuntos_sensiveis ?? [],
-    limites: body.limites ?? null,
-    mensagens_mae: body.mensagens_mae ?? [],
+    identidade: sanitizarTextoOpcional(body.identidade, 5000),
+    valores: sanitizarTextoOpcional(body.valores, 5000),
+    vocabulario_preferido: Array.isArray(body.vocabulario_preferido) ? body.vocabulario_preferido : [],
+    vocabulario_proibido: Array.isArray(body.vocabulario_proibido) ? body.vocabulario_proibido : [],
+    assuntos_sensiveis: Array.isArray(body.assuntos_sensiveis) ? body.assuntos_sensiveis : [],
+    limites: sanitizarTextoOpcional(body.limites, 5000),
+    mensagens_mae: Array.isArray(body.mensagens_mae) ? body.mensagens_mae : [],
     atualizada_por: user.id,
     updated_at: new Date().toISOString(),
   };

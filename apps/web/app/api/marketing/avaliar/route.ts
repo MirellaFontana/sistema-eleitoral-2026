@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { SISTEMA_AVALIADOR_PECAS } from "@/lib/anthropic";
+import { sanitizarTexto } from "@/lib/sanitizar";
 import { criarClienteIA } from "@/lib/ia-client";
 
 const PAPEIS_QUE_AVALIAM = new Set([
@@ -104,9 +105,9 @@ export async function POST(request: Request) {
     .from("avaliacoes_pecas")
     .insert({
       campanha_id: eu.campanha_id,
-      formato,
-      canal,
-      descricao_peca: descricao_peca.trim(),
+      formato: sanitizarTexto(formato, 200),
+      canal: sanitizarTexto(canal, 100),
+      descricao_peca: sanitizarTexto(descricao_peca, 5000),
       avaliacao_json: parsed,
       modelo_ia: ia.provedor,
       solicitado_por: user.id,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 import {
   SISTEMA_RESPOSTA_REDES,
   montarContextoConhecimento,
@@ -89,9 +90,9 @@ export async function POST(request: Request) {
     .from("respostas_redes_sociais")
     .insert({
       campanha_id: eu.campanha_id,
-      pergunta,
-      canal_origem,
-      contexto_adicional: contexto_adicional?.trim() || null,
+      pergunta: sanitizarTexto(pergunta, 2000),
+      canal_origem: sanitizarTexto(canal_origem, 100),
+      contexto_adicional: sanitizarTextoOpcional(contexto_adicional, 2000),
       modelo_ia: ia.provedor,
       resposta_sugerida: respostaSugerida,
       solicitado_por: user.id,

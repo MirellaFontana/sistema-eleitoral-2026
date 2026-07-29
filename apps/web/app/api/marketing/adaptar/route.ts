@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto } from "@/lib/sanitizar";
 import {
   SISTEMA_ADAPTADOR_MENSAGEM,
   montarContextoConhecimento,
@@ -158,9 +159,9 @@ export async function POST(request: Request) {
     .map((r) => ({
       campanha_id: eu.campanha_id,
       lote_id,
-      mensagem_central,
-      publico_alvo: r.pedido.publico_alvo,
-      canal: r.pedido.canal,
+      mensagem_central: sanitizarTexto(mensagem_central, 4000),
+      publico_alvo: sanitizarTexto(r.pedido.publico_alvo, 80),
+      canal: sanitizarTexto(r.pedido.canal, 80),
       variacao: r.variacao!,
       modelo_ia: ia.provedor,
       solicitado_por: user.id,

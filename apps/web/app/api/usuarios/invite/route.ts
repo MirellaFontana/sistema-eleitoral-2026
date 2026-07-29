@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 // Cria a conta de auth do usuário convidado (precisa de service_role — não existe caminho
 // client-side pra isso) e depois insere a linha em usuarios_internos usando a SESSÃO de quem
@@ -65,8 +66,8 @@ export async function POST(request: Request) {
     id: invited.user.id,
     campanha_id: quemChamou.campanha_id,
     papel,
-    nome,
-    telefone: telefone || null,
+    nome: sanitizarTexto(nome, 200),
+    telefone: sanitizarTextoOpcional(telefone, 30),
     territorio_id: territorio_id || null,
     exige_mfa: !!exige_mfa,
     expira_em: expira_em || null,

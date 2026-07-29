@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto } from "@/lib/sanitizar";
 
 const TABELA_POR_TIPO: Record<string, { tabela: string; colunaTelefone: string }> = {
   cidadao: { tabela: "cidadaos", colunaTelefone: "whatsapp" },
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
     campanha_id: eu.campanha_id,
     tipo_destinatario,
     canal: canal || "whatsapp",
-    conteudo: conteudo.trim(),
+    conteudo: sanitizarTexto(conteudo, 5000),
     criado_por: user.id,
     status: resultado.ok ? "enviada" : process.env.WHATSAPP_API_TOKEN ? "falhou" : "pendente_configuracao",
     erro_envio: resultado.ok ? null : resultado.erro,
