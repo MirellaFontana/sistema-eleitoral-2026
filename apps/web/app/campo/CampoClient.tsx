@@ -45,13 +45,17 @@ const INTENSIDADE_COR = {
   fraca: "bg-green-100 text-green-700",
 };
 
+type Evento = { id: string; titulo: string };
+
 export function CampoClient({
   territorios,
   membros,
+  eventos,
   podeEncaminhar,
 }: {
   territorios: Territorio[];
   membros: Membro[];
+  eventos: Evento[];
   podeEncaminhar: boolean;
 }) {
   const [sinais, setSinais] = useState<Sinal[]>([]);
@@ -60,16 +64,23 @@ export function CampoClient({
   const [loading, setLoading] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [filtroTerritorio, setFiltroTerritorio] = useState("");
+  const [filtroIntensidade, setFiltroIntensidade] = useState("");
 
   const carregar = useCallback(async (p = 1) => {
     setLoading(true);
-    const res = await fetch(`/api/sinais-campo?pagina=${p}`);
+    const params = new URLSearchParams({ pagina: String(p) });
+    if (filtroTerritorio) params.set("territorio", filtroTerritorio);
+    const res = await fetch(`/api/sinais-campo?${params}`);
     const json = await res.json();
-    setSinais(json.sinais ?? []);
+    const lista = filtroIntensidade
+      ? (json.sinais ?? []).filter((s: Sinal) => s.intensidade === filtroIntensidade)
+      : (json.sinais ?? []);
+    setSinais(lista);
     setTotal(json.total ?? 0);
     setPagina(p);
     setLoading(false);
-  }, []);
+  }, [filtroTerritorio, filtroIntensidade]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -89,9 +100,31 @@ export function CampoClient({
         </button>
       </div>
 
+      <div className="mb-4 flex flex-wrap gap-2">
+        <select
+          value={filtroTerritorio}
+          onChange={(e) => { setFiltroTerritorio(e.target.value); setPagina(1); }}
+          className="rounded border border-neutral-300 px-2 py-1.5 text-xs"
+        >
+          <option value="">Todos os territórios</option>
+          {territorios.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+        </select>
+        <select
+          value={filtroIntensidade}
+          onChange={(e) => { setFiltroIntensidade(e.target.value); setPagina(1); }}
+          className="rounded border border-neutral-300 px-2 py-1.5 text-xs"
+        >
+          <option value="">Todas as intensidades</option>
+          <option value="forte">Forte</option>
+          <option value="moderada">Moderada</option>
+          <option value="fraca">Fraca</option>
+        </select>
+      </div>
+
       {mostrarForm && (
         <NovoSinalForm
           territorios={territorios}
+          eventos={eventos}
           onSalvo={() => { setMostrarForm(false); carregar(); }}
         />
       )}
@@ -150,9 +183,11 @@ export function CampoClient({
 
 function NovoSinalForm({
   territorios,
+  eventos,
   onSalvo,
 }: {
   territorios: Territorio[];
+  eventos: Evento[];
   onSalvo: () => void;
 }) {
   const [salvando, setSalvando] = useState(false);
@@ -164,6 +199,7 @@ function NovoSinalForm({
     const fd = new FormData(e.currentTarget);
     const body = {
       territorio_id: fd.get("territorio_id") || null,
+      evento_id: fd.get("evento_id") || null,
       local_descricao: fd.get("local_descricao") || null,
       data_registro: fd.get("data_registro") || undefined,
       tema: fd.get("tema") || null,
@@ -201,6 +237,16 @@ function NovoSinalForm({
           <input type="date" name="data_registro" defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
         </label>
       </div>
+
+      {eventos.length > 0 && (
+        <label className="block text-sm">
+          <span className="text-neutral-600">Evento / ação vinculada</span>
+          <select name="evento_id" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm">
+            <option value="">Nenhum</option>
+            {eventos.map((e) => <option key={e.id} value={e.id}>{e.titulo}</option>)}
+          </select>
+        </label>
+      )}
 
       <label className="block text-sm">
         <span className="text-neutral-600">Local (descrição livre)</span>

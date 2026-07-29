@@ -34,9 +34,13 @@ export default async function CampoPage() {
 
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
-  const [{ data: territorios }, { data: membros }] = await Promise.all([
+  const hoje = new Date();
+  const semanaAtras = new Date(hoje.getTime() - 7 * 86_400_000).toISOString();
+
+  const [{ data: territorios }, { data: membros }, { data: eventos }] = await Promise.all([
     supabase.from("territorios").select("id, nome").order("nome"),
     supabase.from("usuarios_internos").select("id, nome").order("nome"),
+    supabase.from("eventos_campanha").select("id, titulo").gte("data_inicio", semanaAtras).neq("status", "cancelado").order("data_inicio", { ascending: false }).limit(20),
   ]);
 
   return (
@@ -44,6 +48,7 @@ export default async function CampoPage() {
       <CampoClient
         territorios={(territorios ?? []).map((t) => ({ id: t.id, nome: t.nome }))}
         membros={(membros ?? []).map((m) => ({ id: m.id, nome: m.nome }))}
+        eventos={(eventos ?? []).map((e) => ({ id: e.id, titulo: e.titulo }))}
         podeEncaminhar={["coord_campanha", "candidato"].includes(eu.papel)}
       />
     </AppShell>
