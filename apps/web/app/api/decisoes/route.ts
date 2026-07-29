@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest) {
     .from("decisoes")
     .insert({
       campanha_id: eu.campanha_id,
-      titulo: body.titulo,
-      descricao: body.descricao,
+      titulo: sanitizarTexto(body.titulo, 500),
+      descricao: sanitizarTextoOpcional(body.descricao, 2000),
       evidencias: body.evidencias ?? [],
       recomendacao_id: body.recomendacao_id ?? null,
       proposta_id: body.proposta_id ?? null,

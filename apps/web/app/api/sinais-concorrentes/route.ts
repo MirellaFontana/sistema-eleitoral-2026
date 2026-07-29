@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -45,10 +46,10 @@ export async function POST(request: Request) {
       registrado_por: user.id,
       concorrente_id: body.concorrente_id,
       tipo: body.tipo || "outro",
-      titulo: body.titulo,
-      descricao: body.descricao || null,
-      fonte: body.fonte || null,
-      url: body.url || null,
+      titulo: sanitizarTexto(body.titulo, 500),
+      descricao: sanitizarTextoOpcional(body.descricao, 5000),
+      fonte: sanitizarTextoOpcional(body.fonte, 500),
+      url: sanitizarTextoOpcional(body.url, 2000),
       data_ocorrencia: body.data_ocorrencia || null,
       impacto: body.impacto || null,
       resposta_sugerida: body.resposta_sugerida || null,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -44,14 +45,14 @@ export async function POST(request: Request) {
     .insert({
       campanha_id: eu.campanha_id,
       criado_por: user.id,
-      titulo: body.titulo,
-      descricao: body.descricao,
-      tema: body.tema || null,
-      territorio: body.territorio || null,
-      publico_alvo: body.publico_alvo || null,
-      fundamentacao: body.fundamentacao || null,
-      impacto_estimado: body.impacto_estimado || null,
-      custo_estimado: body.custo_estimado || null,
+      titulo: sanitizarTexto(body.titulo, 500),
+      descricao: sanitizarTexto(body.descricao, 5000),
+      tema: sanitizarTextoOpcional(body.tema, 200),
+      territorio: sanitizarTextoOpcional(body.territorio, 200),
+      publico_alvo: sanitizarTextoOpcional(body.publico_alvo, 500),
+      fundamentacao: sanitizarTextoOpcional(body.fundamentacao, 5000),
+      impacto_estimado: sanitizarTextoOpcional(body.impacto_estimado, 2000),
+      custo_estimado: sanitizarTextoOpcional(body.custo_estimado, 500),
       prazo: body.prazo || null,
     })
     .select()
