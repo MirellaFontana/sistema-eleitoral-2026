@@ -56,15 +56,17 @@ export async function PUT(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "não autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { acao_id, ...campos } = body;
-  if (!acao_id) return NextResponse.json({ error: "acao_id obrigatório" }, { status: 400 });
+  if (!body.acao_id) return NextResponse.json({ error: "acao_id obrigatório" }, { status: 400 });
 
-  campos.updated_at = new Date().toISOString();
+  const campos: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const k of ["status", "descricao", "responsavel_id", "prazo"]) {
+    if (body[k] !== undefined) campos[k] = body[k];
+  }
 
   const { error } = await supabase
     .from("acoes_decisao")
     .update(campos)
-    .eq("id", acao_id);
+    .eq("id", body.acao_id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

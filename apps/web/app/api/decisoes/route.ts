@@ -61,22 +61,25 @@ export async function PUT(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "não autenticado" }, { status: 401 });
 
   const body = await request.json();
-  const { id, ...campos } = body;
-  if (!id) return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
+  if (!body.id) return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
 
-  if (campos.status === "decidida" && !campos.decidida_em) {
+  const campos: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const k of ["titulo", "descricao", "contexto", "status", "resultado", "qualidade_resultado", "tema"]) {
+    if (body[k] !== undefined) campos[k] = body[k];
+  }
+
+  if (campos.status === "decidida") {
     campos.decidida_por = user.id;
     campos.decidida_em = new Date().toISOString();
   }
-  if (campos.resultado && !campos.resultado_registrado_em) {
+  if (campos.resultado) {
     campos.resultado_registrado_em = new Date().toISOString();
   }
-  campos.updated_at = new Date().toISOString();
 
   const { error } = await supabase
     .from("decisoes")
     .update(campos)
-    .eq("id", id);
+    .eq("id", body.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
