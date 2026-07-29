@@ -69,5 +69,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|sw.js|manifest.json|offline|auth/callback|api/cron).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|icon-192.png|icon-512.png|apple-icon.png|sw.js|manifest.json|offline|auth/callback|api/cron).*)"],
 };
