@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,10 +39,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       decisao_id: id,
       acao_id: body.acao_id ?? null,
       campanha_id: eu.campanha_id,
-      descricao: body.descricao,
+      descricao: sanitizarTexto(body.descricao, 5000),
       avaliacao: body.avaliacao ?? null,
       indicadores: body.indicadores ?? {},
-      aprendizado: body.aprendizado ?? null,
+      aprendizado: sanitizarTextoOpcional(body.aprendizado, 5000),
       registrado_por: user.id,
     })
     .select()

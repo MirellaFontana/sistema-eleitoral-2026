@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -48,16 +49,18 @@ export async function POST(request: Request) {
       registrado_por: user.id,
       territorio_id: body.territorio_id || null,
       evento_id: body.evento_id || null,
-      local_descricao: body.local_descricao || null,
+      local_descricao: sanitizarTextoOpcional(body.local_descricao, 500),
       data_registro: body.data_registro || new Date().toISOString().slice(0, 10),
-      tema: body.tema || null,
-      perguntas_objecoes: body.perguntas_objecoes || [],
-      reacao_discurso: body.reacao_discurso || null,
-      discurso_concorrente: body.discurso_concorrente || null,
-      frase_representativa: body.frase_representativa || null,
+      tema: sanitizarTextoOpcional(body.tema, 200),
+      perguntas_objecoes: Array.isArray(body.perguntas_objecoes)
+        ? body.perguntas_objecoes.map((p: unknown) => typeof p === "string" ? p.trim().slice(0, 1000) : "")
+        : [],
+      reacao_discurso: sanitizarTextoOpcional(body.reacao_discurso, 2000),
+      discurso_concorrente: sanitizarTextoOpcional(body.discurso_concorrente, 2000),
+      frase_representativa: sanitizarTextoOpcional(body.frase_representativa, 500),
       intensidade: body.intensidade || "moderada",
       contagem_pessoas: body.contagem_pessoas || 1,
-      observacoes: body.observacoes || null,
+      observacoes: sanitizarTextoOpcional(body.observacoes, 5000),
     })
     .select()
     .single();
@@ -75,7 +78,7 @@ export async function PUT(request: Request) {
   if (!body.id) return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
 
   const campos: Record<string, unknown> = {};
-  if (body.encaminhamento !== undefined) campos.encaminhamento = body.encaminhamento;
+  if (body.encaminhamento !== undefined) campos.encaminhamento = sanitizarTextoOpcional(body.encaminhamento, 2000);
   if (body.encaminhado_para !== undefined) campos.encaminhado_para = body.encaminhado_para;
   if (body.encaminhamento_status !== undefined) campos.encaminhamento_status = body.encaminhamento_status;
   if (body.encaminhado_para) campos.encaminhado_em = new Date().toISOString();

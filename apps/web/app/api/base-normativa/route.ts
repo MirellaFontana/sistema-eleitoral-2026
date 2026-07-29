@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
 
 const PAPEIS_EDITAM = new Set(["coord_campanha", "advogado_responsavel", "assistente_juridico"]);
 
@@ -36,10 +37,10 @@ export async function POST(request: Request) {
     tipo: body.tipo ?? "lei",
     numero: body.numero || null,
     ano: body.ano || null,
-    titulo: body.titulo,
-    ementa: body.ementa || null,
+    titulo: sanitizarTexto(body.titulo, 500),
+    ementa: sanitizarTextoOpcional(body.ementa, 2000),
     eleicao_ciclo: body.eleicao_ciclo || null,
-    url_oficial: body.url_oficial || null,
+    url_oficial: sanitizarTextoOpcional(body.url_oficial, 2000),
     data_publicacao: body.data_publicacao || null,
     criado_por: user.id,
   }).select().single();
