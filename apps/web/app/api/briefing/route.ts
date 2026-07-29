@@ -106,6 +106,24 @@ export async function POST() {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  // Sinais de campo recentes (intensidade forte/moderada dos últimos 3 dias).
+  const tresDiasAtras = new Date(hoje.getTime() - 3 * 86_400_000).toISOString();
+  const { data: sinaisCampo } = await supabase
+    .from("sinais_campo")
+    .select("tema, frase_representativa, intensidade, local_descricao, created_at")
+    .in("intensidade", ["forte", "moderada"])
+    .gte("created_at", tresDiasAtras)
+    .order("created_at", { ascending: false })
+    .limit(15);
+
+  // Sinais recentes de concorrentes.
+  const { data: sinaisConcorrentes } = await supabase
+    .from("sinais_concorrentes")
+    .select("titulo, descricao, concorrentes(nome), created_at")
+    .gte("created_at", tresDiasAtras)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
   // Temas + itens agrupados — público-alvo e regiões prioritárias enriquecem o contexto.
   const { data: temasDb } = await supabase
     .from("temas_campanha")
@@ -178,6 +196,12 @@ export async function POST() {
     conhecimento
       ? `BASE DE CONHECIMENTO DA CAMPANHA (propostas, posições, público-alvo e regiões por tema):\n${conhecimento}`
       : "BASE DE CONHECIMENTO: nenhum item cadastrado.",
+    (sinaisCampo ?? []).length > 0
+      ? `SINAIS DE CAMPO (últimos 3 dias, intensidade forte/moderada):\n${(sinaisCampo ?? []).map((s) => `- [${s.intensidade}] ${s.tema ? `(${s.tema}) ` : ""}${s.frase_representativa ?? s.local_descricao ?? "sem detalhe"}`).join("\n")}`
+      : null,
+    (sinaisConcorrentes ?? []).length > 0
+      ? `MOVIMENTAÇÕES DOS CONCORRENTES (últimos 3 dias):\n${(sinaisConcorrentes ?? []).map((s) => { const nome = Array.isArray(s.concorrentes) ? (s.concorrentes[0] as { nome: string } | undefined)?.nome : (s.concorrentes as { nome: string } | null)?.nome; return `- ${nome ? `[${nome}] ` : ""}${s.titulo}${s.descricao ? `: ${s.descricao.slice(0, 200)}` : ""}`; }).join("\n")}`
+      : null,
   ].filter(Boolean).join("\n\n");
 
   let conteudo: string;
@@ -191,7 +215,7 @@ export async function POST() {
     return NextResponse.json({ error: `Falha ao gerar briefing: ${msg}` }, { status: 502 });
   }
 
-  const contextoUsado = `${eventos.length} evento(s) da agenda, ${demandas?.length ?? 0} demanda(s) observada(s), ${vinculos?.length ?? 0} vínculo(s) de liderança, ${temasCtx.reduce((n, t) => n + t.itens.length, 0)} item(ns) da base de conhecimento em ${temasCtx.length} tema(s)`;
+  const contextoUsado = `${eventos.length} evento(s) da agenda, ${demandas?.length ?? 0} demanda(s) observada(s), ${vinculos?.length ?? 0} vínculo(s) de liderança, ${temasCtx.reduce((n, t) => n + t.itens.length, 0)} item(ns) da base de conhecimento em ${temasCtx.length} tema(s), ${(sinaisCampo ?? []).length} sinal(is) de campo, ${(sinaisConcorrentes ?? []).length} sinal(is) de concorrentes`;
 
   const { data: row, error } = await supabase
     .from("briefings_diarios")
