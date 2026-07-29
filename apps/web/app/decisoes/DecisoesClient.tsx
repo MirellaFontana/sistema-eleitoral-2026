@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, CheckCircle, Clock, Play, XCircle, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, CheckCircle, Clock, Play, XCircle, FileText, ListChecks } from "lucide-react";
 
 type Membro = { id: string; nome: string; papel: string };
 type Evidencia = { tipo: string; id: string; titulo?: string; resumo?: string };
@@ -283,6 +283,10 @@ function DecisaoCard({
             <ResultadoForm onRegistrar={(resultado) => atualizar({ status: "concluida", resultado })} />
           )}
 
+          {["decidida", "em_execucao"].includes(d.status) && (
+            <AcoesSection decisaoId={d.id} membros={membros} podeDecidir={podeDecidir} />
+          )}
+
           {["rascunho", "decidida"].includes(d.status) && podeDecidir && (
             <button onClick={() => atualizar({ status: "cancelada" })} className="rounded bg-neutral-200 px-3 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-300">
               Cancelar
@@ -335,6 +339,119 @@ function ResultadoForm({ onRegistrar }: { onRegistrar: (resultado: string) => vo
       >
         Concluir
       </button>
+    </div>
+  );
+}
+
+type Acao = {
+  id: string;
+  descricao: string;
+  status: string;
+  prazo: string | null;
+  responsavel_nome: { nome: string } | null;
+};
+
+const ACAO_STATUS_BADGE: Record<string, string> = {
+  pendente: "bg-neutral-100 text-neutral-600",
+  em_andamento: "bg-amber-100 text-amber-700",
+  concluida: "bg-green-100 text-green-700",
+  cancelada: "bg-red-100 text-red-600",
+};
+
+function AcoesSection({ decisaoId, membros, podeDecidir }: { decisaoId: string; membros: Membro[]; podeDecidir: boolean }) {
+  const [acoes, setAcoes] = useState<Acao[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [criando, setCriando] = useState(false);
+  const [desc, setDesc] = useState("");
+  const [resp, setResp] = useState("");
+  const [prazo, setPrazo] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const carregar = useCallback(async () => {
+    const res = await fetch(`/api/decisoes/${decisaoId}/acoes`);
+    const json = await res.json();
+    setAcoes(json.acoes ?? []);
+    setLoaded(true);
+  }, [decisaoId]);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  async function criar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!desc.trim()) return;
+    setSalvando(true);
+    await fetch(`/api/decisoes/${decisaoId}/acoes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ descricao: desc.trim(), responsavel_id: resp || null, prazo: prazo || null }),
+    });
+    setSalvando(false);
+    setDesc("");
+    setResp("");
+    setPrazo("");
+    setCriando(false);
+    carregar();
+  }
+
+  async function atualizarStatus(acaoId: string, status: string) {
+    await fetch(`/api/decisoes/${decisaoId}/acoes`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acao_id: acaoId, status }),
+    });
+    carregar();
+  }
+
+  if (!loaded) return null;
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-2">
+        <ListChecks size={12} className="text-neutral-500" />
+        <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Ações ({acoes.length})</p>
+        {podeDecidir && (
+          <button onClick={() => setCriando(!criando)} className="ml-auto text-[10px] text-indigo-600 hover:text-indigo-700">
+            + Adicionar
+          </button>
+        )}
+      </div>
+
+      {acoes.length > 0 && (
+        <ul className="space-y-1 mb-2">
+          {acoes.map((a) => (
+            <li key={a.id} className="flex items-center gap-2 rounded bg-neutral-50 px-2 py-1.5 text-xs">
+              <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ACAO_STATUS_BADGE[a.status] ?? ""}`}>
+                {a.status === "em_andamento" ? "Em andamento" : a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+              </span>
+              <span className="min-w-0 flex-1 text-neutral-700">{a.descricao}</span>
+              {a.responsavel_nome && <span className="shrink-0 text-neutral-400">{a.responsavel_nome.nome}</span>}
+              {a.prazo && <span className="shrink-0 text-neutral-400">{new Date(a.prazo + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
+              {a.status === "pendente" && (
+                <button onClick={() => atualizarStatus(a.id, "em_andamento")} className="shrink-0 text-[10px] text-amber-600 hover:text-amber-700">Iniciar</button>
+              )}
+              {a.status === "em_andamento" && (
+                <button onClick={() => atualizarStatus(a.id, "concluida")} className="shrink-0 text-[10px] text-green-600 hover:text-green-700">Concluir</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {criando && (
+        <form onSubmit={criar} className="space-y-1.5 rounded border border-neutral-200 bg-neutral-50 p-2">
+          <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Descrição da ação" className="w-full rounded border border-neutral-300 px-2 py-1 text-xs" required />
+          <div className="flex gap-1.5">
+            <select value={resp} onChange={(e) => setResp(e.target.value)} className="flex-1 rounded border border-neutral-300 px-2 py-1 text-xs">
+              <option value="">Responsável</option>
+              {membros.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+            <input type="date" value={prazo} onChange={(e) => setPrazo(e.target.value)} className="rounded border border-neutral-300 px-2 py-1 text-xs" />
+          </div>
+          <button type="submit" disabled={salvando} className="rounded bg-indigo-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+            {salvando ? "Salvando…" : "Adicionar ação"}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
