@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
 import { montarContextoConhecimento, type TemaComItens } from "@/lib/anthropic";
+import { parseJsonSeguro, parseJsonArraySeguro } from "@/lib/parse-json-seguro";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_GERAM = new Set(["coord_campanha", "candidato", "coord_marketing"]);
@@ -163,11 +164,12 @@ export async function POST() {
     return NextResponse.json({ error: m }, { status: 502 });
   }
 
-  let recs: Record<string, unknown>[];
-  try {
-    const parsed = JSON.parse(raw.replace(/```(?:json)?/gi, "").trim());
-    recs = Array.isArray(parsed) ? parsed : parsed.recomendacoes ?? [];
-  } catch {
+  const arrayParsed = parseJsonArraySeguro(raw);
+  const objParsed = !arrayParsed ? parseJsonSeguro(raw) : null;
+  const recs: Record<string, unknown>[] = arrayParsed as Record<string, unknown>[]
+    ?? (objParsed as Record<string, unknown> & { recomendacoes?: unknown[] })?.recomendacoes as Record<string, unknown>[]
+    ?? [];
+  if (recs.length === 0) {
     return NextResponse.json({ error: "IA retornou formato inválido", raw: raw.slice(0, 500) }, { status: 502 });
   }
 

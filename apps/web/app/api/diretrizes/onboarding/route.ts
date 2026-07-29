@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
+import { parseJsonSeguro } from "@/lib/parse-json-seguro";
 
 const SISTEMA = `Você é um consultor político experiente ajudando a configurar as diretrizes de campanha de um candidato.
 Com base nas informações fornecidas, gere um rascunho completo das diretrizes.
@@ -67,27 +68,7 @@ export async function POST(request: NextRequest) {
       jsonMode: true,
     });
 
-    let parsed: Record<string, unknown> | null = null;
-    const inicio = raw.indexOf("{");
-    if (inicio >= 0) {
-      let profundidade = 0;
-      let dentroDeString = false;
-      let escape = false;
-      let fim = -1;
-      for (let i = inicio; i < raw.length; i++) {
-        const c = raw[i];
-        if (escape) { escape = false; continue; }
-        if (c === "\\") { escape = true; continue; }
-        if (c === '"') { dentroDeString = !dentroDeString; continue; }
-        if (dentroDeString) continue;
-        if (c === "{") profundidade++;
-        else if (c === "}") { profundidade--; if (profundidade === 0) { fim = i; break; } }
-      }
-      if (fim >= 0) {
-        try { parsed = JSON.parse(raw.slice(inicio, fim + 1)); } catch {}
-      }
-    }
-
+    const parsed = parseJsonSeguro(raw);
     if (!parsed) return NextResponse.json({ error: "falha ao interpretar resposta da IA" }, { status: 500 });
 
     return NextResponse.json({ rascunho: parsed, provedor: ia.provedor });

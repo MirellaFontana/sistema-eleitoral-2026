@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseJsonSeguro } from "./parse-json-seguro";
+import { parseJsonSeguro, parseJsonArraySeguro } from "./parse-json-seguro";
 
 describe("parseJsonSeguro", () => {
   it("parses clean JSON", () => {
@@ -51,5 +51,36 @@ describe("parseJsonSeguro", () => {
 
   it("handles empty object", () => {
     expect(parseJsonSeguro("{}")).toEqual({});
+  });
+});
+
+describe("parseJsonArraySeguro", () => {
+  it("parses clean JSON array", () => {
+    expect(parseJsonArraySeguro('[{"a":1},{"b":2}]')).toEqual([{ a: 1 }, { b: 2 }]);
+  });
+
+  it("strips markdown fences", () => {
+    expect(parseJsonArraySeguro('```json\n[1, 2, 3]\n```')).toEqual([1, 2, 3]);
+  });
+
+  it("extracts array from prose", () => {
+    const r = parseJsonArraySeguro('Here are the results:\n[{"titulo":"test"}]\nDone.');
+    expect(r).toEqual([{ titulo: "test" }]);
+  });
+
+  it("returns null for objects", () => {
+    expect(parseJsonArraySeguro('{"not": "array"}')).toBeNull();
+  });
+
+  it("returns null for no JSON", () => {
+    expect(parseJsonArraySeguro("no json here")).toBeNull();
+  });
+
+  it("handles nested arrays", () => {
+    expect(parseJsonArraySeguro('[[1,2],[3,4]]')).toEqual([[1, 2], [3, 4]]);
+  });
+
+  it("returns null for unclosed brackets", () => {
+    expect(parseJsonArraySeguro('[1, 2, 3')).toBeNull();
   });
 });

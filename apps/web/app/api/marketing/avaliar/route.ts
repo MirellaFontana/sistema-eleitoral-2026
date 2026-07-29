@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { SISTEMA_AVALIADOR_PECAS } from "@/lib/anthropic";
 import { sanitizarTexto } from "@/lib/sanitizar";
+import { parseJsonSeguro } from "@/lib/parse-json-seguro";
 import { criarClienteIA } from "@/lib/ia-client";
 
 const PAPEIS_QUE_AVALIAM = new Set([
@@ -90,11 +91,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Falha ao avaliar peça: ${m}` }, { status: 502 });
   }
 
-  let parsed: Record<string, unknown>;
-  try {
-    const clean = raw.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim();
-    parsed = JSON.parse(clean);
-  } catch {
+  const parsed = parseJsonSeguro(raw);
+  if (!parsed) {
     return NextResponse.json(
       { error: "O modelo retornou um formato inesperado. Tente novamente." },
       { status: 502 }

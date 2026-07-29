@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { criarClienteIA } from "@/lib/ia-client";
 import { montarContextoConhecimento, type TemaComItens } from "@/lib/anthropic";
+import { parseJsonSeguro } from "@/lib/parse-json-seguro";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_ANALISAM = new Set(["coord_campanha", "candidato", "coord_marketing"]);
@@ -154,10 +155,8 @@ export async function POST() {
     return NextResponse.json({ error: m }, { status: 502 });
   }
 
-  let resultado: { resumo?: string; temas?: unknown[] };
-  try {
-    resultado = JSON.parse(raw.replace(/```(?:json)?/gi, "").trim());
-  } catch {
+  const resultado = parseJsonSeguro(raw) as { resumo?: string; temas?: unknown[] } | null;
+  if (!resultado) {
     return NextResponse.json({ error: "IA retornou formato inválido", raw: raw.slice(0, 500) }, { status: 502 });
   }
 
