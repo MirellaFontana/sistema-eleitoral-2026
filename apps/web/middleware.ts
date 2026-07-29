@@ -50,7 +50,7 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    `connect-src 'self' ${supabaseOrigin} wss://*.supabase.co`,
+    `connect-src 'self' ${supabaseOrigin} wss://*.supabase.co https://nominatim.openstreetmap.org`,
     `img-src 'self' data: blob: ${supabaseOrigin} https://tile.openstreetmap.org`,
     "font-src 'self' data:",
     "frame-ancestors 'none'",
