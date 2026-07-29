@@ -27,6 +27,7 @@ export function DemandaForm({
   const [criandoTema, setCriandoTema] = useState(false);
   const [temas, setTemas] = useState(temasIniciais);
   const [demanda, setDemanda] = useState("");
+  const [prazo, setPrazo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -87,6 +88,7 @@ export function DemandaForm({
       cidades: cidades.length > 0 ? cidades : [],
       tema: temaSelecionado?.nome ?? null,
       demanda,
+      prazo: prazo || null,
     });
 
     setCarregando(false);
@@ -102,6 +104,7 @@ export function DemandaForm({
     setCidadeInput("");
     setTemaId("");
     setDemanda("");
+    setPrazo("");
     router.refresh();
   }
 
@@ -235,6 +238,16 @@ export function DemandaForm({
           value={demanda}
           onChange={(e) => setDemanda(e.target.value)}
           className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">Prazo (opcional)</label>
+        <input
+          type="date"
+          value={prazo}
+          onChange={(e) => setPrazo(e.target.value)}
+          className="w-48 rounded border border-neutral-300 px-2 py-1.5 text-sm"
         />
       </div>
 

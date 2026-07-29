@@ -45,7 +45,7 @@ export default async function DemandasObservadasPage() {
   const [demandasRes, temasRes, territoriosRes, liderancasRes, membrosRes] = await Promise.all([
     supabase
       .from("demandas_observadas")
-      .select("id, regiao, cidades, tema, demanda, status, prioridade, responsavel_id, encaminhamento, resposta, origem, created_at")
+      .select("id, regiao, cidades, tema, demanda, status, prioridade, responsavel_id, encaminhamento, resposta, origem, prazo, devolutiva, created_at")
       .order("created_at", { ascending: false }),
     supabase
       .from("temas_campanha")

@@ -16,6 +16,8 @@ type Demanda = {
   encaminhamento: string | null;
   resposta: string | null;
   origem: string | null;
+  prazo: string | null;
+  devolutiva: string | null;
   created_at: string;
 };
 
@@ -150,6 +152,8 @@ function DemandaCard({
     temas.find((t) => t.nome === d.tema)?.id ?? ""
   );
   const [demanda, setDemanda] = useState(d.demanda);
+  const [prazo, setPrazo] = useState(d.prazo ?? "");
+  const [devolutiva, setDevolutiva] = useState(d.devolutiva ?? "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
@@ -160,6 +164,8 @@ function DemandaCard({
     setCidades(d.cidades ?? []);
     setTemaSelected(temas.find((t) => t.nome === d.tema)?.id ?? "");
     setDemanda(d.demanda);
+    setPrazo(d.prazo ?? "");
+    setDevolutiva(d.devolutiva ?? "");
     setErro(null);
     setConfirmandoExclusao(false);
   }
@@ -176,6 +182,8 @@ function DemandaCard({
         cidades: cidades.length > 0 ? cidades : [],
         tema: temaSelecionado?.nome ?? null,
         demanda: demanda.trim(),
+        prazo: prazo || null,
+        devolutiva: devolutiva.trim() || null,
       })
       .eq("id", d.id);
     setSalvando(false);
@@ -252,6 +260,12 @@ function DemandaCard({
         {d.resposta && (
           <p className="text-xs text-green-700 bg-green-50 rounded px-2 py-1">Resposta: {d.resposta}</p>
         )}
+        {d.prazo && (
+          <p className="text-xs text-neutral-500">Prazo: {new Date(d.prazo + "T00:00:00").toLocaleDateString("pt-BR")}</p>
+        )}
+        {d.devolutiva && (
+          <p className="text-xs text-purple-700 bg-purple-50 rounded px-2 py-1">Devolutiva: {d.devolutiva}</p>
+        )}
         {podeEditar && d.status !== "resolvida" && d.status !== "descartada" && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {d.status === "registrada" && (
@@ -318,6 +332,28 @@ function DemandaCard({
           onChange={(e) => setDemanda(e.target.value)}
           className="w-full rounded border border-neutral-300 px-2 py-1 text-xs bg-white"
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-neutral-500">Prazo</label>
+          <input
+            type="date"
+            value={prazo}
+            onChange={(e) => setPrazo(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-2 py-1 text-xs bg-white"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-neutral-500">Devolutiva</label>
+          <textarea
+            rows={2}
+            value={devolutiva}
+            onChange={(e) => setDevolutiva(e.target.value)}
+            placeholder="Resposta dada à população sobre esta demanda"
+            className="w-full rounded border border-neutral-300 px-2 py-1 text-xs bg-white"
+          />
+        </div>
       </div>
 
       {erro && <p className="text-xs text-red-600">{erro}</p>}
