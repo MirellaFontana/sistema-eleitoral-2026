@@ -31,7 +31,7 @@ export async function GET() {
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
-    snapshotRes, recsRecentesRes, demandasRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes,
+    snapshotRes, recsRecentesRes, demandasRes, demandasPrazoRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -64,6 +64,13 @@ export async function GET() {
       .select("id, tema, demanda, prioridade, status")
       .in("status", ["registrada", "em_analise"])
       .order("created_at", { ascending: false }).limit(5),
+    supabase.from("demandas_observadas")
+      .select("id, tema, demanda, prazo, responsavel_id")
+      .not("prazo", "is", null)
+      .lte("prazo", em3dias)
+      .gte("prazo", hojeIso)
+      .not("status", "in", '("resolvida","descartada")')
+      .order("prazo").limit(5),
     supabase.from("sinais_campo")
       .select("id, tema, frase_representativa, intensidade, created_at")
       .eq("intensidade", "forte")
@@ -100,6 +107,7 @@ export async function GET() {
   const snapshot = snapshotRes.data;
   const recsRecentes = recsRecentesRes.data ?? [];
   const demandasPendentes = demandasRes.data ?? [];
+  const demandasComPrazo = demandasPrazoRes.data ?? [];
   const sinaisFortes = sinaisCampoRes.data ?? [];
   const decisoesAtivas = decisoesRes.data ?? [];
   const fontesComProblema = fontesRes.data ?? [];
@@ -156,6 +164,20 @@ export async function GET() {
       fonte: "Calendário eleitoral",
       porqueEstouVendo: `Prazo eleitoral em ${dias <= 0 ? "hoje" : dias + " dias"} — requer atenção imediata.`,
       link: "/calendario-eleitoral",
+    });
+  }
+
+  for (const dem of demandasComPrazo) {
+    const dias = Math.round((new Date(dem.prazo + "T12:00:00").getTime() - hoje.getTime()) / 86_400_000);
+    facaHoje.push({
+      id: `dem-prazo-${dem.id}`,
+      titulo: `Demanda: ${dem.tema ?? "sem tema"}`,
+      descricao: dem.demanda?.slice(0, 120) + (dias === 0 ? " (prazo é hoje!)" : ` (prazo em ${dias} dia${dias === 1 ? "" : "s"})`),
+      tipo: "demanda",
+      urgencia: dias <= 1 ? "critica" : "alta",
+      fonte: "Demandas",
+      porqueEstouVendo: `Demanda com prazo em ${dias <= 0 ? "hoje" : dias + " dias"} ainda não resolvida.`,
+      link: "/demandas-observadas",
     });
   }
 
