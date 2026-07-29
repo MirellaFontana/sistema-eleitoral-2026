@@ -424,14 +424,17 @@ export function DemandasLista({
 }) {
   const router = useRouter();
   const [filtro, setFiltro] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
 
   const filtroLower = filtro.trim().toLowerCase();
-  const demandasFiltradas = filtroLower
-    ? demandas.filter((d) => {
-        const cidadesArr = d.cidades ?? [];
-        return cidadesArr.some((c) => c.toLowerCase().includes(filtroLower));
-      })
-    : demandas;
+  const demandasFiltradas = demandas.filter((d) => {
+    if (filtroStatus && d.status !== filtroStatus) return false;
+    if (filtroLower) {
+      const cidadesArr = d.cidades ?? [];
+      if (!cidadesArr.some((c) => c.toLowerCase().includes(filtroLower))) return false;
+    }
+    return true;
+  });
 
   return (
     <section className="space-y-3">
@@ -439,7 +442,18 @@ export function DemandasLista({
         Registradas
       </h2>
 
-      <div className="relative">
+      <div className="flex gap-2">
+        <select
+          value={filtroStatus}
+          onChange={(e) => setFiltroStatus(e.target.value)}
+          className="rounded border border-neutral-300 px-2 py-1.5 text-sm"
+        >
+          <option value="">Todos os status</option>
+          {Object.entries(STATUS_LABEL).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+        <div className="relative flex-1">
         <input
           placeholder="Filtrar por cidade..."
           value={filtro}
@@ -461,18 +475,21 @@ export function DemandasLista({
             limpar
           </button>
         )}
+        </div>
       </div>
 
-      {filtroLower && (
+      {(filtroLower || filtroStatus) && (
         <p className="text-xs text-neutral-400">
-          {demandasFiltradas.length} demanda(s) em cidades com &quot;{filtro.trim()}&quot;
+          {demandasFiltradas.length} demanda(s)
+          {filtroLower ? ` em cidades com "${filtro.trim()}"` : ""}
+          {filtroStatus ? ` com status "${STATUS_LABEL[filtroStatus] ?? filtroStatus}"` : ""}
         </p>
       )}
 
       {demandasFiltradas.length === 0 && (
         <p className="text-sm text-neutral-400">
-          {filtroLower
-            ? "Nenhuma demanda encontrada para essa cidade."
+          {filtroLower || filtroStatus
+            ? "Nenhuma demanda encontrada com esses filtros."
             : "Nenhuma demanda registrada ainda."}
         </p>
       )}
