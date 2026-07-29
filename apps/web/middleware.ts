@@ -45,8 +45,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    `connect-src 'self' ${supabaseOrigin} wss://*.supabase.co`,
+    `img-src 'self' data: blob: ${supabaseOrigin}`,
+    "font-src 'self' data:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+  response.headers.set("Content-Security-Policy", csp);
   response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
+
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
   response.headers.set("X-DNS-Prefetch-Control", "off");
