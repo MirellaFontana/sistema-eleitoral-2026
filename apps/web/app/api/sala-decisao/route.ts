@@ -31,7 +31,7 @@ export async function GET() {
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
-    snapshotRes, recsRecentesRes, demandasRes, demandasPrazoRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes,
+    snapshotRes, recsRecentesRes, demandasRes, demandasPrazoRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes, sinaisConcorrentesRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -97,6 +97,10 @@ export async function GET() {
     supabase.from("narrativas_analises")
       .select("analise, created_at")
       .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("sinais_concorrentes")
+      .select("id, titulo, descricao, concorrente_id, concorrentes(nome), created_at")
+      .gte("created_at", new Date(hoje.getTime() - 3 * 86_400_000).toISOString())
+      .order("created_at", { ascending: false }).limit(5),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -114,6 +118,7 @@ export async function GET() {
   const normativasDesatualizadas = normativasRes.data ?? [];
   const recsAvaliadas = recsAvaliadasRes.data ?? [];
   const narrativa = narrativaRes.data;
+  const sinaisConcorrentes = sinaisConcorrentesRes.data ?? [];
 
   type TemaAnalise = { tema?: string; consistencia?: string; lacunas?: string[]; ressonancia_propria?: { nivel?: string } };
   const temasNarrativa = (narrativa?.analise ?? []) as TemaAnalise[];
@@ -291,6 +296,22 @@ export async function GET() {
     });
   }
 
+  for (const sc of sinaisConcorrentes) {
+    const nomeConcorrente = Array.isArray(sc.concorrentes)
+      ? (sc.concorrentes[0] as { nome: string } | undefined)?.nome
+      : (sc.concorrentes as { nome: string } | null)?.nome;
+    fiqueAtento.push({
+      id: `conc-${sc.id}`,
+      titulo: sc.titulo,
+      descricao: sc.descricao?.slice(0, 150) ?? "",
+      tipo: "concorrente",
+      urgencia: "media",
+      fonte: "Concorrentes",
+      porqueEstouVendo: `Sinal de concorrente${nomeConcorrente ? ` (${nomeConcorrente})` : ""} registrado nos últimos 3 dias.`,
+      link: "/concorrentes",
+    });
+  }
+
   for (const t of temasIncoerentes) {
     const lacunas = t.lacunas?.join("; ") ?? "";
     fiqueAtento.push({
@@ -356,6 +377,7 @@ export async function GET() {
     temasIncoerentes: temasIncoerentes.length,
     decisoesAtivas: decisoesAtivas.length,
     demandasComPrazo: demandasComPrazo.length,
+    sinaisConcorrentes: sinaisConcorrentes.length,
   };
 
   return NextResponse.json({ decidaAgora, facaHoje, fiqueAtento, oQueMudou, resumo });

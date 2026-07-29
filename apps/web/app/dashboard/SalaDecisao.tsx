@@ -30,6 +30,7 @@ type Resumo = {
   temasIncoerentes: number;
   decisoesAtivas: number;
   demandasComPrazo: number;
+  sinaisConcorrentes: number;
 };
 
 type DadosSala = {
@@ -79,7 +80,7 @@ export function SalaDecisao() {
 
   return (
     <>
-      {r && (r.fontesComProblema > 0 || r.normativasDesatualizadas > 0 || r.temasIncoerentes > 0 || r.decisoesAtivas > 0 || r.demandasComPrazo > 0) && (
+      {r && (r.fontesComProblema > 0 || r.normativasDesatualizadas > 0 || r.temasIncoerentes > 0 || r.decisoesAtivas > 0 || r.demandasComPrazo > 0 || r.sinaisConcorrentes > 0) && (
         <div className="mb-3 flex flex-wrap gap-2 text-xs">
           {r.decisoesAtivas > 0 && (
             <Link href="/decisoes" className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-indigo-700 hover:bg-indigo-100">
@@ -104,6 +105,11 @@ export function SalaDecisao() {
           {r.demandasComPrazo > 0 && (
             <Link href="/demandas-observadas" className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-purple-700 hover:bg-purple-100">
               {r.demandasComPrazo} {r.demandasComPrazo === 1 ? "demanda com prazo próximo" : "demandas com prazo próximo"}
+            </Link>
+          )}
+          {r.sinaisConcorrentes > 0 && (
+            <Link href="/concorrentes" className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-rose-700 hover:bg-rose-100">
+              {r.sinaisConcorrentes} {r.sinaisConcorrentes === 1 ? "sinal de concorrente" : "sinais de concorrentes"}
             </Link>
           )}
         </div>
