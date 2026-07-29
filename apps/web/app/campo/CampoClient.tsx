@@ -346,6 +346,15 @@ function SinalCard({
 }) {
   const [encForm, setEncForm] = useState(false);
 
+  async function atualizarStatus(novoStatus: string) {
+    await fetch("/api/sinais-campo", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: sinal.id, encaminhamento_status: novoStatus }),
+    });
+    onAtualizado();
+  }
+
   async function encaminhar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -441,6 +450,24 @@ function SinalCard({
           {sinal.encaminhamento && (
             <div className="rounded bg-blue-50 p-2 text-sm text-blue-800">
               <span className="font-medium">Encaminhamento:</span> {sinal.encaminhamento}
+              {podeEncaminhar && sinal.encaminhamento_status && sinal.encaminhamento_status !== "resolvido" && (
+                <div className="mt-1.5 flex gap-1.5">
+                  {sinal.encaminhamento_status === "encaminhado" && (
+                    <button
+                      onClick={() => atualizarStatus("em_andamento")}
+                      className="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700 hover:bg-indigo-200"
+                    >
+                      Iniciar acompanhamento
+                    </button>
+                  )}
+                  <button
+                    onClick={() => atualizarStatus("resolvido")}
+                    className="rounded bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 hover:bg-green-200"
+                  >
+                    Marcar resolvido
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
