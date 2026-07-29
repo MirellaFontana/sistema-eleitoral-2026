@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     `connect-src 'self' ${supabaseOrigin} wss://*.supabase.co`,
-    `img-src 'self' data: blob: ${supabaseOrigin}`,
+    `img-src 'self' data: blob: ${supabaseOrigin} https://tile.openstreetmap.org`,
     "font-src 'self' data:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
