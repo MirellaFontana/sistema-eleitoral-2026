@@ -14,7 +14,7 @@ export type GrupoResultado = {
   redes: { configurado: boolean; resultados: Resultado[]; erro: string | null };
 };
 
-function decodificarHtml(texto: string) {
+export function decodificarHtml(texto: string) {
   return texto
     .replace(/<!\[CDATA\[/g, "")
     .replace(/\]\]>/g, "")
@@ -26,7 +26,7 @@ function decodificarHtml(texto: string) {
     .trim();
 }
 
-function extrairNoticiasRss(xml: string): Resultado[] {
+export function extrairNoticiasRss(xml: string): Resultado[] {
   const blocos = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
   return blocos
     .slice(0, 15)
