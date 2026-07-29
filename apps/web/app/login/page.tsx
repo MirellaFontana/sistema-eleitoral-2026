@@ -33,8 +33,8 @@ export default function LoginPage() {
     <main className="flex-1 flex items-center justify-center px-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
         <div>
+          <img src="/logo.png" alt="Eleito — Gestão Eleitoral Inteligente" className="mb-6 h-auto w-56" />
           <h1 className="text-xl font-semibold">Entrar</h1>
-          <p className="text-sm text-neutral-500">Sistema Eleitoral 2026</p>
         </div>
 
         <div className="space-y-1">
