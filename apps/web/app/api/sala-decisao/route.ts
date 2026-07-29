@@ -42,9 +42,9 @@ export async function GET() {
       .eq("status_envio", "pendente_configuracao")
       .order("created_at", { ascending: false }).limit(10),
     supabase.from("tarefas")
-      .select("id, titulo, prioridade, prazo")
+      .select("id, titulo, prazo")
       .eq("status", "a_fazer")
-      .order("prioridade").order("prazo").limit(10),
+      .order("prazo", { nullsFirst: false }).limit(10),
     supabase.from("prazos_eleitorais")
       .select("data, titulo")
       .gte("data", hojeIso).lte("data", em3dias)
@@ -142,18 +142,22 @@ export async function GET() {
 
   const facaHoje: Item[] = [];
   for (const t of tarefas.slice(0, 5)) {
+    const diasPrazo = t.prazo
+      ? Math.round((new Date(t.prazo + "T12:00:00").getTime() - hoje.getTime()) / 86_400_000)
+      : null;
     const prazoTxt = t.prazo
       ? `Prazo: ${new Date(t.prazo + "T12:00:00").toLocaleDateString("pt-BR")}`
       : "";
+    const vencendo = diasPrazo !== null && diasPrazo <= 1;
     facaHoje.push({
       id: `tar-${t.id}`,
       titulo: t.titulo,
       descricao: prazoTxt,
       tipo: "tarefa",
-      urgencia: t.prioridade === "urgente" ? "alta" : "media",
+      urgencia: vencendo ? "alta" : "media",
       fonte: "Tarefas",
-      porqueEstouVendo: t.prioridade === "urgente"
-        ? "Tarefa marcada como urgente e ainda a fazer."
+      porqueEstouVendo: vencendo
+        ? "Tarefa a fazer com prazo vencendo hoje ou já vencido."
         : "Tarefa pendente na sua lista.",
       link: "/tarefas",
     });

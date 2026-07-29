@@ -72,7 +72,7 @@ export async function POST() {
       .order("ordem").limit(20),
     supabase.from("monitoramento_snapshots")
       .select("analise_ia, created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("tarefas").select("titulo, status, prioridade")
+    supabase.from("tarefas").select("titulo, status, prazo")
       .eq("status", "a_fazer").order("created_at", { ascending: false }).limit(15),
     supabase.from("sinais_concorrentes").select("titulo, tipo, descricao, impacto, concorrentes(nome)")
       .order("created_at", { ascending: false }).limit(20),
@@ -112,7 +112,7 @@ export async function POST() {
     : "(sem monitoramento recente)";
 
   const tarefasTxt = (tarefasRes.data ?? [])
-    .map((t) => `- [${t.prioridade ?? "normal"}] ${t.titulo}`)
+    .map((t) => `- ${t.titulo}${t.prazo ? ` (prazo: ${t.prazo})` : ""}`)
     .join("\n") || "(nenhuma tarefa pendente)";
 
   const sinaisConcTxt = (sinaisConcRes.data ?? [])
