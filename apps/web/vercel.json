@@ -3,6 +3,22 @@
     {
       "path": "/api/cron/monitoramento",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/fontes-saude",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/normativas",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/quarentena",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/retencao",
+      "schedule": "0 4 * * *"
     }
   ]
 }
