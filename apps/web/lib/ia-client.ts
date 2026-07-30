@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { obterChaveApi } from "./chaves-api";
 
@@ -65,6 +65,16 @@ function criarClienteOpenAI(apiKey: string): ClienteIA {
   };
 }
 
+// BLOCK_ONLY_HIGH em vez do padrão (BLOCK_MEDIUM_AND_ABOVE) — ferramenta B2B autenticada pra
+// campanha eleitoral discute segurança pública, violência e crime como pauta legítima o tempo
+// todo; o filtro padrão do Gemini cortava respostas no meio por falso positivo nesses temas.
+const SAFETY_SETTINGS_GEMINI = [
+  HarmCategory.HARM_CATEGORY_HARASSMENT,
+  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }));
+
 function criarClienteGemini(apiKey: string): ClienteIA {
   const ai = new GoogleGenAI({ apiKey });
   return {
@@ -73,8 +83,15 @@ function criarClienteGemini(apiKey: string): ClienteIA {
       const resp = await ai.models.generateContent({
         model: MODELOS.google_gemini,
         config: {
-          maxOutputTokens: maxTokens,
+          // +2000 de folga: o modelo gasta parte do orçamento em tokens de "pensamento"
+          // internos antes de escrever a resposta visível — sem essa folga, respostas curtas
+          // (maxTokens baixo) cortavam na metade porque o raciocínio consumia quase tudo antes
+          // do texto de fato começar. thinkingConfig:{budget:0} para desligar o pensamento foi
+          // tentado, mas o modelo atual rejeita com INVALID_ARGUMENT — folga extra é mais
+          // portável entre versões de modelo.
+          maxOutputTokens: maxTokens + 2000,
           systemInstruction: sistema,
+          safetySettings: SAFETY_SETTINGS_GEMINI,
           ...(jsonMode ? { responseMimeType: "application/json" } : {}),
         },
         contents: mensagens.map((m) => ({
@@ -82,6 +99,10 @@ function criarClienteGemini(apiKey: string): ClienteIA {
           parts: [{ text: m.content }],
         })),
       });
+      const finishReason = resp.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== "STOP" && finishReason !== "MAX_TOKENS") {
+        throw new Error(`Gemini interrompeu a geração (${finishReason}) — resposta descartada.`);
+      }
       return resp.text?.trim() ?? "";
     },
   };
