@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("sinais_campo")
-    .select("*, usuarios_internos!sinais_campo_registrado_por_fkey(nome), territorios(nome)", { count: "exact" })
+    .select("*, usuarios_internos!sinais_campo_registrado_por_fkey(nome), territorios(nome_bairro, cidade)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range((pagina - 1) * porPagina, pagina * porPagina - 1);
 

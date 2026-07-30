@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { labelTerritorio } from "@/lib/territorio";
 
 type Territorio = { id: string; nome: string };
 type Membro = { id: string; nome: string };
@@ -36,7 +37,7 @@ type Sinal = {
   encaminhamento_status: string | null;
   created_at: string;
   usuarios_internos: { nome: string } | null;
-  territorios: { nome: string } | null;
+  territorios: { nome_bairro: string | null; cidade: string | null } | null;
 };
 
 const INTENSIDADE_COR = {
@@ -383,9 +384,9 @@ function SinalCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {sinal.tema && <span className="text-sm font-medium text-neutral-900">{sinal.tema}</span>}
-            {sinal.territorios?.nome && (
+            {sinal.territorios && (
               <span className="flex items-center gap-0.5 text-xs text-neutral-400">
-                <MapPin size={11} /> {sinal.territorios.nome}
+                <MapPin size={11} /> {labelTerritorio(sinal.territorios.nome_bairro, sinal.territorios.cidade)}
               </span>
             )}
           </div>
