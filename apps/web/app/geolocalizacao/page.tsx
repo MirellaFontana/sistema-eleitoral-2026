@@ -51,11 +51,13 @@ export default async function GeolocalizacaoPage() {
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
   const centroUf = campanha?.uf ? UF_COORDENADAS[campanha.uf] : undefined;
 
-  const [terrRes, campRes, metasRes, eleitoresRes] = await Promise.all([
+  const [terrRes, campRes, metasRes, eleitoresRes, apoiadoresRes, liderancasRes] = await Promise.all([
     supabase.rpc("mapa_territorios"),
     supabase.rpc("agregados_campanha"),
     supabase.from("metas").select("territorio_id, alvo_cadastros, periodo").eq("tipo", "territorio"),
     supabase.rpc("mapa_eleitores"),
+    supabase.rpc("mapa_apoiadores"),
+    supabase.rpc("mapa_liderancas"),
   ]);
 
   const territorios = (terrRes.data ?? []) as TerritorioMapa[];
@@ -83,10 +85,15 @@ export default async function GeolocalizacaoPage() {
     metaAlvo: metaPorTerritorio.get(t.territorio_id) ?? null,
   }));
 
-  const eleitores = ((eleitoresRes.data ?? []) as { lat: number; lng: number }[]).map((p) => ({
-    lat: Number(p.lat),
-    lng: Number(p.lng),
-  }));
+  const mapearPontos = (rows: unknown) =>
+    ((rows ?? []) as { lat: number; lng: number }[]).map((p) => ({
+      lat: Number(p.lat),
+      lng: Number(p.lng),
+    }));
+
+  const eleitores = mapearPontos(eleitoresRes.data);
+  const apoiadores = mapearPontos(apoiadoresRes.data);
+  const liderancasPontos = mapearPontos(liderancasRes.data);
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -114,6 +121,8 @@ export default async function GeolocalizacaoPage() {
         <MapaWrapper
           circulos={circulos}
           eleitores={eleitores}
+          apoiadores={apoiadores}
+          liderancas={liderancasPontos}
           semCoordenada={Number(campanhaAgg.sem_coordenada)}
           centroPadrao={centroUf}
         />

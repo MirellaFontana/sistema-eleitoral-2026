@@ -50,31 +50,39 @@ const CENTRO_BRASIL = { lat: -14.235, lng: -51.9253, zoom: 4 };
 export default function MapaCobertura({
   circulos,
   eleitores,
+  apoiadores,
+  liderancas,
   semCoordenada,
   centroPadrao,
 }: {
   circulos: Circulo[];
   eleitores: Ponto[];
+  apoiadores: Ponto[];
+  liderancas: Ponto[];
   semCoordenada: number;
   centroPadrao?: { lat: number; lng: number; zoom: number };
 }) {
   const [modoEleitores, setModoEleitores] = useState<"off" | "heatmap" | "pontos">("off");
+  const [mostrarApoiadores, setMostrarApoiadores] = useState(false);
+  const [mostrarLiderancas, setMostrarLiderancas] = useState(false);
 
-  // Com território cadastrado, centraliza na média real dos círculos (mais preciso, mais
-  // próximo). Sem nenhum ainda, usa o estado da campanha como enquadramento inicial.
+  // Abre sempre no estado da campanha primeiro — mais previsível pra quem está começando a
+  // cadastrar território. Sem UF cadastrada (raro), cai pra média dos círculos existentes.
   const temCirculos = circulos.length > 0;
-  const centro = temCirculos
-    ? {
-        lat: circulos.reduce((s, c) => s + c.lat, 0) / circulos.length,
-        lng: circulos.reduce((s, c) => s + c.lng, 0) / circulos.length,
-        zoom: 12,
-      }
-    : (centroPadrao ?? CENTRO_BRASIL);
+  const centro =
+    centroPadrao ??
+    (temCirculos
+      ? {
+          lat: circulos.reduce((s, c) => s + c.lat, 0) / circulos.length,
+          lng: circulos.reduce((s, c) => s + c.lng, 0) / circulos.length,
+          zoom: 12,
+        }
+      : CENTRO_BRASIL);
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-700">
-        <span className="font-medium">Eleitores ({eleitores.length} com GPS):</span>
+        <span className="font-medium">Eleitores ({eleitores.length}):</span>
         {(["off", "heatmap", "pontos"] as const).map((modo) => (
           <label key={modo} className="flex items-center gap-1.5">
             <input
@@ -86,6 +94,27 @@ export default function MapaCobertura({
             {modo === "off" ? "Oculto" : modo === "heatmap" ? "Mapa de calor" : "Pontos"}
           </label>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-700">
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={mostrarApoiadores}
+            onChange={(e) => setMostrarApoiadores(e.target.checked)}
+          />
+          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "#e11d48" }} />
+          Apoiadores ({apoiadores.length})
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={mostrarLiderancas}
+            onChange={(e) => setMostrarLiderancas(e.target.checked)}
+          />
+          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: "#d97706" }} />
+          Lideranças ({liderancas.length})
+        </label>
       </div>
 
       <div className="overflow-hidden rounded border border-neutral-200">
@@ -145,6 +174,26 @@ export default function MapaCobertura({
                 center={[p.lat, p.lng]}
                 radius={4}
                 pathOptions={{ color: "#1e2761", fillColor: "#1e2761", fillOpacity: 0.7, weight: 1 }}
+              />
+            ))}
+
+          {mostrarApoiadores &&
+            apoiadores.map((p, i) => (
+              <CircleMarker
+                key={i}
+                center={[p.lat, p.lng]}
+                radius={4}
+                pathOptions={{ color: "#e11d48", fillColor: "#e11d48", fillOpacity: 0.7, weight: 1 }}
+              />
+            ))}
+
+          {mostrarLiderancas &&
+            liderancas.map((p, i) => (
+              <CircleMarker
+                key={i}
+                center={[p.lat, p.lng]}
+                radius={5}
+                pathOptions={{ color: "#d97706", fillColor: "#d97706", fillOpacity: 0.8, weight: 1 }}
               />
             ))}
         </MapContainer>

@@ -16,6 +16,8 @@ const MapaCobertura = dynamic(() => import("./MapaCobertura"), {
 export function MapaWrapper(props: {
   circulos: Circulo[];
   eleitores: Ponto[];
+  apoiadores: Ponto[];
+  liderancas: Ponto[];
   semCoordenada: number;
   centroPadrao?: { lat: number; lng: number; zoom: number };
 }) {
