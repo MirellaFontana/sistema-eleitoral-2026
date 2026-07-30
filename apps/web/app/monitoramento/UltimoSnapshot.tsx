@@ -70,8 +70,8 @@ export function UltimoSnapshot({
     try {
       const res = await fetch("/api/monitoramento/snapshot", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) {
-        setErro(data.error ?? "erro ao executar busca");
+      if (!res.ok || data.ok === false) {
+        setErro(data.error ?? data.erro ?? "erro ao executar busca");
         return;
       }
       router.refresh();

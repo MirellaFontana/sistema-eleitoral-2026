@@ -86,7 +86,7 @@ export async function executarSnapshotCampanha(
     }
   }
 
-  const { data: snapshotRow } = await supabase
+  const { data: snapshotRow, error: insertError } = await supabase
     .from("monitoramento_snapshots")
     .insert({
       campanha_id: campanhaId,
@@ -97,6 +97,10 @@ export async function executarSnapshotCampanha(
     })
     .select("id")
     .single();
+
+  if (insertError) {
+    return { ok: false, erro: `busca concluída mas falhou ao salvar: ${insertError.message}` };
+  }
 
   if (analise) {
     const alertasIA = (analise as Record<string, unknown>).alertas as string[] | undefined;
