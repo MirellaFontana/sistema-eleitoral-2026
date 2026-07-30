@@ -209,6 +209,7 @@ export async function POST() {
     conteudo = await ia.gerar({
       sistema: SISTEMA_BRIEFING_DIARIO,
       mensagens: [{ role: "user", content: mensagemUsuario }],
+      maxTokens: 4000,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "erro desconhecido ao chamar IA";
