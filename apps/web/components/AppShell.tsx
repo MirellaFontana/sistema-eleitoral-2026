@@ -134,13 +134,24 @@ function NavLink({
     <Link
       href={href}
       onClick={onNavigate}
-      className={`flex items-center gap-2 rounded px-2.5 py-1.5 text-sm transition-colors ${
+      className={`group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
         active
-          ? "bg-indigo-600 text-white"
-          : "text-neutral-400 hover:bg-[#2c323c]/60 hover:text-white"
+          ? "bg-teal-500/10 text-teal-300"
+          : "text-slate-400 hover:bg-white/5 hover:text-slate-100"
       }`}
     >
-      <Icon size={15} strokeWidth={2} className="shrink-0" aria-hidden="true" />
+      <span
+        className={`absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full transition-colors ${
+          active ? "bg-teal-400" : "bg-transparent"
+        }`}
+        aria-hidden="true"
+      />
+      <Icon
+        size={15}
+        strokeWidth={2}
+        className={`shrink-0 ${active ? "text-teal-400" : "text-slate-500 group-hover:text-slate-300"}`}
+        aria-hidden="true"
+      />
       {label}
     </Link>
   );
@@ -212,25 +223,29 @@ export function AppShell({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col gap-6 border-r border-[#3a414d] bg-[#232830] px-3 py-5 transition-transform duration-200 md:static md:w-56 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col border-r border-white/5 bg-[#0b1220] transition-transform duration-200 md:static md:w-60 md:translate-x-0 ${
           menuAberto ? "translate-x-0" : ""
         }`}
       >
-        <div className="flex items-center justify-between px-2">
-          <p className="text-sm font-semibold text-white">Gestão Eleitoral Inteligente</p>
+        <div className="flex items-center justify-between px-4 py-4">
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- ícone pequeno estático, não precisa de otimização */}
+            <img src="/icon.png" alt="" className="h-6 w-6 rounded-md" />
+            <p className="text-[13px] font-semibold tracking-wide text-white">Gestão Eleitoral Inteligente</p>
+          </div>
           <button
             onClick={() => setMenuAberto(false)}
-            className="rounded p-1 text-neutral-400 hover:bg-[#2c323c] hover:text-white md:hidden"
+            className="rounded p-1 text-slate-400 hover:bg-white/5 hover:text-white md:hidden"
             aria-label="Fechar menu"
           >
             <X size={18} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto">
+        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pb-4">
           <NavLink
             href="/dashboard"
-            label="Dashboard"
+            label="Sala de Decisão"
             icon={LayoutDashboard}
             active={pathname === "/dashboard"}
             onNavigate={() => setMenuAberto(false)}
@@ -238,7 +253,7 @@ export function AppShell({
 
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
-              <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
                 {group.label}
               </p>
               <div className="flex flex-col gap-0.5">
@@ -254,6 +269,16 @@ export function AppShell({
             </div>
           ))}
         </nav>
+
+        <div className="flex items-center gap-2 border-t border-white/5 px-4 py-3">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          <p className="truncate text-[11px] text-slate-500">
+            {campanhaNome ? <span className="text-slate-400">{campanhaNome}</span> : "Sistema online"}
+          </p>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
