@@ -42,9 +42,12 @@ export function DemandaForm({
   const [carregando, setCarregando] = useState(false);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [uploadProgresso, setUploadProgresso] = useState<string | null>(null);
+  const [gravando, setGravando] = useState(false);
   const inputCidadeRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const reconhecimentoRef = useRef<any>(null);
 
   async function uploadArquivos(files: File[]): Promise<string[]> {
     const caminhos: string[] = [];
@@ -59,6 +62,38 @@ export function DemandaForm({
     }
     setUploadProgresso(null);
     return caminhos;
+  }
+
+  function toggleDitado() {
+    if (gravando) {
+      reconhecimentoRef.current?.stop();
+      setGravando(false);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const win = window as any;
+    const SR = win.SpeechRecognition ?? win.webkitSpeechRecognition;
+    if (!SR) {
+      setErro("Ditado não suportado. Use o Chrome.");
+      return;
+    }
+    const r = new SR();
+    r.lang = "pt-BR";
+    r.continuous = true;
+    r.interimResults = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    r.onresult = (e: any) => {
+      let trecho = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) trecho += e.results[i][0].transcript + " ";
+      }
+      if (trecho) setDemanda((prev) => (prev ? prev.trimEnd() + " " + trecho.trimEnd() : trecho.trimEnd()));
+    };
+    r.onerror = () => setGravando(false);
+    r.onend = () => setGravando(false);
+    reconhecimentoRef.current = r;
+    r.start();
+    setGravando(true);
   }
 
   const sugestoesFiltradas = cidadeInput.trim()
@@ -271,12 +306,28 @@ export function DemandaForm({
       </div>
 
       <div className="space-y-1">
-        <label className="block text-xs font-medium text-neutral-500">Demanda</label>
+        <div className="flex items-center justify-between">
+          <label className="block text-xs font-medium text-neutral-500">Demanda</label>
+          <button
+            type="button"
+            onClick={toggleDitado}
+            title={gravando ? "Parar ditado" : "Ditar demanda por voz"}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-xs transition-colors ${
+              gravando
+                ? "animate-pulse bg-red-50 text-red-600"
+                : "text-neutral-400 hover:text-neutral-600"
+            }`}
+          >
+            <Mic size={12} />
+            {gravando ? "Gravando…" : "Ditar"}
+          </button>
+        </div>
         <textarea
           required
           rows={3}
           value={demanda}
           onChange={(e) => setDemanda(e.target.value)}
+          placeholder={gravando ? "Fale agora…" : undefined}
           className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
         />
       </div>
