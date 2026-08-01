@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Radio,
   Plus,
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Users,
   X,
+  Mic,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelTerritorio } from "@/lib/territorio";
@@ -193,9 +194,63 @@ function NovoSinalForm({
 }) {
   const [salvando, setSalvando] = useState(false);
   const [perguntas, setPerguntas] = useState<string[]>([""]);
+  const [gravando, setGravando] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const srRef = useRef<any>(null);
+  const localRef = useRef<HTMLInputElement>(null);
+  const temaRef = useRef<HTMLInputElement>(null);
+  const fraseRef = useRef<HTMLInputElement>(null);
+  const reacaoRef = useRef<HTMLTextAreaElement>(null);
+  const concorrenteRef = useRef<HTMLTextAreaElement>(null);
+  const obsRef = useRef<HTMLTextAreaElement>(null);
+
+  function ditar(campo: string, el: HTMLInputElement | HTMLTextAreaElement | null) {
+    if (gravando === campo) {
+      srRef.current?.stop();
+      setGravando(null);
+      return;
+    }
+    srRef.current?.stop();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const win = window as any;
+    const SR = win.SpeechRecognition ?? win.webkitSpeechRecognition;
+    if (!SR || !el) return;
+    const r = new SR();
+    r.lang = "pt-BR";
+    r.continuous = true;
+    r.interimResults = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    r.onresult = (e: any) => {
+      let t = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) t += e.results[i][0].transcript + " ";
+      }
+      if (t) el.value = el.value ? el.value.trimEnd() + " " + t.trimEnd() : t.trimEnd();
+    };
+    r.onerror = () => setGravando(null);
+    r.onend = () => setGravando(null);
+    srRef.current = r;
+    r.start();
+    setGravando(campo);
+  }
+
+  function MicBtn({ campo, el }: { campo: string; el: React.RefObject<HTMLInputElement | HTMLTextAreaElement> }) {
+    const ativo = gravando === campo;
+    return (
+      <button
+        type="button"
+        onClick={() => ditar(campo, el.current)}
+        className={`flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] transition-colors ${ativo ? "animate-pulse bg-red-50 text-red-600" : "text-neutral-400 hover:text-indigo-600"}`}
+      >
+        <Mic size={11} />
+        {ativo ? "Gravando…" : "Ditar"}
+      </button>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    srRef.current?.stop();
     setSalvando(true);
     const fd = new FormData(e.currentTarget);
     const body = {
@@ -249,16 +304,22 @@ function NovoSinalForm({
         </label>
       )}
 
-      <label className="block text-sm">
-        <span className="text-neutral-600">Local (descrição livre)</span>
-        <input name="local_descricao" placeholder="Ex: Praça central, feira do bairro X" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
-      </label>
+      <div className="text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-neutral-600">Local (descrição livre)</span>
+          <MicBtn campo="local" el={localRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>} />
+        </div>
+        <input ref={localRef} name="local_descricao" placeholder="Ex: Praça central, feira do bairro X" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="text-neutral-600">Tema principal</span>
-          <input name="tema" placeholder="Ex: saúde, segurança" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
-        </label>
+        <div className="text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-neutral-600">Tema principal</span>
+            <MicBtn campo="tema" el={temaRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>} />
+          </div>
+          <input ref={temaRef} name="tema" placeholder="Ex: saúde, segurança" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
+        </div>
         <label className="block text-sm">
           <span className="text-neutral-600">Intensidade</span>
           <select name="intensidade" defaultValue="moderada" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm">
@@ -291,20 +352,29 @@ function NovoSinalForm({
         </button>
       </div>
 
-      <label className="block text-sm">
-        <span className="text-neutral-600">Reação ao discurso da campanha</span>
-        <textarea name="reacao_discurso" rows={2} placeholder="Como as pessoas reagiram às propostas?" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
-      </label>
+      <div className="text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-neutral-600">Reação ao discurso da campanha</span>
+          <MicBtn campo="reacao" el={reacaoRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>} />
+        </div>
+        <textarea ref={reacaoRef} name="reacao_discurso" rows={2} placeholder="Como as pessoas reagiram às propostas?" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
+      </div>
 
-      <label className="block text-sm">
-        <span className="text-neutral-600">Discurso concorrente mencionado</span>
-        <textarea name="discurso_concorrente" rows={2} placeholder="Algum concorrente foi mencionado? O que disseram?" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
-      </label>
+      <div className="text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-neutral-600">Discurso concorrente mencionado</span>
+          <MicBtn campo="concorrente" el={concorrenteRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>} />
+        </div>
+        <textarea ref={concorrenteRef} name="discurso_concorrente" rows={2} placeholder="Algum concorrente foi mencionado? O que disseram?" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
+      </div>
 
-      <label className="block text-sm">
-        <span className="text-neutral-600">Frase representativa</span>
-        <input name="frase_representativa" placeholder="Uma frase que resume o sentimento ouvido" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
-      </label>
+      <div className="text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-neutral-600">Frase representativa</span>
+          <MicBtn campo="frase" el={fraseRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>} />
+        </div>
+        <input ref={fraseRef} name="frase_representativa" placeholder="Uma frase que resume o sentimento ouvido" className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm">
@@ -313,10 +383,13 @@ function NovoSinalForm({
         </label>
       </div>
 
-      <label className="block text-sm">
-        <span className="text-neutral-600">Observações</span>
-        <textarea name="observacoes" rows={2} className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
-      </label>
+      <div className="text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-neutral-600">Observações</span>
+          <MicBtn campo="obs" el={obsRef as React.RefObject<HTMLInputElement | HTMLTextAreaElement>} />
+        </div>
+        <textarea ref={obsRef} name="observacoes" rows={2} className="mt-1 block w-full rounded border border-neutral-300 px-2 py-1.5 text-sm" />
+      </div>
 
       <button
         type="submit"
