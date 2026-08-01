@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Volume2, VolumeX } from "lucide-react";
 
 type Briefing = {
   conteudo: string;
@@ -23,6 +23,29 @@ export function BriefingDiario({
   const [semEventos, setSemEventos] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [reproduzindo, setReproduzindo] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
+
+  function toggleLeitura() {
+    if (reproduzindo) {
+      window.speechSynthesis.cancel();
+      setReproduzindo(false);
+      return;
+    }
+    if (!briefing) return;
+    // Remove markdown básico antes de ler
+    const texto = briefing.conteudo.replace(/[*_#`]/g, "").trim();
+    const u = new SpeechSynthesisUtterance(texto);
+    u.lang = "pt-BR";
+    u.rate = 0.95;
+    u.onend = () => setReproduzindo(false);
+    u.onerror = () => setReproduzindo(false);
+    utteranceRef.current = u;
+    window.speechSynthesis.speak(u);
+    setReproduzindo(true);
+  }
 
   async function gerar() {
     setErro(null);
@@ -60,15 +83,31 @@ export function BriefingDiario({
             · {eventosHoje} {eventosHoje === 1 ? "evento hoje" : "eventos hoje"}
           </span>
         </h2>
-        {podeGerar && (
-          <button
-            onClick={gerar}
-            disabled={carregando}
-            className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {carregando ? "Gerando…" : briefing ? "Gerar novamente" : "Gerar briefing de hoje"}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {briefing && (
+            <button
+              onClick={toggleLeitura}
+              title={reproduzindo ? "Parar leitura" : "Ouvir briefing"}
+              className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+                reproduzindo
+                  ? "bg-rose-100 text-rose-700 hover:bg-rose-200"
+                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              }`}
+            >
+              {reproduzindo ? <VolumeX size={14} /> : <Volume2 size={14} />}
+              {reproduzindo ? "Parar" : "Ouvir"}
+            </button>
+          )}
+          {podeGerar && (
+            <button
+              onClick={gerar}
+              disabled={carregando}
+              className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {carregando ? "Gerando…" : briefing ? "Gerar novamente" : "Gerar briefing de hoje"}
+            </button>
+          )}
+        </div>
       </div>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}
