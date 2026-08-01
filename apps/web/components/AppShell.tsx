@@ -50,10 +50,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Estratégia",
     items: [
       { href: "/diretrizes", label: "Diretrizes da Campanha", icon: ScrollText },
-      { href: "/propostas", label: "Propostas", icon: FileText },
       { href: "/decisoes", label: "Decisões", icon: Gavel },
       { href: "/recomendacoes", label: "Recomendações", icon: Lightbulb },
-      { href: "/narrativas", label: "Narrativas", icon: BookOpen },
     ],
   },
   {
@@ -81,6 +79,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tarefas", label: "Tarefas", icon: ListChecks },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
       { href: "/campo", label: "Escuta de campo", icon: Radio },
+      { href: "/demandas-observadas", label: "Demandas", icon: ClipboardList },
       { href: "/geolocalizacao", label: "Mapa", icon: MapPin },
     ],
   },
@@ -96,16 +95,21 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Jurídico",
     items: [
       { href: "/juridico/consulta", label: "Tira-dúvidas", icon: Search },
-      { href: "/base-normativa", label: "Base Normativa", icon: Scale },
       { href: "/dossie-juridico", label: "Dossiê jurídico", icon: Gavel },
       { href: "/calendario-eleitoral", label: "Calendário eleitoral", icon: CalendarClock },
     ],
   },
   {
-    label: "Marketing",
+    label: "Inteligência",
     items: [
       { href: "/monitoramento", label: "Monitoramento", icon: Eye },
       { href: "/alertas", label: "Alertas", icon: Bell },
+      { href: "/fontes", label: "Saúde das fontes", icon: Activity },
+    ],
+  },
+  {
+    label: "Marketing",
+    items: [
       { href: "/respostas", label: "Respostas", icon: Reply },
       { href: "/marketing", label: "Marketing", icon: Megaphone },
       { href: "/marketing/impulsionamento", label: "Impulsionamento (Ads)", icon: Rocket },
@@ -116,10 +120,10 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Conhecimento",
     items: [
       { href: "/base-conhecimento", label: "Base de conhecimento", icon: BookOpen },
-      { href: "/base-normativa", label: "Código eleitoral", icon: Gavel },
+      { href: "/propostas", label: "Propostas", icon: FileText },
+      { href: "/narrativas", label: "Narrativas", icon: BookMarked },
       { href: "/concorrentes", label: "Concorrentes", icon: Target },
-      { href: "/fontes", label: "Saúde das fontes", icon: Activity },
-      { href: "/demandas-observadas", label: "Demandas", icon: ClipboardList },
+      { href: "/base-normativa", label: "Código eleitoral", icon: Scale },
     ],
   },
 ];
