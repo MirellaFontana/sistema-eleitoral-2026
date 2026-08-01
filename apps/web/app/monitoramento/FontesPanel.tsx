@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { interpretarCsvFontes, limparDominio } from "@/lib/csv-fontes";
+import { Download, FileSpreadsheet, Globe } from "lucide-react";
 
 type Fonte = {
   id: string;
@@ -27,10 +29,17 @@ const TIER_OPTIONS = [
   { value: "tier2_regional", label: "Tier 2 — Regional" },
 ];
 
+const MODELO_CSV = `dominio;nome;tier;regiao
+portalexemplo.com.br;Portal Exemplo;regional;Curitiba / RMC
+radioexemplo.com.br;Rádio Exemplo;cbn;Norte / Londrina
+blogexemplo.com.br;Blog Exemplo;politica;Estadual`;
+
 export function FontesPanel({
+  campanhaId,
   fontes: fontesIniciais,
   podeEditar,
 }: {
+  campanhaId: string;
   fontes: Fonte[];
   podeEditar: boolean;
 }) {
@@ -48,6 +57,16 @@ export function FontesPanel({
   const [adicionando, setAdicionando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState(false);
+  const inputCsvRef = useRef<HTMLInputElement>(null);
+
+  async function recarregarFontes() {
+    const { data } = await supabase
+      .from("fontes_monitoramento")
+      .select("id, dominio, nome, tier, regiao, ativo")
+      .order("tier")
+      .order("nome");
+    if (data) setFontes(data);
+  }
 
   async function importarPR() {
     setImportando(true);
@@ -61,7 +80,54 @@ export function FontesPanel({
     }
     setMsgImport(`${data.importados} fonte(s) importada(s) de ${data.total}.`);
     setTimeout(() => setMsgImport(null), 4000);
+    await recarregarFontes();
     router.refresh();
+  }
+
+  async function importarCsv(file: File) {
+    setImportando(true);
+    setMsgImport(null);
+    setErro(null);
+    try {
+      const texto = await file.text();
+      const fontesCsv = interpretarCsvFontes(texto);
+      if (fontesCsv.length === 0) {
+        throw new Error("Nenhuma linha válida encontrada (o domínio precisa ter um ponto, ex.: site.com.br).");
+      }
+
+      const { data, error } = await supabase
+        .from("fontes_monitoramento")
+        .upsert(
+          fontesCsv.map((f) => ({ campanha_id: campanhaId, ...f })),
+          { onConflict: "campanha_id,dominio", ignoreDuplicates: true },
+        )
+        .select("id");
+
+      if (error) throw new Error(error.message);
+
+      const novas = data?.length ?? 0;
+      const jaExistiam = fontesCsv.length - novas;
+      setMsgImport(
+        `${novas} fonte(s) importada(s)` +
+          (jaExistiam > 0 ? `, ${jaExistiam} já existia(m)` : "") +
+          ".",
+      );
+      await recarregarFontes();
+      router.refresh();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao importar o arquivo.");
+    } finally {
+      setImportando(false);
+    }
+  }
+
+  function baixarModelo() {
+    const blob = new Blob([MODELO_CSV], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "modelo-fontes-monitoramento.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   async function toggleAtivo(id: string, ativo: boolean) {
@@ -81,7 +147,8 @@ export function FontesPanel({
     const { data, error } = await supabase
       .from("fontes_monitoramento")
       .insert({
-        dominio: novoDominio.trim().replace(/^https?:\/\//, "").replace(/\/+$/, ""),
+        campanha_id: campanhaId,
+        dominio: limparDominio(novoDominio),
         nome: novoNome.trim(),
         tier: novoTier,
         regiao: novaRegiao.trim() || null,
@@ -110,7 +177,8 @@ export function FontesPanel({
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          <Globe size={14} className="text-indigo-500" />
           Fontes monitoradas ({fontes.filter((f) => f.ativo).length} ativas)
         </h2>
         <button
@@ -133,43 +201,68 @@ export function FontesPanel({
               </span>
             );
           })}
+          {fontes.length === 0 && (
+            <p className="text-xs text-neutral-400">
+              Nenhuma fonte cadastrada — abra &quot;Gerenciar&quot; para importar uma planilha.
+            </p>
+          )}
         </div>
       )}
 
       {aberto && (
-        <div className="space-y-3 rounded border border-neutral-200 p-3">
-          {podeEditar && fontes.length === 0 && (
-            <div className="space-y-2">
-              <p className="text-sm text-neutral-500">
-                Nenhuma fonte cadastrada. Importe a lista de sites do Paraná para começar.
+        <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
+          {podeEditar && (
+            <div className="space-y-2 rounded border border-dashed border-indigo-200 bg-indigo-50/40 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-indigo-900">
+                <FileSpreadsheet size={13} />
+                Importar planilha de sites
               </p>
-              <button
-                onClick={importarPR}
-                disabled={importando}
-                className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {importando ? "Importando…" : "Importar sites do Paraná (55 fontes)"}
-              </button>
+              <p className="text-xs text-neutral-500">
+                CSV com colunas <code className="rounded bg-white px-1">dominio;nome;tier;regiao</code> — exporte
+                do Excel ou Google Sheets como CSV. Tier aceita: megafone, politica, cbn ou regional.
+              </p>
+              <input
+                ref={inputCsvRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) importarCsv(f);
+                  e.target.value = "";
+                }}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => inputCsvRef.current?.click()}
+                  disabled={importando}
+                  className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {importando ? "Importando…" : "Escolher arquivo CSV"}
+                </button>
+                <button
+                  onClick={baixarModelo}
+                  className="flex items-center gap-1 rounded bg-white px-3 py-1.5 text-xs text-neutral-600 border border-neutral-200 hover:bg-neutral-50"
+                >
+                  <Download size={12} />
+                  Baixar modelo
+                </button>
+                <button
+                  onClick={importarPR}
+                  disabled={importando}
+                  className="rounded bg-white px-3 py-1.5 text-xs text-neutral-600 border border-neutral-200 hover:bg-neutral-50 disabled:opacity-50"
+                >
+                  {importando ? "…" : "Lista pronta do Paraná (55 sites)"}
+                </button>
+              </div>
+              {msgImport && <p className="text-xs font-medium text-green-700">{msgImport}</p>}
+              {erro && <p className="text-xs text-red-600">{erro}</p>}
             </div>
           )}
-
-          {podeEditar && fontes.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={importarPR}
-                disabled={importando}
-                className="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-200 disabled:opacity-50"
-              >
-                {importando ? "Importando…" : "Reimportar lista PR"}
-              </button>
-            </div>
-          )}
-
-          {msgImport && <p className="text-xs text-green-700">{msgImport}</p>}
 
           {podeEditar && (
             <div className="space-y-2 border-t border-neutral-100 pt-2">
-              <p className="text-xs font-medium text-neutral-500">Adicionar fonte</p>
+              <p className="text-xs font-medium text-neutral-500">Adicionar fonte manualmente</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <input
                   placeholder="Domínio"
@@ -208,7 +301,6 @@ export function FontesPanel({
                   </button>
                 </div>
               </div>
-              {erro && <p className="text-xs text-red-600">{erro}</p>}
             </div>
           )}
 

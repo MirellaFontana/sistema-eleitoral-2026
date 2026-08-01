@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
-import { Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { MonitoramentoWorkspace } from "./MonitoramentoWorkspace";
 import { FontesPanel } from "./FontesPanel";
-import { VerCapturaButton } from "./VerCapturaButton";
 import { UltimoSnapshot } from "./UltimoSnapshot";
+import { ItensRegistrados } from "./ItensRegistrados";
 import type { TermoView } from "./TermosMonitoramento";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -29,23 +28,6 @@ const PAPEIS_QUE_REGISTRAM = new Set([
   "coord_marketing",
   "redator_marketing",
 ]);
-
-const CATEGORIA_LABEL: Record<string, string> = {
-  ameaca_juridica: "Ameaça jurídica",
-  deepfake_suspeito: "Deepfake suspeito",
-  gestao_crise: "Gestão de crise",
-  mencao_positiva: "Menção positiva",
-  mencao_neutra: "Menção neutra",
-  mencao_negativa: "Menção negativa",
-  oportunidade_marketing: "Oportunidade de marketing",
-  outro: "Outro",
-};
-
-const GRAVIDADE_LABEL: Record<string, string> = {
-  baixa: "Baixa",
-  media: "Média",
-  alta: "Alta",
-};
 
 export default async function MonitoramentoPage() {
   const supabase = await createClient();
@@ -127,11 +109,11 @@ export default async function MonitoramentoPage() {
           <h1 className="text-lg font-semibold">Monitoramento</h1>
           <p className="text-sm text-neutral-500">
             Menções ao candidato encontradas na internet — de ameaça jurídica e gestão de crise a
-            menções de sentimento e oportunidades de marketing. Registro manual por enquanto.
+            menções de sentimento e oportunidades de marketing.
           </p>
         </div>
 
-        <FontesPanel fontes={fontes} podeEditar={podeRegistrar} />
+        <FontesPanel campanhaId={eu.campanha_id} fontes={fontes} podeEditar={podeRegistrar} />
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
@@ -158,47 +140,7 @@ export default async function MonitoramentoPage() {
             Itens registrados
           </h2>
 
-          {(itens ?? []).length === 0 && (
-            <p className="text-sm text-neutral-400">Nenhum item registrado ainda.</p>
-          )}
-
-          <ul className="space-y-2">
-            {(itens ?? []).map((item) => (
-              <li key={item.id} className="rounded border border-neutral-200 p-3 space-y-1">
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium">
-                    {CATEGORIA_LABEL[item.categoria] ?? item.categoria}
-                  </span>
-                  {item.gravidade && (
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5">
-                      Gravidade: {GRAVIDADE_LABEL[item.gravidade] ?? item.gravidade}
-                    </span>
-                  )}
-                  <span className="text-neutral-400">{item.status}</span>
-                  {item.hash_evidencia && (
-                    <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-800">
-                      <Lock size={12} strokeWidth={2} aria-hidden="true" />
-                      Evidência lacrada
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm">{item.descricao}</p>
-                <div className="flex gap-3">
-                  {item.url && (
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-neutral-900 underline underline-offset-2"
-                    >
-                      Abrir link
-                    </a>
-                  )}
-                  {item.captura_path && <VerCapturaButton path={item.captura_path} />}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ItensRegistrados itens={itens ?? []} />
         </section>
       </main>
     </AppShell>
