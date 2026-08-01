@@ -3,6 +3,15 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Mic, Image, FileText, File, X, Paperclip } from "lucide-react";
+
+function iconeAnexo(nome: string) {
+  const ext = nome.split(".").pop()?.toLowerCase() ?? "";
+  if (["mp3", "wav", "ogg", "webm", "m4a", "aac"].includes(ext)) return <Mic size={12} className="shrink-0" />;
+  if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) return <Image size={12} className="shrink-0" />;
+  if (ext === "pdf") return <FileText size={12} className="shrink-0" />;
+  return <File size={12} className="shrink-0" />;
+}
 
 type Tema = { id: string; nome: string };
 
@@ -31,8 +40,26 @@ export function DemandaForm({
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [uploadProgresso, setUploadProgresso] = useState<string | null>(null);
   const inputCidadeRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputArquivoRef = useRef<HTMLInputElement>(null);
+
+  async function uploadArquivos(files: File[]): Promise<string[]> {
+    const caminhos: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      setUploadProgresso(`Enviando ${i + 1} de ${files.length}…`);
+      const f = files[i];
+      const ext = f.name.split(".").pop() ?? "bin";
+      const caminho = `${campanhaId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("demandas-anexos").upload(caminho, f);
+      if (error) throw new Error(`Erro ao enviar "${f.name}": ${error.message}`);
+      caminhos.push(caminho);
+    }
+    setUploadProgresso(null);
+    return caminhos;
+  }
 
   const sugestoesFiltradas = cidadeInput.trim()
     ? cidadesConhecidas.filter(
@@ -82,6 +109,17 @@ export function DemandaForm({
 
     const temaSelecionado = temas.find((t) => t.id === temaId);
 
+    let anexos: string[] = [];
+    if (arquivos.length > 0) {
+      try {
+        anexos = await uploadArquivos(arquivos);
+      } catch (e) {
+        setCarregando(false);
+        setErro(e instanceof Error ? e.message : "Erro ao enviar arquivos");
+        return;
+      }
+    }
+
     const { error } = await supabase.from("demandas_observadas").insert({
       campanha_id: campanhaId,
       regiao: regiao.trim() || null,
@@ -89,6 +127,7 @@ export function DemandaForm({
       tema: temaSelecionado?.nome ?? null,
       demanda,
       prazo: prazo || null,
+      anexos,
     });
 
     setCarregando(false);
@@ -105,6 +144,7 @@ export function DemandaForm({
     setTemaId("");
     setDemanda("");
     setPrazo("");
+    setArquivos([]);
     router.refresh();
   }
 
@@ -251,6 +291,49 @@ export function DemandaForm({
         />
       </div>
 
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">
+          Anexos — áudio, fotos ou documentos (opcional)
+        </label>
+        <input
+          ref={inputArquivoRef}
+          type="file"
+          multiple
+          accept="audio/*,image/*,application/pdf,.doc,.docx"
+          className="hidden"
+          onChange={(e) => {
+            const novos = Array.from(e.target.files ?? []);
+            setArquivos((prev) => [...prev, ...novos]);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => inputArquivoRef.current?.click()}
+          className="flex items-center gap-1.5 rounded border border-dashed border-neutral-300 px-3 py-2 text-xs text-neutral-500 hover:border-indigo-400 hover:text-indigo-600"
+        >
+          <Paperclip size={13} /> Adicionar arquivo
+        </button>
+        {arquivos.length > 0 && (
+          <ul className="mt-1 space-y-1">
+            {arquivos.map((f, i) => (
+              <li key={i} className="flex items-center gap-1.5 text-xs text-neutral-600">
+                {iconeAnexo(f.name)}
+                <span className="truncate max-w-[200px]">{f.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setArquivos(arquivos.filter((_, j) => j !== i))}
+                  className="ml-auto text-neutral-400 hover:text-red-500"
+                >
+                  <X size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {uploadProgresso && <p className="text-xs text-indigo-600">{uploadProgresso}</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
       {sucesso && <p className="text-sm text-green-700">{sucesso}</p>}
 

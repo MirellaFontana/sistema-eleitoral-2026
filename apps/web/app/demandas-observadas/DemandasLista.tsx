@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Mic, Image, FileText, File, Paperclip } from "lucide-react";
 
 type Demanda = {
   id: string;
@@ -18,8 +19,56 @@ type Demanda = {
   origem: string | null;
   prazo: string | null;
   devolutiva: string | null;
+  anexos: string[] | null;
   created_at: string;
 };
+
+function iconeAnexo(caminho: string) {
+  const ext = caminho.split(".").pop()?.toLowerCase() ?? "";
+  if (["mp3", "wav", "ogg", "webm", "m4a", "aac"].includes(ext)) return <Mic size={11} className="shrink-0" />;
+  if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) return <Image size={11} className="shrink-0" />;
+  if (ext === "pdf") return <FileText size={11} className="shrink-0" />;
+  return <File size={11} className="shrink-0" />;
+}
+
+function nomeExibicao(caminho: string) {
+  // path = {campanha_id}/{uuid}.ext — exibe só a parte do UUID truncada + ext
+  const partes = caminho.split("/");
+  const nome = partes[partes.length - 1] ?? caminho;
+  const ext = nome.split(".").pop() ?? "";
+  return `anexo.${ext}`;
+}
+
+function AnexosBadges({ caminhos }: { caminhos: string[] }) {
+  const supabase = createClient();
+  const [abrindo, setAbrindo] = useState<string | null>(null);
+
+  async function abrir(caminho: string) {
+    setAbrindo(caminho);
+    const { data } = await supabase.storage
+      .from("demandas-anexos")
+      .createSignedUrl(caminho, 3600);
+    setAbrindo(null);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+  }
+
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {caminhos.map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => abrir(c)}
+          disabled={abrindo === c}
+          className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
+        >
+          {iconeAnexo(c)}
+          {abrindo === c ? "Abrindo…" : nomeExibicao(c)}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 type Tema = { id: string; nome: string };
 type Membro = { id: string; nome: string };
@@ -265,6 +314,12 @@ function DemandaCard({
         )}
         {d.devolutiva && (
           <p className="text-xs text-purple-700 bg-purple-50 rounded px-2 py-1">Devolutiva: {d.devolutiva}</p>
+        )}
+        {(d.anexos ?? []).length > 0 && (
+          <div className="flex items-center gap-1 text-[10px] text-neutral-400">
+            <Paperclip size={10} /> {(d.anexos as string[]).length} anexo(s)
+            <AnexosBadges caminhos={d.anexos as string[]} />
+          </div>
         )}
         {podeEditar && d.status !== "resolvida" && d.status !== "descartada" && (
           <div className="flex flex-wrap gap-1.5 pt-1">
