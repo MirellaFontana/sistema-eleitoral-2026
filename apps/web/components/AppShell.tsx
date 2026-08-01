@@ -37,6 +37,7 @@ import {
   FileSearch,
   Menu,
   X,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { SignOutButton } from "./SignOutButton";
@@ -200,9 +201,21 @@ export function AppShell({
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
   const [devMode, setDevMode] = useState(false);
+  const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const g of NAV_GROUPS) {
+      if (g.items.some((i) => i.href === pathname)) set.add(g.label);
+    }
+    return set;
+  });
 
   useEffect(() => {
     setMenuAberto(false);
+    for (const g of NAV_GROUPS) {
+      if (g.items.some((i) => i.href === pathname)) {
+        setGruposAbertos((prev) => new Set([...prev, g.label]));
+      }
+    }
   }, [pathname]);
 
   useEffect(() => {
@@ -251,23 +264,42 @@ export function AppShell({
             onNavigate={() => setMenuAberto(false)}
           />
 
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label}>
-              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
-                {group.label}
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.href}
-                    {...item}
-                    active={pathname === item.href}
-                    onNavigate={() => setMenuAberto(false)}
+          {NAV_GROUPS.map((group) => {
+            const aberto = gruposAbertos.has(group.label);
+            return (
+              <div key={group.label}>
+                <button
+                  onClick={() =>
+                    setGruposAbertos((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(group.label)) next.delete(group.label);
+                      else next.add(group.label);
+                      return next;
+                    })
+                  }
+                  className="flex w-full items-center justify-between px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600 hover:text-slate-400"
+                >
+                  {group.label}
+                  <ChevronRight
+                    size={10}
+                    className={`shrink-0 transition-transform duration-150 ${aberto ? "rotate-90" : ""}`}
                   />
-                ))}
+                </button>
+                {aberto && (
+                  <div className="flex flex-col gap-0.5">
+                    {group.items.map((item) => (
+                      <NavLink
+                        key={item.href}
+                        {...item}
+                        active={pathname === item.href}
+                        onNavigate={() => setMenuAberto(false)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-2 border-t border-white/5 px-4 py-3">
