@@ -8,8 +8,6 @@ import {
   Eye,
   TrendingUp,
   Info,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
 } from "lucide-react";
 
@@ -42,16 +40,16 @@ type DadosSala = {
 };
 
 const QUADRANTES = [
-  { key: "decidaAgora" as const, label: "Decida agora", icon: Zap, cor: "border-red-200 bg-red-50", icoCor: "text-red-500", desc: "Recomendações aprovadas ou críticas que precisam de ação imediata" },
-  { key: "facaHoje" as const, label: "Faça hoje", icon: CalendarCheck, cor: "border-amber-200 bg-amber-50", icoCor: "text-amber-600", desc: "Tarefas prioritárias e prazos urgentes" },
-  { key: "fiqueAtento" as const, label: "Fique atento", icon: Eye, cor: "border-blue-200 bg-blue-50", icoCor: "text-blue-500", desc: "Alertas, diretrizes sem definição, riscos no radar" },
-  { key: "oQueMudou" as const, label: "O que mudou", icon: TrendingUp, cor: "border-indigo-200 bg-indigo-50", icoCor: "text-indigo-500", desc: "Mudanças recentes no monitoramento, novos alertas, recomendações geradas" },
+  { key: "decidaAgora" as const, label: "Decida agora", icon: Zap, borda: "border-red-200", bordaAtiva: "border-red-400 ring-1 ring-red-200", icoCor: "text-red-500", desc: "Recomendações críticas que precisam de ação imediata" },
+  { key: "facaHoje" as const, label: "Faça hoje", icon: CalendarCheck, borda: "border-amber-200", bordaAtiva: "border-amber-400 ring-1 ring-amber-200", icoCor: "text-amber-600", desc: "Tarefas prioritárias e prazos urgentes" },
+  { key: "fiqueAtento" as const, label: "Fique atento", icon: Eye, borda: "border-blue-200", bordaAtiva: "border-blue-400 ring-1 ring-blue-200", icoCor: "text-blue-500", desc: "Alertas, diretrizes sem definição, riscos no radar" },
+  { key: "oQueMudou" as const, label: "O que mudou", icon: TrendingUp, borda: "border-indigo-200", bordaAtiva: "border-indigo-400 ring-1 ring-indigo-200", icoCor: "text-indigo-500", desc: "Mudanças recentes das últimas 24h" },
 ] as const;
 
 export function SalaDecisao() {
   const [dados, setDados] = useState<DadosSala | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expandido, setExpandido] = useState<Record<string, boolean>>({});
+  const [selecionado, setSelecionado] = useState<typeof QUADRANTES[number]["key"]>("decidaAgora");
 
   const carregar = useCallback(async () => {
     try {
@@ -66,9 +64,9 @@ export function SalaDecisao() {
 
   if (loading) {
     return (
-      <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-32 animate-pulse rounded-xl border border-neutral-200 bg-neutral-50" />
+          <div key={i} className="h-24 animate-pulse rounded-xl border border-neutral-200 bg-neutral-50" />
         ))}
       </div>
     );
@@ -114,43 +112,57 @@ export function SalaDecisao() {
           )}
         </div>
       )}
-    <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+    <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
       {QUADRANTES.map((q) => {
         const itens = dados[q.key];
-        const aberto = expandido[q.key] ?? true;
+        const ativo = selecionado === q.key;
         return (
-          <div key={q.key} className={`rounded-xl border ${q.cor} shadow-sm`}>
-            <button
-              onClick={() => setExpandido((p) => ({ ...p, [q.key]: !aberto }))}
-              className="flex w-full items-center justify-between p-3"
-            >
-              <div className="flex items-center gap-2">
-                <q.icon size={16} className={q.icoCor} />
-                <h3 className="text-sm font-semibold text-neutral-700">{q.label}</h3>
-                <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
-                  {itens.length}
-                </span>
+          <button
+            key={q.key}
+            onClick={() => setSelecionado(q.key)}
+            className={`rounded-xl border bg-white p-3 text-left shadow-sm transition-all ${
+              ativo ? q.bordaAtiva : `${q.borda} hover:border-neutral-300`
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <q.icon size={15} className={q.icoCor} />
+                <h3 className="text-[13px] font-semibold text-neutral-700">{q.label}</h3>
               </div>
-              {aberto ? <ChevronUp size={14} className="text-neutral-400" /> : <ChevronDown size={14} className="text-neutral-400" />}
-            </button>
-
-            {aberto && (
-              <div className="border-t border-white/50 px-3 pb-3">
-                {itens.length === 0 ? (
-                  <p className="py-3 text-center text-xs text-neutral-400">{q.desc}</p>
-                ) : (
-                  <ul className="mt-1 space-y-1.5">
-                    {itens.map((item) => (
-                      <ItemCard key={item.id} item={item} />
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-neutral-100 px-1 text-[10px] font-medium text-neutral-500">
+                {itens.length}
+              </span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-[11px] text-neutral-400">{q.desc}</p>
+          </button>
         );
       })}
     </div>
+
+    {(() => {
+      const q = QUADRANTES.find((x) => x.key === selecionado)!;
+      const itens = dados[q.key];
+      return (
+        <div className={`mb-6 rounded-xl border ${q.bordaAtiva} bg-white p-3 shadow-sm`}>
+          <div className="mb-2 flex items-center gap-2">
+            <q.icon size={16} className={q.icoCor} />
+            <h3 className="text-sm font-semibold text-neutral-700">{q.label}</h3>
+            <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+              {itens.length}
+            </span>
+          </div>
+          {itens.length === 0 ? (
+            <p className="py-3 text-center text-xs text-neutral-400">{q.desc}</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {itens.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))}
+            </ul>
+          )}
+        </div>
+      );
+    })()}
     </>
   );
 }
