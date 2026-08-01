@@ -28,6 +28,17 @@ export function BriefingDiario({
 
   useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
 
+  function melhorVozPtBR(): SpeechSynthesisVoice | null {
+    const vozes = window.speechSynthesis.getVoices();
+    // Preferência: Google pt-BR > qualquer pt-BR > pt > null
+    return (
+      vozes.find((v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")) ??
+      vozes.find((v) => v.lang === "pt-BR") ??
+      vozes.find((v) => v.lang.startsWith("pt")) ??
+      null
+    );
+  }
+
   function toggleLeitura() {
     if (reproduzindo) {
       window.speechSynthesis.cancel();
@@ -35,11 +46,13 @@ export function BriefingDiario({
       return;
     }
     if (!briefing) return;
-    // Remove markdown básico antes de ler
     const texto = briefing.conteudo.replace(/[*_#`]/g, "").trim();
     const u = new SpeechSynthesisUtterance(texto);
     u.lang = "pt-BR";
-    u.rate = 0.95;
+    u.rate = 1.15;
+    u.pitch = 1.05;
+    const voz = melhorVozPtBR();
+    if (voz) u.voice = voz;
     u.onend = () => setReproduzindo(false);
     u.onerror = () => setReproduzindo(false);
     utteranceRef.current = u;
