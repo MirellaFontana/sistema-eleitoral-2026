@@ -9,7 +9,6 @@ export default function MfaVerifyPage() {
   const supabase = createClient();
 
   const [factorId, setFactorId] = useState<string | null>(null);
-  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [codigo, setCodigo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -19,33 +18,38 @@ export default function MfaVerifyPage() {
     (async () => {
       const { data: fatores, error: listError } = await supabase.auth.mfa.listFactors();
       const fator = fatores?.totp.find((f) => f.status === "verified");
+      setCarregando(false);
 
       if (listError || !fator) {
-        setCarregando(false);
         setErro("nenhum fator de MFA verificado encontrado");
         return;
       }
       setFactorId(fator.id);
-
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: fator.id,
-      });
-      setCarregando(false);
-      if (challengeError || !challenge) {
-        setErro(challengeError?.message ?? "erro ao gerar desafio");
-        return;
-      }
-      setChallengeId(challenge.id);
     })();
   }, [supabase]);
 
+  // Desafio é criado na hora de confirmar, não ao carregar a página — um desafio criado no
+  // mount pode expirar (ou ser invalidado por um segundo desafio, ex.: StrictMode disparando o
+  // efeito duas vezes) entre a página abrir e o usuário digitar o código. Criar e verificar na
+  // mesma ação elimina essa janela de corrida.
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
-    if (!factorId || !challengeId) return;
+    if (!factorId) return;
     setErro(null);
     setVerificando(true);
 
-    const { error } = await supabase.auth.mfa.verify({ factorId, challengeId, code: codigo });
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
+    if (challengeError || !challenge) {
+      setVerificando(false);
+      setErro(challengeError?.message ?? "erro ao gerar desafio");
+      return;
+    }
+
+    const { error } = await supabase.auth.mfa.verify({
+      factorId,
+      challengeId: challenge.id,
+      code: codigo,
+    });
 
     setVerificando(false);
     if (error) {
@@ -67,9 +71,9 @@ export default function MfaVerifyPage() {
           </p>
         </div>
 
-        {carregando && <p className="text-sm text-neutral-500">Preparando desafio…</p>}
+        {carregando && <p className="text-sm text-neutral-500">Carregando…</p>}
 
-        {challengeId && (
+        {!carregando && factorId && (
           <form onSubmit={handleVerify} className="space-y-3">
             <div className="space-y-1">
               <label htmlFor="codigo" className="block text-sm font-medium">
@@ -100,7 +104,7 @@ export default function MfaVerifyPage() {
           </form>
         )}
 
-        {erro && !challengeId && !carregando && (
+        {!carregando && !factorId && erro && (
           <p className="text-sm text-red-600">{erro}</p>
         )}
       </div>
