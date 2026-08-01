@@ -105,6 +105,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/monitoramento", label: "Monitoramento", icon: Eye },
       { href: "/alertas", label: "Alertas", icon: Bell },
       { href: "/fontes", label: "Saúde das fontes", icon: Activity },
+      { href: "/concorrentes", label: "Concorrentes", icon: Target },
+      { href: "/base-conhecimento", label: "Base de conhecimento", icon: BookOpen },
+      { href: "/propostas", label: "Propostas", icon: FileText },
+      { href: "/narrativas", label: "Narrativas", icon: BookMarked },
+      { href: "/base-normativa", label: "Código eleitoral", icon: Scale },
     ],
   },
   {
@@ -114,16 +119,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/marketing", label: "Marketing", icon: Megaphone },
       { href: "/marketing/impulsionamento", label: "Impulsionamento (Ads)", icon: Rocket },
       { href: "/pecas-conteudo", label: "Peças de conteúdo", icon: FileText },
-    ],
-  },
-  {
-    label: "Conhecimento",
-    items: [
-      { href: "/base-conhecimento", label: "Base de conhecimento", icon: BookOpen },
-      { href: "/propostas", label: "Propostas", icon: FileText },
-      { href: "/narrativas", label: "Narrativas", icon: BookMarked },
-      { href: "/concorrentes", label: "Concorrentes", icon: Target },
-      { href: "/base-normativa", label: "Código eleitoral", icon: Scale },
     ],
   },
 ];
