@@ -140,7 +140,7 @@ export default async function MonitoramentoPage() {
             Itens registrados
           </h2>
 
-          <ItensRegistrados itens={itens ?? []} />
+          <ItensRegistrados itens={itens ?? []} fontes={fontes} />
         </section>
       </main>
     </AppShell>

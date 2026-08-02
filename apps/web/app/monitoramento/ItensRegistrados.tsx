@@ -33,7 +33,28 @@ const GRAVIDADE_META: Record<string, { label: string; cls: string }> = {
   baixa: { label: "Baixa", cls: "bg-neutral-200 text-neutral-600" },
 };
 
-export function ItensRegistrados({ itens }: { itens: ItemMonitoramento[] }) {
+function nomeFonte(url: string, fontes: { dominio: string; nome: string }[]): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    // Fonte cadastrada cujo domínio (pode incluir path, ex. g1.globo.com/parana) bate com a URL
+    const fonte = fontes.find((f) => {
+      const [fHost, ...fPath] = f.dominio.split("/");
+      return host === fHost && (fPath.length === 0 || u.pathname.startsWith("/" + fPath.join("/")));
+    });
+    return fonte?.nome ?? host;
+  } catch {
+    return "Abrir link";
+  }
+}
+
+export function ItensRegistrados({
+  itens,
+  fontes = [],
+}: {
+  itens: ItemMonitoramento[];
+  fontes?: { dominio: string; nome: string }[];
+}) {
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
   const [soGraves, setSoGraves] = useState(false);
 
@@ -130,10 +151,11 @@ export function ItensRegistrados({ itens }: { itens: ItemMonitoramento[] }) {
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    title="Abrir a matéria"
                     className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
                   >
                     <ExternalLink size={11} />
-                    Abrir link
+                    {nomeFonte(item.url, fontes)}
                   </a>
                 )}
                 {item.captura_path && <VerCapturaButton path={item.captura_path} />}
