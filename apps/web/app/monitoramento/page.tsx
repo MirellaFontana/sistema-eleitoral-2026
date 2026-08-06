@@ -6,6 +6,7 @@ import { MonitoramentoWorkspace } from "./MonitoramentoWorkspace";
 import { FontesPanel } from "./FontesPanel";
 import { UltimoSnapshot } from "./UltimoSnapshot";
 import { ItensRegistrados } from "./ItensRegistrados";
+import { AlertasPanel } from "./AlertasPanel";
 import type { TermoView } from "./TermosMonitoramento";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -77,7 +78,7 @@ export default async function MonitoramentoPage() {
     }
   }
 
-  const [{ data: itens }, { data: termosData }, { data: fontesData }, { data: snapshotsData }] = await Promise.all([
+  const [{ data: itens }, { data: termosData }, { data: fontesData }, { data: snapshotsData }, { data: alertasData }] = await Promise.all([
     supabase
       .from("monitoramento_itens")
       .select("id, url, descricao, categoria, gravidade, status, captura_path, hash_evidencia, created_at")
@@ -93,14 +94,54 @@ export default async function MonitoramentoPage() {
       .order("nome"),
     supabase
       .from("monitoramento_snapshots")
-      .select("id, total_mencoes, analise_ia, provedor_ia, erro, created_at")
+      .select("id, total_mencoes, analise_ia, resultados_brutos, provedor_ia, erro, created_at")
       .order("created_at", { ascending: false })
       .limit(1),
+    supabase
+      .from("alertas")
+      .select("id, texto_ia, canal, status_envio, lido_em, created_at, monitoramento_item_id, snapshot_id, monitoramento_itens(url, descricao, categoria), monitoramento_snapshots(analise_ia, resultados_brutos)")
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   const termos: TermoView[] = termosData ?? [];
   const fontes = fontesData ?? [];
-  const ultimoSnapshot = snapshotsData?.[0] ?? null;
+  const snapRaw = snapshotsData?.[0] ?? null;
+
+  // Build flat link list matching the same order the IA prompt used [i] indices
+  let linksFlat: string[] = [];
+  if (snapRaw?.resultados_brutos) {
+    const brutos = snapRaw.resultados_brutos as { noticias?: { link: string }[]; redes?: { resultados?: { link: string }[] } }[];
+    for (const g of brutos) {
+      for (const n of g.noticias ?? []) linksFlat.push(n.link);
+      for (const r of g.redes?.resultados ?? []) linksFlat.push(r.link);
+    }
+  }
+
+  const alertas = (alertasData ?? []).map((a: Record<string, unknown>) => {
+    const item = Array.isArray(a.monitoramento_itens) ? a.monitoramento_itens[0] : a.monitoramento_itens;
+    const snap = Array.isArray(a.monitoramento_snapshots) ? a.monitoramento_snapshots[0] : a.monitoramento_snapshots;
+    return {
+      id: a.id as string,
+      texto_ia: a.texto_ia as string | null,
+      canal: a.canal as string,
+      status_envio: a.status_envio as string,
+      lido_em: a.lido_em as string | null,
+      created_at: a.created_at as string,
+      monitoramento_itens: item as { url: string | null; descricao: string; categoria: string } | null,
+      snapshot_analise: snap?.analise_ia as { grupos: { titulo_grupo: string; sentimento: string; mencoes: { fonte: string; titulo_original: string }[] }[] } | null,
+      snapshot_brutos: snap?.resultados_brutos as { noticias?: { link: string; fonte: string }[]; redes?: { resultados?: { link: string; fonte: string }[] } }[] | null,
+    };
+  });
+
+  const ultimoSnapshot = snapRaw ? {
+    id: snapRaw.id,
+    total_mencoes: snapRaw.total_mencoes,
+    analise_ia: snapRaw.analise_ia,
+    provedor_ia: snapRaw.provedor_ia,
+    erro: snapRaw.erro,
+    created_at: snapRaw.created_at,
+  } : null;
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -113,6 +154,12 @@ export default async function MonitoramentoPage() {
           </p>
         </div>
 
+        <AlertasPanel alertas={alertas} campanhaId={eu.campanha_id} />
+
+        {podeRegistrar && (
+          <MonitoramentoWorkspace campanhaId={eu.campanha_id} termos={termos} />
+        )}
+
         <FontesPanel campanhaId={eu.campanha_id} fontes={fontes} podeEditar={podeRegistrar} />
 
         <section className="space-y-3">
@@ -121,19 +168,12 @@ export default async function MonitoramentoPage() {
           </h2>
           <UltimoSnapshot
             snapshot={ultimoSnapshot}
+            linksFlat={linksFlat}
+            campanhaId={eu.campanha_id}
             intervaloAtual={intervaloMonitoramento}
             podeConfigurar={podeRegistrar}
           />
         </section>
-
-        {podeRegistrar && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              Registrar item
-            </h2>
-            <MonitoramentoWorkspace campanhaId={eu.campanha_id} termos={termos} />
-          </section>
-        )}
 
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">

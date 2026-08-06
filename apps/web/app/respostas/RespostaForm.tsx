@@ -11,10 +11,28 @@ const CANAIS = [
   { value: "outro", label: "Outro" },
 ];
 
+export const CATEGORIAS = [
+  { value: "temas_sensiveis", label: "Temas Sensíveis" },
+  { value: "saude", label: "Saúde" },
+  { value: "infraestrutura", label: "Infraestrutura" },
+  { value: "educacao", label: "Educação" },
+  { value: "seguranca", label: "Segurança" },
+  { value: "economia", label: "Economia e Emprego" },
+  { value: "meio_ambiente", label: "Meio Ambiente" },
+  { value: "cultura", label: "Cultura e Esporte" },
+  { value: "assistencia_social", label: "Assistência Social" },
+  { value: "transporte", label: "Transporte e Mobilidade" },
+  { value: "corrupcao", label: "Corrupção e Ética" },
+  { value: "juventude", label: "Juventude" },
+  { value: "agro", label: "Agronegócio" },
+  { value: "geral", label: "Geral" },
+];
+
 export function RespostaForm() {
   const router = useRouter();
 
   const [pergunta, setPergunta] = useState("");
+  const [categoria, setCategoria] = useState(CATEGORIAS[0].value);
   const [canalOrigem, setCanalOrigem] = useState(CANAIS[0].value);
   const [contextoAdicional, setContextoAdicional] = useState("");
   const [resultado, setResultado] = useState<string | null>(null);
@@ -38,6 +56,7 @@ export function RespostaForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pergunta,
+          categoria,
           canal_origem: canalOrigem,
           contexto_adicional: contextoAdicional.trim() || undefined,
         }),
@@ -71,6 +90,20 @@ export function RespostaForm() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-neutral-500">Categoria</label>
+          <select
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+          >
+            {CATEGORIAS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Canal de origem</label>
           <select

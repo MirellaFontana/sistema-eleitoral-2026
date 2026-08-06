@@ -7,7 +7,6 @@ import {
   CalendarCheck,
   Eye,
   TrendingUp,
-  Info,
   AlertTriangle,
 } from "lucide-react";
 
@@ -168,8 +167,6 @@ export function SalaDecisao() {
 }
 
 function ItemCard({ item }: { item: ItemDecisao }) {
-  const [showWhy, setShowWhy] = useState(false);
-
   const tituloEl = <p className="font-medium text-neutral-700">{item.titulo}</p>;
 
   return (
@@ -183,21 +180,17 @@ function ItemCard({ item }: { item: ItemDecisao }) {
           {item.descricao && (
             <p className="mt-0.5 text-neutral-500 line-clamp-2">{item.descricao}</p>
           )}
-          <div className="mt-1 flex items-center gap-2">
-            <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-400">
+          {item.link ? (
+            <Link
+              href={item.link}
+              className="mt-1 inline-block rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-500 hover:bg-indigo-50 hover:text-indigo-600"
+            >
+              {item.fonte}
+            </Link>
+          ) : (
+            <span className="mt-1 inline-block rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-400">
               {item.fonte}
             </span>
-            <button
-              onClick={(e) => { e.preventDefault(); setShowWhy(!showWhy); }}
-              className="flex items-center gap-0.5 text-[10px] text-indigo-500 hover:text-indigo-700"
-            >
-              <Info size={10} /> Por que estou vendo isto?
-            </button>
-          </div>
-          {showWhy && (
-            <p className="mt-1 rounded bg-indigo-50 px-2 py-1 text-[10px] text-indigo-600">
-              {item.porqueEstouVendo}
-            </p>
           )}
         </div>
       </div>

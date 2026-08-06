@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Check, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Check, X, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -42,6 +42,12 @@ type Alerta = {
   itemGravidade: string | null;
   itemUrl: string | null;
   textoIA: string | null;
+  fontes: { nome: string; url: string }[];
+  cienteEm: string | null;
+  cientePor: string | null;
+  providenciaEm: string | null;
+  providenciaPor: string | null;
+  providenciaNota: string | null;
 };
 
 export function AlertaCard({
@@ -57,8 +63,11 @@ export function AlertaCard({
   const supabase = createClient();
 
   const [marcandoLido, setMarcandoLido] = useState(false);
+  const [marcandoCiente, setMarcandoCiente] = useState(false);
   const [encaminhando, setEncaminhando] = useState(false);
+  const [providenciando, setProvidenciando] = useState(false);
   const [nota, setNota] = useState("");
+  const [notaProvidencia, setNotaProvidencia] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -66,6 +75,36 @@ export function AlertaCard({
     setMarcandoLido(true);
     await supabase.from("alertas").update({ lido_em: new Date().toISOString() }).eq("id", alerta.id);
     setMarcandoLido(false);
+    router.refresh();
+  }
+
+  async function marcarCiente() {
+    setMarcandoCiente(true);
+    await supabase
+      .from("alertas")
+      .update({ ciente_em: new Date().toISOString(), ciente_por: currentUserId })
+      .eq("id", alerta.id);
+    setMarcandoCiente(false);
+    router.refresh();
+  }
+
+  async function confirmarProvidencia() {
+    setErro(null);
+    setCarregando(true);
+    const { error } = await supabase
+      .from("alertas")
+      .update({
+        providencia_em: new Date().toISOString(),
+        providencia_por: currentUserId,
+        providencia_nota: notaProvidencia.trim() || null,
+      })
+      .eq("id", alerta.id);
+    setCarregando(false);
+    if (error) {
+      setErro(error.message);
+      return;
+    }
+    setProvidenciando(false);
     router.refresh();
   }
 
@@ -96,9 +135,16 @@ export function AlertaCard({
     <li className="space-y-2 rounded border border-red-200 bg-red-50 p-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {isAlertaIA ? (
-          <span className="rounded-full bg-indigo-600 px-2 py-0.5 font-medium text-white">
-            Alerta da IA
-          </span>
+          <>
+            <span className="rounded-full bg-indigo-600 px-2 py-0.5 font-medium text-white">
+              Alerta da IA
+            </span>
+            {alerta.itemCategoria && CATEGORIA_LABEL[alerta.itemCategoria] && (
+              <span className="rounded-full bg-red-600 px-2 py-0.5 font-medium text-white">
+                {CATEGORIA_LABEL[alerta.itemCategoria]}
+              </span>
+            )}
+          </>
         ) : (
           <span className="rounded-full bg-red-600 px-2 py-0.5 font-medium text-white">
             {CATEGORIA_LABEL[alerta.itemCategoria] ?? alerta.itemCategoria}
@@ -121,15 +167,33 @@ export function AlertaCard({
 
       <p className="text-sm">{isAlertaIA ? alerta.textoIA : alerta.itemDescricao}</p>
 
-      {alerta.itemUrl && (
-        <a
-          href={alerta.itemUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-neutral-900 underline underline-offset-2"
-        >
-          Abrir link
-        </a>
+      {(alerta.fontes.length > 0 || alerta.itemUrl) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium text-neutral-400">Fontes:</span>
+          {alerta.fontes.map((f, i) => (
+            <a
+              key={i}
+              href={f.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[12px] font-medium text-indigo-600 hover:text-indigo-800"
+            >
+              <ExternalLink size={11} />
+              {f.nome}
+            </a>
+          ))}
+          {alerta.itemUrl && alerta.fontes.length === 0 && (
+            <a
+              href={alerta.itemUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-[12px] font-medium text-indigo-600 hover:text-indigo-800"
+            >
+              <ExternalLink size={11} />
+              Ver matéria
+            </a>
+          )}
+        </div>
       )}
 
       {alerta.statusEnvio === "pendente_configuracao" && (
@@ -157,6 +221,25 @@ export function AlertaCard({
           </button>
         )}
 
+        {!alerta.cienteEm && (
+          <button
+            onClick={marcarCiente}
+            disabled={marcandoCiente}
+            className="rounded border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {marcandoCiente ? "Registrando…" : "Estou ciente"}
+          </button>
+        )}
+
+        {alerta.cienteEm && !alerta.providenciaEm && !providenciando && (
+          <button
+            onClick={() => setProvidenciando(true)}
+            className="rounded border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-100"
+          >
+            Providências tomadas
+          </button>
+        )}
+
         {podeEncaminhar && !jaEncaminhado && !encaminhando && (
           <button
             onClick={() => setEncaminhando(true)}
@@ -166,6 +249,39 @@ export function AlertaCard({
           </button>
         )}
       </div>
+
+      {alerta.cienteEm && !alerta.providenciaEm && providenciando && (
+        <div className="space-y-2 rounded bg-white p-3">
+          <label className="block text-xs font-medium text-neutral-500">
+            Descreva as providências tomadas
+          </label>
+          <textarea
+            rows={2}
+            value={notaProvidencia}
+            onChange={(e) => setNotaProvidencia(e.target.value)}
+            placeholder="Ex.: Notificação extrajudicial enviada, boletim de ocorrência registrado..."
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+          />
+          {erro && <p className="text-sm text-red-600">{erro}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={confirmarProvidencia}
+              disabled={carregando}
+              className="flex items-center gap-1.5 rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <Check size={14} strokeWidth={2} aria-hidden="true" />
+              {carregando ? "Salvando…" : "Confirmar"}
+            </button>
+            <button
+              onClick={() => setProvidenciando(false)}
+              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
+            >
+              <X size={14} strokeWidth={2} aria-hidden="true" />
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       {podeEncaminhar && !jaEncaminhado && encaminhando && (
         <div className="space-y-2 rounded bg-white p-3">
@@ -208,6 +324,27 @@ export function AlertaCard({
             {alerta.encaminhadoPorNome ? ` por ${alerta.encaminhadoPorNome}` : ""}.
             {alerta.encaminhadoNota && (
               <span className="block text-emerald-800">Nota: {alerta.encaminhadoNota}</span>
+            )}
+          </span>
+        </div>
+      )}
+
+      {alerta.cienteEm && (
+        <div className="flex items-center gap-1.5 text-xs text-amber-700">
+          <Check size={12} strokeWidth={2} aria-hidden="true" />
+          Ciência registrada em{" "}
+          {new Date(alerta.cienteEm).toLocaleString("pt-BR", { timeZone: "UTC" })}
+        </div>
+      )}
+
+      {alerta.providenciaEm && (
+        <div className="flex items-start gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <CheckCircle2 size={14} strokeWidth={2} aria-hidden="true" className="mt-0.5 shrink-0" />
+          <span>
+            Providências tomadas em{" "}
+            {new Date(alerta.providenciaEm).toLocaleString("pt-BR", { timeZone: "UTC" })}
+            {alerta.providenciaNota && (
+              <span className="block text-emerald-800">{alerta.providenciaNota}</span>
             )}
           </span>
         </div>

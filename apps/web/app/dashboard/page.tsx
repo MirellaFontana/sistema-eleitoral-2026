@@ -8,6 +8,8 @@ import {
   Bell,
   ClipboardList,
   CalendarClock,
+  ExternalLink,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -118,6 +120,7 @@ export default async function DashboardPage() {
     briefingHojeRes,
     eventosHoje,
     podeIaRes,
+    meusAlertasRes,
   ] = await Promise.all([
     contar(supabase.from("cidadaos").select("*", { count: "exact", head: true })),
     contar(
@@ -165,6 +168,13 @@ export default async function DashboardPage() {
     PAPEIS_BRIEFING_DIRETO.has(eu.papel)
       ? Promise.resolve({ data: true })
       : supabase.rpc("has_permission", { p: "usar_ia" }),
+    supabase
+      .from("alertas")
+      .select("id, texto_ia, created_at, lido_em, encaminhado_nota, monitoramento_itens(url, descricao, categoria)")
+      .eq("destinatario_papel", eu.papel)
+      .is("lido_em", null)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   const cidadaosDet = cidadaosDetRes.data ?? [];
@@ -172,6 +182,17 @@ export default async function DashboardPage() {
   const proximoPrazo = proximoPrazoRes.data;
   const briefingHoje = briefingHojeRes.data;
   const podeGerarBriefing = podeIaRes.data === true;
+  const meusAlertas = (meusAlertasRes.data ?? []).map((a: Record<string, unknown>) => {
+    const item = Array.isArray(a.monitoramento_itens) ? a.monitoramento_itens[0] : a.monitoramento_itens;
+    return {
+      id: a.id as string,
+      texto_ia: a.texto_ia as string | null,
+      created_at: a.created_at as string,
+      encaminhado_nota: a.encaminhado_nota as string | null,
+      item_url: (item as { url?: string } | null)?.url ?? null,
+      item_descricao: (item as { descricao?: string } | null)?.descricao ?? null,
+    };
+  });
 
   // ── Crescimento semanal (8 semanas, seg a dom) ─────────────────────────────
   const semanas = Array.from({ length: 8 }, (_, i) => new Date(semanaInicial.getTime() + i * SEMANA_MS));
@@ -245,6 +266,45 @@ export default async function DashboardPage() {
         </p>
 
         <SalaDecisao />
+
+        {meusAlertas.length > 0 && (
+          <section id="alertas" className="mb-6 rounded-xl border border-red-200 bg-red-50/50 p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <AlertTriangle size={16} className="text-red-500" />
+              <h2 className="text-sm font-semibold text-red-900">
+                Alertas para você ({meusAlertas.length})
+              </h2>
+            </div>
+            <div className="divide-y divide-red-100">
+              {meusAlertas.map((a) => (
+                <div key={a.id} className="py-2 first:pt-0 last:pb-0">
+                  <p className="text-sm leading-relaxed text-neutral-800">
+                    {a.texto_ia ?? a.item_descricao ?? "Alerta sem descrição"}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                    <span className="text-[10px] text-neutral-400">
+                      {new Date(a.created_at).toLocaleDateString("pt-BR")}
+                    </span>
+                    {a.encaminhado_nota && (
+                      <span className="text-[10px] text-neutral-400">{a.encaminhado_nota}</span>
+                    )}
+                    {a.item_url && (
+                      <a
+                        href={a.item_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800"
+                      >
+                        <ExternalLink size={10} />
+                        Ver matéria
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <BriefingDiario
           briefingInicial={briefingHoje ?? null}

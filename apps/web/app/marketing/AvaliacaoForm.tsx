@@ -20,6 +20,8 @@ const FORMATOS_LABEL: Record<string, string> = {
   thread: "Thread (X/Twitter)",
   roteiro_video: "Roteiro de vídeo",
   live: "Live / Transmissão",
+  roteiro_radio: "Roteiro para rádio",
+  roteiro_tv: "Roteiro para TV",
   outro: "Outro",
 };
 

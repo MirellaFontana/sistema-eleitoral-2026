@@ -30,7 +30,7 @@ export default async function CampanhaPage() {
   const { data: eu } = await supabase
     .from("usuarios_internos")
     .select(
-      "papel, campanha_id, campanhas(id, nome_candidato, cargo, uf, partido, numero_candidato, nome_urna, cnpj_campanha, coligacao)"
+      "papel, campanha_id, campanhas(id, nome_candidato, cargo, uf, partido, numero_candidato, nome_urna, cnpj_campanha, coligacao, voz_candidato)"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -91,6 +91,7 @@ export default async function CampanhaPage() {
               nomeUrna: campanha.nome_urna ?? null,
               cnpjCampanha: campanha.cnpj_campanha ?? null,
               coligacao: campanha.coligacao ?? null,
+              vozCandidato: campanha.voz_candidato ?? null,
             }}
           />
         ) : (

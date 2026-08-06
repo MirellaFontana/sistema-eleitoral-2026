@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { VerCapturaButton } from "../monitoramento/VerCapturaButton";
+import { BaixarEvidenciaButton } from "./BaixarEvidenciaButton";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -59,6 +60,7 @@ export default async function DossieJuridicoPage() {
     .not("hash_evidencia", "is", null)
     .order("created_at", { ascending: false });
 
+
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
@@ -99,7 +101,7 @@ export default async function DossieJuridicoPage() {
                 <p className="break-all font-mono text-xs text-neutral-400">
                   SHA-256: {item.hash_evidencia}
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   {item.url && (
                     <a
                       href={item.url}
@@ -107,10 +109,13 @@ export default async function DossieJuridicoPage() {
                       rel="noopener noreferrer"
                       className="text-sm text-neutral-900 underline underline-offset-2"
                     >
-                      Abrir link
+                      Abrir link original
                     </a>
                   )}
                   {item.captura_path && <VerCapturaButton path={item.captura_path} />}
+                  {item.captura_path && item.hash_evidencia && (
+                    <BaixarEvidenciaButton path={item.captura_path} hash={item.hash_evidencia} />
+                  )}
                 </div>
               </li>
             ))}

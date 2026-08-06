@@ -37,6 +37,8 @@ const FORMATO_LABEL: Record<string, string> = {
   stories: "Stories",
   thread: "Thread",
   live: "Live",
+  roteiro_radio: "Rádio",
+  roteiro_tv: "TV",
   outro: "Outro",
 };
 

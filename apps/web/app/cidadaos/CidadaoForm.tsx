@@ -30,6 +30,8 @@ export function CidadaoForm({
   const [territorioId, setTerritorioId] = useState("");
   const [circulo, setCirculo] = useState("frio");
   const [textoConsentimento, setTextoConsentimento] = useState(TEXTO_CONSENTIMENTO_PADRAO);
+  const [aceitaLgpd, setAceitaLgpd] = useState(false);
+  const [aceitaComunicacao, setAceitaComunicacao] = useState(false);
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [gpsStatus, setGpsStatus] = useState<string | null>(null);
@@ -66,6 +68,12 @@ export function CidadaoForm({
     setSucesso(null);
     setCarregando(true);
 
+    if (!aceitaLgpd) {
+      setErro("O consentimento para tratamento de dados é obrigatório.");
+      setCarregando(false);
+      return;
+    }
+
     const row: Record<string, unknown> = {
       campanha_id: campanhaId,
       nome: nome.trim(),
@@ -76,6 +84,7 @@ export function CidadaoForm({
       territorio_id: territorioId || null,
       origem_cadastro: liderancaId ? "formulario_lideranca" : "iniciativa_propria",
       lideranca_id: liderancaId || null,
+      aceita_comunicacao: aceitaComunicacao,
     };
     if (lat != null && lng != null) {
       row.geom = `POINT(${lng} ${lat})`;
@@ -120,6 +129,8 @@ export function CidadaoForm({
     setEmail("");
     setCidade("");
     setCirculo("frio");
+    setAceitaLgpd(false);
+    setAceitaComunicacao(false);
     setLat(null);
     setLng(null);
     setGpsStatus(null);
@@ -253,17 +264,32 @@ export function CidadaoForm({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <label className="block text-xs font-medium text-neutral-500">
-          Texto de consentimento (como no formulário assinado)
+      <div className="space-y-3 rounded border border-neutral-200 bg-neutral-50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Consentimento</p>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={aceitaLgpd}
+            onChange={(e) => setAceitaLgpd(e.target.checked)}
+            className="mt-0.5 rounded border-neutral-300"
+          />
+          <span className="text-neutral-700">
+            <strong className="text-red-600">*</strong> Autorizo o tratamento dos meus dados pessoais pela campanha para fins de comunicação eleitoral, conforme a Lei Geral de Proteção de Dados (LGPD). Estou ciente de que posso revogar este consentimento a qualquer momento.
+          </span>
         </label>
-        <textarea
-          required
-          rows={2}
-          value={textoConsentimento}
-          onChange={(e) => setTextoConsentimento(e.target.value)}
-          className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-        />
+
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={aceitaComunicacao}
+            onChange={(e) => setAceitaComunicacao(e.target.checked)}
+            className="mt-0.5 rounded border-neutral-300"
+          />
+          <span className="text-neutral-600">
+            Aceito receber notícias, informações e materiais da campanha por WhatsApp, e-mail ou outros canais de comunicação.
+          </span>
+        </label>
       </div>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}

@@ -99,23 +99,49 @@ export async function POST(request: Request) {
     );
   }
 
-  const alertasIA = analise.alertas as string[] | undefined;
+  type AlertaIA = { texto: string; categoria?: string; recomendacao?: string } | string;
+  const alertasIA = analise.alertas as AlertaIA[] | undefined;
   if (alertasIA && alertasIA.length > 0) {
-    const registros = alertasIA.flatMap((texto) => [
+    const parsed = alertasIA.map((a) =>
+      typeof a === "string"
+        ? { texto: a, categoria: null, recomendacao: null }
+        : { texto: a.texto, categoria: a.categoria ?? null, recomendacao: a.recomendacao ?? null }
+    );
+
+    const registros = parsed.flatMap((a) => [
       {
         campanha_id: eu.campanha_id,
         destinatario_papel: "advogado_responsavel" as const,
-        texto_ia: texto,
+        texto_ia: a.texto,
         canal: "app" as const,
       },
       {
         campanha_id: eu.campanha_id,
         destinatario_papel: "coord_campanha" as const,
-        texto_ia: texto,
+        texto_ia: a.texto,
         canal: "app" as const,
       },
     ]);
     await supabase.from("alertas").insert(registros);
+
+    const CATEGORIAS_AMEACA = new Set(["ameaca_juridica", "deepfake_suspeito", "gestao_crise"]);
+    const recsParaInserir = parsed
+      .filter((a) => a.recomendacao && a.categoria && CATEGORIAS_AMEACA.has(a.categoria))
+      .map((a) => ({
+        campanha_id: eu.campanha_id,
+        titulo: a.texto.length > 120 ? a.texto.slice(0, 117) + "…" : a.texto,
+        descricao: a.recomendacao!,
+        tipo: "risco",
+        urgencia: "critica" as const,
+        fatos_utilizados: "Detectado pelo monitoramento de menções (análise manual)",
+        fontes: "Monitoramento de menções",
+        confianca: "media" as const,
+        gerada_por_ia: true,
+        provedor_ia: ia.provedor,
+      }));
+    if (recsParaInserir.length > 0) {
+      await supabase.from("recomendacoes").insert(recsParaInserir);
+    }
   }
 
   return NextResponse.json({ analise, provedor: ia.provedor });

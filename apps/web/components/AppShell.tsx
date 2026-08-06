@@ -32,6 +32,7 @@ import {
   Radio,
   Rocket,
   Shield,
+  ShieldAlert,
   ScrollText,
   Lightbulb,
   FileSearch,
@@ -41,6 +42,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SignOutButton } from "./SignOutButton";
+import { NotificacaoBell } from "./NotificacaoBell";
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 type NavGroup = { label: string; items: NavItem[] };
@@ -49,7 +51,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Estratégia",
     items: [
-      { href: "/diretrizes", label: "Diretrizes da Campanha", icon: ScrollText },
       { href: "/decisoes", label: "Decisões", icon: Gavel },
       { href: "/recomendacoes", label: "Recomendações", icon: Lightbulb },
     ],
@@ -89,6 +90,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/mensagens", label: "Mensagens", icon: MessageCircle },
       { href: "/modelos-mensagem", label: "Modelos de mensagem", icon: BookMarked },
       { href: "/avisos", label: "Avisos internos", icon: Radio },
+      { href: "/respostas", label: "Respostas", icon: Reply },
     ],
   },
   {
@@ -102,7 +104,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Inteligência",
     items: [
+      { href: "/diretrizes", label: "Diretrizes da Campanha", icon: ScrollText },
       { href: "/monitoramento", label: "Monitoramento", icon: Eye },
+      { href: "/denuncias/nova", label: "Registrar denúncia", icon: ShieldAlert },
       { href: "/alertas", label: "Alertas", icon: Bell },
       { href: "/fontes", label: "Saúde das fontes", icon: Activity },
       { href: "/concorrentes", label: "Concorrentes", icon: Target },
@@ -115,7 +119,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Marketing",
     items: [
-      { href: "/respostas", label: "Respostas", icon: Reply },
       { href: "/marketing", label: "Marketing", icon: Megaphone },
       { href: "/marketing/impulsionamento", label: "Impulsionamento (Ads)", icon: Rocket },
       { href: "/pecas-conteudo", label: "Peças de conteúdo", icon: FileText },
@@ -338,6 +341,7 @@ export function AppShell({
             )}
           </div>
           <BuscaGlobalForm />
+          <NotificacaoBell />
           <SignOutButton />
         </header>
 

@@ -19,6 +19,23 @@ const PAPEL_LABEL: Record<string, string> = {
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
+const CATEGORIA_LABEL: Record<string, string> = {
+  temas_sensiveis: "Temas Sensíveis",
+  saude: "Saúde",
+  infraestrutura: "Infraestrutura",
+  educacao: "Educação",
+  seguranca: "Segurança",
+  economia: "Economia e Emprego",
+  meio_ambiente: "Meio Ambiente",
+  cultura: "Cultura e Esporte",
+  assistencia_social: "Assistência Social",
+  transporte: "Transporte e Mobilidade",
+  corrupcao: "Corrupção e Ética",
+  juventude: "Juventude",
+  agro: "Agronegócio",
+  geral: "Geral",
+};
+
 const CANAL_LABEL: Record<string, string> = {
   site: "Site",
   whatsapp: "WhatsApp",
@@ -54,9 +71,9 @@ export default async function RespostasPage() {
 
   const { data: respostas } = await supabase
     .from("respostas_redes_sociais")
-    .select("id, pergunta, canal_origem, resposta_sugerida, created_at")
+    .select("id, pergunta, categoria, canal_origem, resposta_sugerida, created_at")
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -78,26 +95,46 @@ export default async function RespostasPage() {
           </section>
         )}
 
-        <section className="space-y-3">
+        <section className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
             Histórico de respostas
           </h2>
           {(respostas ?? []).length === 0 && (
             <p className="text-sm text-neutral-400">Nenhuma resposta gerada ainda.</p>
           )}
-          <ul className="space-y-2">
-            {(respostas ?? []).map((r) => (
-              <li key={r.id} className="rounded border border-neutral-200 p-3 space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium">
-                    {CANAL_LABEL[r.canal_origem] ?? r.canal_origem}
+          {(() => {
+            const lista = respostas ?? [];
+            const porCategoria = new Map<string, typeof lista>();
+            for (const r of lista) {
+              const cat = (r as Record<string, unknown>).categoria as string ?? "geral";
+              if (!porCategoria.has(cat)) porCategoria.set(cat, []);
+              porCategoria.get(cat)!.push(r);
+            }
+            const catLabel = CATEGORIA_LABEL;
+            return Array.from(porCategoria.entries()).map(([cat, itens]) => (
+              <div key={cat} className="space-y-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                  {catLabel[cat] ?? cat}
+                  <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500">
+                    {itens.length}
                   </span>
-                </div>
-                <p className="text-sm font-medium">{r.pergunta}</p>
-                <p className="whitespace-pre-wrap text-sm text-neutral-600">{r.resposta_sugerida}</p>
-              </li>
-            ))}
-          </ul>
+                </h3>
+                <ul className="space-y-2">
+                  {itens.map((r) => (
+                    <li key={r.id} className="rounded border border-neutral-200 p-3 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-medium">
+                          {CANAL_LABEL[r.canal_origem] ?? r.canal_origem}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium">{r.pergunta}</p>
+                      <p className="whitespace-pre-wrap text-sm text-neutral-600">{r.resposta_sugerida}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ));
+          })()}
         </section>
       </main>
     </AppShell>

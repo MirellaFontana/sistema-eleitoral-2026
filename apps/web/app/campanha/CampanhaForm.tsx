@@ -15,6 +15,7 @@ type DadosCampanha = {
   nomeUrna: string | null;
   cnpjCampanha: string | null;
   coligacao: string | null;
+  vozCandidato: string | null;
 };
 
 const CARGOS = ["deputado estadual", "deputado federal", "senador", "governador"];
@@ -35,6 +36,7 @@ export function CampanhaForm({ dados }: { dados: DadosCampanha }) {
   const [nomeUrna, setNomeUrna] = useState(dados.nomeUrna ?? "");
   const [cnpjCampanha, setCnpjCampanha] = useState(dados.cnpjCampanha ?? "");
   const [coligacao, setColigacao] = useState(dados.coligacao ?? "");
+  const [vozCandidato, setVozCandidato] = useState(dados.vozCandidato ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -56,6 +58,7 @@ export function CampanhaForm({ dados }: { dados: DadosCampanha }) {
         nome_urna: nomeUrna.trim() || null,
         cnpj_campanha: cnpjCampanha.trim() || null,
         coligacao: coligacao.trim() || null,
+        voz_candidato: vozCandidato.trim() || null,
       })
       .eq("id", dados.campanhaId);
 
@@ -156,6 +159,24 @@ export function CampanhaForm({ dados }: { dados: DadosCampanha }) {
             onChange={(e) => setColigacao(e.target.value)}
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
+        </div>
+
+        <div className="space-y-1 sm:col-span-2">
+          <label className="block text-xs font-medium text-neutral-500">
+            Voz do candidato{" "}
+            <span className="font-normal text-neutral-400">(opcional — melhora a humanização dos textos)</span>
+          </label>
+          <textarea
+            rows={6}
+            placeholder={"Cole aqui trechos de falas reais do candidato: entrevistas, debates, lives, conversas.\nA IA vai usar como referência de estilo — expressões, ritmo, jeito de falar.\nQuantos mais exemplos, melhor o resultado."}
+            value={vozCandidato}
+            onChange={(e) => setVozCandidato(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+          />
+          <p className="text-xs text-neutral-400">
+            Transcreva falas reais — entrevistas, debates, lives. A IA usa como referência
+            para escrever no estilo do candidato, tornando os textos mais naturais e menos detectáveis como IA.
+          </p>
         </div>
       </div>
 

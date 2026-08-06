@@ -13,8 +13,9 @@ const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { pergunta, canal_origem, contexto_adicional } = body as {
+  const { pergunta, categoria, canal_origem, contexto_adicional } = body as {
     pergunta: string;
+    categoria?: string;
     canal_origem: string;
     contexto_adicional?: string;
   };
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
 
   const { data: eu } = await supabase
     .from("usuarios_internos")
-    .select("papel, campanha_id")
+    .select("papel, campanha_id, campanhas(voz_candidato)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -64,6 +65,9 @@ export async function POST(request: Request) {
   const conhecimento = montarContextoConhecimento(temasCtx).slice(0, 12000);
   const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
 
+  const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
+  const vozCandidato = (campanha as { voz_candidato?: string | null } | null)?.voz_candidato ?? null;
+
   let respostaSugerida: string;
   try {
     respostaSugerida = await ia.gerar({
@@ -73,6 +77,7 @@ export async function POST(request: Request) {
           role: "user",
           content: [
             diretrizes || null,
+            vozCandidato ? `VOZ DO CANDIDATO (use como referência de estilo — copie expressões, ritmo, jeito de falar):\n${vozCandidato.slice(0, 4000)}` : null,
             `Canal: ${canal_origem}\n\nPergunta recebida:\n${pergunta}`,
             `Conhecimento da campanha disponível:\n${conhecimento || "(nenhum item de base de conhecimento cadastrado ainda)"}`,
             contexto_adicional?.trim() ? `Contexto adicional fornecido:\n${contexto_adicional}` : null,
@@ -91,6 +96,7 @@ export async function POST(request: Request) {
     .insert({
       campanha_id: eu.campanha_id,
       pergunta: sanitizarTexto(pergunta, 2000),
+      categoria: sanitizarTexto(categoria ?? "geral", 100),
       canal_origem: sanitizarTexto(canal_origem, 100),
       contexto_adicional: sanitizarTextoOpcional(contexto_adicional, 2000),
       modelo_ia: ia.provedor,

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Play, Settings } from "lucide-react";
+import { Bookmark, Check, Clock, ExternalLink, Play, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type GrupoAnalise = {
   id: number;
@@ -19,7 +20,7 @@ type AnaliseIA = {
   total_mencoes: number;
   sentimento_geral: string;
   grupos: GrupoAnalise[];
-  alertas: string[];
+  alertas: (string | { texto: string; categoria?: string })[];
 };
 
 type Snapshot = {
@@ -49,20 +50,42 @@ const OPCOES_INTERVALO = [
 
 export function UltimoSnapshot({
   snapshot,
+  linksFlat = [],
+  campanhaId,
   intervaloAtual,
   podeConfigurar,
 }: {
   snapshot: Snapshot | null;
+  linksFlat?: string[];
+  campanhaId: string;
   intervaloAtual: number | null;
   podeConfigurar: boolean;
 }) {
   const router = useRouter();
+  const supabase = createClient();
   const [aberto, setAberto] = useState(false);
   const [configAberta, setConfigAberta] = useState(false);
   const [executando, setExecutando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [intervalo, setIntervalo] = useState<number | null>(intervaloAtual);
   const [erro, setErro] = useState<string | null>(null);
+  const [salvos, setSalvos] = useState<Set<string>>(new Set());
+
+  async function salvarMencao(m: { indice: number; fonte: string; titulo_original: string }, categoriaSugerida: string) {
+    const key = `${m.indice}`;
+    if (salvos.has(key)) return;
+    const url = linksFlat[m.indice] || null;
+    const { error } = await supabase.from("monitoramento_itens").insert({
+      campanha_id: campanhaId,
+      categoria: categoriaSugerida || "outro",
+      url,
+      descricao: `${m.titulo_original} — Fonte: ${m.fonte}`,
+    });
+    if (!error) {
+      setSalvos(new Set([...salvos, key]));
+      router.refresh();
+    }
+  }
 
   async function executarAgora() {
     setExecutando(true);
@@ -208,7 +231,7 @@ export function UltimoSnapshot({
               <p className="text-xs font-semibold text-red-700 mb-1">Alertas</p>
               {analise.alertas.map((a, i) => (
                 <p key={i} className="text-sm text-red-800">
-                  • {a}
+                  • {typeof a === "string" ? a : a.texto}
                 </p>
               ))}
             </div>
@@ -249,6 +272,45 @@ export function UltimoSnapshot({
                       </span>
                     </div>
                     <p className="text-xs text-neutral-500">{g.resumo}</p>
+                    {g.mencoes.length > 0 && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
+                        {g.mencoes.map((m, i) => {
+                          const url = linksFlat[m.indice];
+                          const jaSalvo = salvos.has(`${m.indice}`);
+                          return (
+                            <span key={i} className="inline-flex items-center gap-1">
+                              {url ? (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800"
+                                  title={m.titulo_original}
+                                >
+                                  <ExternalLink size={10} />
+                                  {m.fonte}
+                                </a>
+                              ) : (
+                                <span className="flex items-center gap-1 text-[11px] text-neutral-500" title={m.titulo_original}>
+                                  <ExternalLink size={10} className="text-indigo-400" />
+                                  {m.fonte}
+                                </span>
+                              )}
+                              {podeConfigurar && (
+                                <button
+                                  onClick={() => salvarMencao(m, g.categoria_sugerida)}
+                                  disabled={jaSalvo}
+                                  title={jaSalvo ? "Salvo" : "Salvar como item de monitoramento"}
+                                  className={`rounded p-0.5 transition-colors ${jaSalvo ? "text-emerald-500" : "text-neutral-300 hover:text-indigo-600"}`}
+                                >
+                                  {jaSalvo ? <Check size={11} /> : <Bookmark size={11} />}
+                                </button>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}

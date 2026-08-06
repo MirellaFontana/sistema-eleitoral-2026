@@ -12,6 +12,8 @@ const FORMATOS = [
   { value: "thread",        label: "Thread",            desc: "Série de tweets no X/Twitter",       icon: "🧵" },
   { value: "roteiro_video", label: "Roteiro de vídeo",  desc: "Produção de 1 a 5 minutos",          icon: "🎥" },
   { value: "live",          label: "Live / Transmissão", desc: "Roteiro de ao vivo estruturado",    icon: "📡" },
+  { value: "roteiro_radio", label: "Roteiro para rádio", desc: "Spot, jingle ou inserção eleitoral", icon: "📻" },
+  { value: "roteiro_tv",    label: "Roteiro para TV",    desc: "Inserção ou programa eleitoral",     icon: "📺" },
   { value: "outro",         label: "Outro",             desc: "Formato livre — descreva no foco",   icon: "💡" },
 ];
 
@@ -19,7 +21,9 @@ export function SugestaoForm() {
   const router = useRouter();
 
   const [formato, setFormato] = useState(FORMATOS[0].value);
+  const [duracao, setDuracao] = useState("");
   const [foco, setFoco] = useState("");
+  const pedeTempo = formato === "roteiro_radio" || formato === "roteiro_tv";
   const [resultado, setResultado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -34,7 +38,7 @@ export function SugestaoForm() {
       const res = await fetch("/api/marketing/sugestao", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formato, foco: foco.trim() || undefined }),
+        body: JSON.stringify({ formato, foco: foco.trim() || undefined, duracao: duracao.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -73,6 +77,26 @@ export function SugestaoForm() {
           ))}
         </div>
       </div>
+
+      {pedeTempo && (
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-neutral-500">
+            Tempo disponível <span className="font-normal text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            placeholder="ex: 30 segundos, 1 minuto, 2 minutos"
+            value={duracao}
+            onChange={(e) => setDuracao(e.target.value)}
+            maxLength={50}
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+          />
+          <p className="text-xs text-neutral-400">
+            Informe a duração da inserção — o roteiro será ajustado ao tempo.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-1">
         <label className="block text-xs font-medium text-neutral-500">

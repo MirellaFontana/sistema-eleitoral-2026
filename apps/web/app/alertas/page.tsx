@@ -42,9 +42,10 @@ export default async function AlertasPage() {
   const { data: alertas } = await supabase
     .from("alertas")
     .select(
-      "id, destinatario_papel, canal, status_envio, lido_em, encaminhado_por, encaminhado_em, encaminhado_nota, texto_ia, created_at, monitoramento_itens(descricao, categoria, gravidade, url, captura_path), usuarios_internos!encaminhado_por(nome)"
+      "id, destinatario_papel, canal, status_envio, lido_em, encaminhado_por, encaminhado_em, encaminhado_nota, texto_ia, categoria, ciente_em, ciente_por, providencia_em, providencia_por, providencia_nota, created_at, monitoramento_itens(descricao, categoria, gravidade, url, captura_path), usuarios_internos!encaminhado_por(nome), monitoramento_snapshots(analise_ia, resultados_brutos)"
     )
     .order("created_at", { ascending: false });
+
 
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
@@ -65,6 +66,31 @@ export default async function AlertasPage() {
           {(alertas ?? []).map((a) => {
             const item = Array.isArray(a.monitoramento_itens) ? a.monitoramento_itens[0] : a.monitoramento_itens;
             const encaminhador = Array.isArray(a.usuarios_internos) ? a.usuarios_internos[0] : a.usuarios_internos;
+            const snap = Array.isArray(a.monitoramento_snapshots) ? a.monitoramento_snapshots[0] : a.monitoramento_snapshots;
+
+            const fontes: { nome: string; url: string }[] = [];
+            if (snap?.analise_ia && snap?.resultados_brutos && a.texto_ia) {
+              const brutos = snap.resultados_brutos as { noticias?: { link: string; fonte: string }[]; redes?: { resultados?: { link: string; fonte: string }[] } }[];
+              const flatLinks: { link: string; fonte: string }[] = [];
+              for (const g of brutos) {
+                for (const n of g.noticias ?? []) flatLinks.push(n);
+                for (const r of g.redes?.resultados ?? []) flatLinks.push(r);
+              }
+              const analise = snap.analise_ia as { grupos?: { titulo_grupo: string; mencoes: { fonte: string; titulo_original: string }[] }[] };
+              const textoLower = a.texto_ia.toLowerCase();
+              for (const grupo of analise.grupos ?? []) {
+                const palavras = grupo.titulo_grupo.toLowerCase().split(/\s+/).filter((p: string) => p.length > 4);
+                if (palavras.some((p: string) => textoLower.includes(p))) {
+                  for (const m of grupo.mencoes) {
+                    const entry = flatLinks.find((f) => f.fonte === m.fonte);
+                    if (entry && !fontes.some((f) => f.url === entry.link)) {
+                      fontes.push({ nome: m.fonte, url: entry.link });
+                    }
+                  }
+                }
+              }
+            }
+
             return (
               <AlertaCard
                 key={a.id}
@@ -80,10 +106,16 @@ export default async function AlertasPage() {
                   encaminhadoNota: a.encaminhado_nota,
                   createdAt: a.created_at,
                   itemDescricao: item?.descricao ?? "",
-                  itemCategoria: item?.categoria ?? "",
+                  itemCategoria: a.categoria ?? item?.categoria ?? "",
                   itemGravidade: item?.gravidade ?? null,
                   itemUrl: item?.url ?? null,
                   textoIA: a.texto_ia ?? null,
+                  fontes,
+                  cienteEm: a.ciente_em ?? null,
+                  cientePor: a.ciente_por ?? null,
+                  providenciaEm: a.providencia_em ?? null,
+                  providenciaPor: a.providencia_por ?? null,
+                  providenciaNota: a.providencia_nota ?? null,
                 }}
                 podeEncaminhar={podeEncaminhar}
                 currentUserId={user.id}

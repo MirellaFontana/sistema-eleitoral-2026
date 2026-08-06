@@ -13,7 +13,7 @@ const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { formato, foco } = body as { formato: string; foco?: string };
+  const { formato, foco, duracao } = body as { formato: string; foco?: string; duracao?: string };
 
   if (!formato) {
     return NextResponse.json({ error: "formato é obrigatório" }, { status: 400 });
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const { data: eu } = await supabase
     .from("usuarios_internos")
     .select(
-      "papel, campanha_id, campanhas(nome_candidato, cargo, uf, partido, numero_candidato, nome_urna, cnpj_campanha, coligacao)"
+      "papel, campanha_id, campanhas(nome_candidato, cargo, uf, partido, numero_candidato, nome_urna, cnpj_campanha, coligacao, voz_candidato)"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -75,11 +75,15 @@ export async function POST(request: Request) {
   const conhecimento = montarContextoConhecimento(temasCtx);
   const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
 
+  const vozCandidato = campanha?.voz_candidato as string | null;
+
   const mensagemUsuario = [
     `IDENTIDADE DA CAMPANHA:\n${identidade}`,
+    vozCandidato ? `VOZ DO CANDIDATO (use como referência de estilo — copie expressões, ritmo, jeito de falar):\n${vozCandidato.slice(0, 4000)}` : null,
     diretrizes || null,
     conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA (público-alvo e regiões por tema):\n${conhecimento}` : "",
     `FORMATO PEDIDO: ${formato}`,
+    duracao?.trim() ? `DURAÇÃO / TEMPO DISPONÍVEL: ${duracao.trim()}` : "",
     foco?.trim() ? `FOCO / TEMA ESPECÍFICO: ${foco.trim()}` : "",
   ]
     .filter(Boolean)
