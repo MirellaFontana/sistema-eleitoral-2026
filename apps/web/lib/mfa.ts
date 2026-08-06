@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const PAPEIS_COM_MFA_OBRIGATORIO = new Set(["coord_campanha", "candidato"]);
+const PAPEIS_COM_MFA_OBRIGATORIO = new Set<string>([]);
 
 export function papelExigeMfa(papel: string) {
   return PAPEIS_COM_MFA_OBRIGATORIO.has(papel);
