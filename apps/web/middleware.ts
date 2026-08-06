@@ -1,3 +1,11 @@
+// Edge Runtime polyfill — transitive deps reference __dirname which doesn't exist in Edge
+if (typeof globalThis.__dirname === "undefined") {
+  (globalThis as Record<string, unknown>).__dirname = "";
+}
+if (typeof globalThis.__filename === "undefined") {
+  (globalThis as Record<string, unknown>).__filename = "";
+}
+
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
