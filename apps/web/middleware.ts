@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+export const runtime = "nodejs";
+
 // Mantém a sessão do Supabase Auth viva entre requests (refresh de token).
 // Não decide autorização aqui — quem decide o que cada papel vê é a RLS no banco.
 export async function middleware(request: NextRequest) {
