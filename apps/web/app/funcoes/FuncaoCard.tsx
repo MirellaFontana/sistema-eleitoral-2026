@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, ChevronUp, Shield, Trash2, Users, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { FuncaoView } from "./page";
+import type { FuncaoView } from "./funcoes-shared";
 
 type PermissaoGrupo = {
   grupo: string;
