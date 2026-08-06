@@ -310,7 +310,8 @@ export function DiretrizesEditor({
   const diretrizVazia = !diretriz || (!diretriz.identidade && !diretriz.valores && diretriz.mensagens_mae.length === 0);
   const statusInfo = STATUS_BADGE[diretriz?.status ?? "rascunho"] ?? STATUS_BADGE.rascunho;
   const temasComPosicao = new Set(posicoes.filter((p) => p.tema_id).map((p) => p.tema_id));
-  const temasSemPosicao = temas.filter((t) => !temasComPosicao.has(t.id));
+  const TEMAS_REFERENCIA = new Set(["Código Eleitoral"]);
+  const temasSemPosicao = temas.filter((t) => !temasComPosicao.has(t.id) && !TEMAS_REFERENCIA.has(t.nome));
 
   return (
     <div className="space-y-8">
