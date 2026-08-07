@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { sanitizarTexto } from "@/lib/sanitizar";
 import {
   SISTEMA_ADAPTADOR_MENSAGEM,
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "não autenticado" }, { status: 401 });
   }
+  const limited = checkRateLimit(user.id);
+  if (limited) return limited;
 
   const { data: eu } = await supabase
     .from("usuarios_internos")

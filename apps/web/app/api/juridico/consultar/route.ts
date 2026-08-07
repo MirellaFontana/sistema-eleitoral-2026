@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { criarClienteIA } from "@/lib/ia-client";
 import { SISTEMA_CONSULTA_JURIDICA } from "@/lib/anthropic";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "não autenticado" }, { status: 401 });
+  const limited = checkRateLimit(user.id);
+  if (limited) return limited;
 
   const { data: eu } = await supabase
     .from("usuarios_internos")
