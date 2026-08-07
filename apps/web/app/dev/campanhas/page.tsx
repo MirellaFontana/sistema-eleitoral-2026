@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isDev } from "@/lib/dev";
 import { DevCampanhasList } from "./DevCampanhasList";
+import { NovaCampanhaForm } from "./NovaCampanhaForm";
 
 export default async function DevCampanhasPage() {
   const supabase = await createClient();
@@ -33,9 +34,12 @@ export default async function DevCampanhasPage() {
         </p>
         <h1 className="text-lg font-semibold">Campanhas</h1>
         <p className="text-sm text-neutral-500">
-          Selecione uma campanha para acessar como dev.
+          Crie campanhas e selecione uma para acessar. Após entrar, convide o
+          coordenador em Administração → Usuários.
         </p>
       </div>
+
+      <NovaCampanhaForm />
 
       <DevCampanhasList
         campanhas={campanhas ?? []}

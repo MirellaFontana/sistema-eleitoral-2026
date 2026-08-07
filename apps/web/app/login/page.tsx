@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -75,11 +74,8 @@ export default function LoginPage() {
           {carregando ? "Entrando…" : "Entrar"}
         </button>
 
-        <p className="text-sm text-neutral-500">
-          Primeira vez?{" "}
-          <Link href="/signup" className="underline">
-            Criar a campanha
-          </Link>
+        <p className="text-xs text-neutral-400">
+          Acesso somente por convite do coordenador da campanha.
         </p>
       </form>
     </main>
