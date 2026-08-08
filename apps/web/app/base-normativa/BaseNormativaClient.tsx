@@ -47,6 +47,7 @@ type Fonte = {
   hash_conteudo: string | null;
   status: string;
   observacoes: string | null;
+  alteracoes_resumo: string | null;
   dispositivos_normativos: Dispositivo[];
 };
 
@@ -316,6 +317,51 @@ function FonteCard({
           )}
           {fonte.observacoes && (
             <p className="mt-2 text-xs text-neutral-500">{fonte.observacoes}</p>
+          )}
+
+          {fonte.status === "desatualizada" && fonte.alteracoes_resumo && (
+            <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-orange-700">
+                <AlertTriangle size={12} />
+                Alterações detectadas
+              </div>
+              <div className="whitespace-pre-wrap text-xs leading-relaxed text-orange-900">
+                {fonte.alteracoes_resumo}
+              </div>
+              {podeEditar && (
+                <button
+                  onClick={async () => {
+                    await fetch("/api/base-normativa", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: fonte.id, status: "validada" }),
+                    });
+                    onRecarregar();
+                  }}
+                  className="mt-3 flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                >
+                  <CheckCircle2 size={12} /> Revisado — marcar como validada
+                </button>
+              )}
+            </div>
+          )}
+
+          {fonte.status === "desatualizada" && !fonte.alteracoes_resumo && podeEditar && (
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={async () => {
+                  await fetch("/api/base-normativa", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: fonte.id, status: "validada" }),
+                  });
+                  onRecarregar();
+                }}
+                className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+              >
+                <CheckCircle2 size={12} /> Marcar como validada
+              </button>
+            </div>
           )}
 
           {podeEditar && fonte.status === "pendente" && (

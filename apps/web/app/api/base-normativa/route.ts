@@ -74,6 +74,7 @@ export async function PUT(request: Request) {
     campos.status = "validada";
     campos.validado_por = user.id;
     campos.validado_em = new Date().toISOString();
+    campos.alteracoes_resumo = null;
   } else if (body.status) {
     campos.status = body.status;
   }
