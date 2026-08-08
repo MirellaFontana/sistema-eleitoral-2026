@@ -157,14 +157,22 @@ export function DemandaForm({
       }
     }
 
+    const cidadesFinais = [...cidades];
+    const pendCidade = cidadeInput.trim();
+    if (pendCidade && !cidadesFinais.includes(pendCidade)) cidadesFinais.push(pendCidade);
+
+    const palavrasFinais = [...palavrasChave];
+    const pendPalavra = palavraInput.trim().toLowerCase();
+    if (pendPalavra && !palavrasFinais.includes(pendPalavra)) palavrasFinais.push(pendPalavra);
+
     const { error } = await supabase.from("demandas_observadas").insert({
       campanha_id: campanhaId,
       regiao: regiao.trim() || null,
-      cidades: cidades.length > 0 ? cidades : [],
+      cidades: cidadesFinais.length > 0 ? cidadesFinais : [],
       tema: temaSelecionado?.nome ?? null,
       demanda,
       prazo: prazo || null,
-      palavras_chave: palavrasChave,
+      palavras_chave: palavrasFinais,
       anexos,
     });
 
@@ -232,6 +240,7 @@ export function DemandaForm({
               }}
               onFocus={() => setMostrarSugestoes(true)}
               onBlur={() => {
+                adicionarCidade();
                 setTimeout(() => setMostrarSugestoes(false), 150);
               }}
               onKeyDown={(e) => {

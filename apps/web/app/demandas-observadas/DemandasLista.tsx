@@ -155,7 +155,14 @@ function CidadesAutocomplete({
           value={input}
           onChange={(e) => { setInput(e.target.value); setAberto(true); }}
           onFocus={() => setAberto(true)}
-          onBlur={() => setTimeout(() => setAberto(false), 150)}
+          onBlur={() => {
+            const limpo = input.trim();
+            if (limpo && !cidades.includes(limpo)) {
+              onChange([...cidades, limpo]);
+              setInput("");
+            }
+            setTimeout(() => setAberto(false), 150);
+          }}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionar(); } }}
           className="w-full rounded border border-neutral-300 px-2 py-1 text-xs"
         />
@@ -229,6 +236,11 @@ function DemandaCard({
     setSalvando(true);
     setErro(null);
     const temaSelecionado = temas.find((t) => t.id === temaSelected);
+
+    const palavrasFinais = [...palavrasChave];
+    const pendPalavra = palavraInput.trim().toLowerCase();
+    if (pendPalavra && !palavrasFinais.includes(pendPalavra)) palavrasFinais.push(pendPalavra);
+
     const { error } = await supabase
       .from("demandas_observadas")
       .update({
@@ -238,7 +250,7 @@ function DemandaCard({
         demanda: demanda.trim(),
         prazo: prazo || null,
         devolutiva: devolutiva.trim() || null,
-        palavras_chave: palavrasChave,
+        palavras_chave: palavrasFinais,
       })
       .eq("id", d.id);
     setSalvando(false);
