@@ -3,8 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { ConcorrenteForm } from "./ConcorrenteForm";
-import { AnunciosConcorrente } from "./AnunciosConcorrente";
-import { SinaisConcorrente } from "./SinaisConcorrente";
+import { ConcorrentesList } from "./ConcorrentesList";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -72,40 +71,7 @@ export default async function ConcorrentesPage() {
             Registrados
           </h2>
 
-          {(concorrentes ?? []).length === 0 && (
-            <p className="text-sm text-neutral-400">Nenhum concorrente registrado ainda.</p>
-          )}
-
-          <ul className="space-y-2">
-            {(concorrentes ?? []).map((c) => (
-              <li key={c.id} className="rounded border border-neutral-200 p-3 space-y-1">
-                <p className="text-sm font-medium">
-                  {c.nome}
-                  {c.partido && <span className="text-neutral-500"> · {c.partido}</span>}
-                </p>
-                {c.pontos_fortes && (
-                  <p className="text-sm text-neutral-600">
-                    <span className="font-medium text-neutral-500">Pontos fortes: </span>
-                    {c.pontos_fortes}
-                  </p>
-                )}
-                {c.pontos_fracos && (
-                  <p className="text-sm text-neutral-600">
-                    <span className="font-medium text-neutral-500">Pontos fracos: </span>
-                    {c.pontos_fracos}
-                  </p>
-                )}
-                {c.promessas && (
-                  <p className="text-sm text-neutral-600">
-                    <span className="font-medium text-neutral-500">Promessas: </span>
-                    {c.promessas}
-                  </p>
-                )}
-                <SinaisConcorrente concorrenteId={c.id} podeRegistrar={podeEditar} />
-                <AnunciosConcorrente nome={c.nome} />
-              </li>
-            ))}
-          </ul>
+          <ConcorrentesList concorrentes={concorrentes ?? []} podeEditar={podeEditar} />
         </section>
       </main>
     </AppShell>
