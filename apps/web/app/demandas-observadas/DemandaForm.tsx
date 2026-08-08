@@ -37,6 +37,8 @@ export function DemandaForm({
   const [temas, setTemas] = useState(temasIniciais);
   const [demanda, setDemanda] = useState("");
   const [prazo, setPrazo] = useState("");
+  const [palavrasChave, setPalavrasChave] = useState<string[]>([]);
+  const [palavraInput, setPalavraInput] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -162,6 +164,7 @@ export function DemandaForm({
       tema: temaSelecionado?.nome ?? null,
       demanda,
       prazo: prazo || null,
+      palavras_chave: palavrasChave,
       anexos,
     });
 
@@ -179,6 +182,8 @@ export function DemandaForm({
     setTemaId("");
     setDemanda("");
     setPrazo("");
+    setPalavrasChave([]);
+    setPalavraInput("");
     setArquivos([]);
     router.refresh();
   }
@@ -339,6 +344,45 @@ export function DemandaForm({
           value={prazo}
           onChange={(e) => setPrazo(e.target.value)}
           className="w-48 rounded border border-neutral-300 px-2 py-1.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">Palavras-chave (opcional)</label>
+        {palavrasChave.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-1">
+            {palavrasChave.map((p, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+              >
+                {p}
+                <button
+                  type="button"
+                  onClick={() => setPalavrasChave(palavrasChave.filter((_, j) => j !== i))}
+                  className="text-amber-400 hover:text-amber-700"
+                >
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <input
+          placeholder="Digite e pressione Enter para adicionar"
+          value={palavraInput}
+          onChange={(e) => setPalavraInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              const limpo = palavraInput.trim().toLowerCase();
+              if (limpo && !palavrasChave.includes(limpo)) {
+                setPalavrasChave([...palavrasChave, limpo]);
+              }
+              setPalavraInput("");
+            }
+          }}
+          className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
         />
       </div>
 

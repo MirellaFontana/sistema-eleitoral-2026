@@ -20,6 +20,7 @@ type Demanda = {
   prazo: string | null;
   devolutiva: string | null;
   anexos: string[] | null;
+  palavras_chave: string[] | null;
   created_at: string;
 };
 
@@ -203,6 +204,8 @@ function DemandaCard({
   const [demanda, setDemanda] = useState(d.demanda);
   const [prazo, setPrazo] = useState(d.prazo ?? "");
   const [devolutiva, setDevolutiva] = useState(d.devolutiva ?? "");
+  const [palavrasChave, setPalavrasChave] = useState<string[]>(d.palavras_chave ?? []);
+  const [palavraInput, setPalavraInput] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
@@ -215,6 +218,8 @@ function DemandaCard({
     setDemanda(d.demanda);
     setPrazo(d.prazo ?? "");
     setDevolutiva(d.devolutiva ?? "");
+    setPalavrasChave(d.palavras_chave ?? []);
+    setPalavraInput("");
     setErro(null);
     setConfirmandoExclusao(false);
   }
@@ -233,6 +238,7 @@ function DemandaCard({
         demanda: demanda.trim(),
         prazo: prazo || null,
         devolutiva: devolutiva.trim() || null,
+        palavras_chave: palavrasChave,
       })
       .eq("id", d.id);
     setSalvando(false);
@@ -289,6 +295,10 @@ function DemandaCard({
           {(d.cidades ?? []).length > 0 && (
             <span>{(d.cidades as string[]).join(", ")}</span>
           )}
+          {(d.palavras_chave ?? []).length > 0 &&
+            (d.palavras_chave as string[]).map((p) => (
+              <span key={p} className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">{p}</span>
+            ))}
           {responsavelNome && (
             <span className="text-indigo-600">→ {responsavelNome}</span>
           )}
@@ -411,6 +421,45 @@ function DemandaCard({
         </div>
       </div>
 
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">Palavras-chave</label>
+        {palavrasChave.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {palavrasChave.map((p, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+              >
+                {p}
+                <button
+                  type="button"
+                  onClick={() => setPalavrasChave(palavrasChave.filter((_, j) => j !== i))}
+                  className="text-amber-400 hover:text-amber-700"
+                >
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <input
+          placeholder="Digite e pressione Enter"
+          value={palavraInput}
+          onChange={(e) => setPalavraInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              const limpo = palavraInput.trim().toLowerCase();
+              if (limpo && !palavrasChave.includes(limpo)) {
+                setPalavrasChave([...palavrasChave, limpo]);
+              }
+              setPalavraInput("");
+            }
+          }}
+          className="w-full rounded border border-neutral-300 px-2 py-1 text-xs bg-white"
+        />
+      </div>
+
       {erro && <p className="text-xs text-red-600">{erro}</p>}
 
       <div className="flex items-center gap-2">
@@ -480,13 +529,19 @@ export function DemandasLista({
   const router = useRouter();
   const [filtro, setFiltro] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroPalavra, setFiltroPalavra] = useState("");
 
   const filtroLower = filtro.trim().toLowerCase();
+  const filtroPalavraLower = filtroPalavra.trim().toLowerCase();
   const demandasFiltradas = demandas.filter((d) => {
     if (filtroStatus && d.status !== filtroStatus) return false;
     if (filtroLower) {
       const cidadesArr = d.cidades ?? [];
       if (!cidadesArr.some((c) => c.toLowerCase().includes(filtroLower))) return false;
+    }
+    if (filtroPalavraLower) {
+      const pcs = d.palavras_chave ?? [];
+      if (!pcs.some((p) => p.toLowerCase().includes(filtroPalavraLower))) return false;
     }
     return true;
   });
@@ -531,19 +586,37 @@ export function DemandasLista({
           </button>
         )}
         </div>
+        <div className="relative flex-1">
+          <input
+            placeholder="Filtrar por palavra-chave..."
+            value={filtroPalavra}
+            onChange={(e) => setFiltroPalavra(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
+          />
+          {filtroPalavraLower && (
+            <button
+              type="button"
+              onClick={() => setFiltroPalavra("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-sm"
+            >
+              limpar
+            </button>
+          )}
+        </div>
       </div>
 
-      {(filtroLower || filtroStatus) && (
+      {(filtroLower || filtroStatus || filtroPalavraLower) && (
         <p className="text-xs text-neutral-400">
           {demandasFiltradas.length} demanda(s)
           {filtroLower ? ` em cidades com "${filtro.trim()}"` : ""}
+          {filtroPalavraLower ? ` com palavra-chave "${filtroPalavra.trim()}"` : ""}
           {filtroStatus ? ` com status "${STATUS_LABEL[filtroStatus] ?? filtroStatus}"` : ""}
         </p>
       )}
 
       {demandasFiltradas.length === 0 && (
         <p className="text-sm text-neutral-400">
-          {filtroLower || filtroStatus
+          {filtroLower || filtroStatus || filtroPalavraLower
             ? "Nenhuma demanda encontrada com esses filtros."
             : "Nenhuma demanda registrada ainda."}
         </p>
