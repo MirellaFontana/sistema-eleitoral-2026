@@ -36,6 +36,7 @@ import {
   ScrollText,
   Lightbulb,
   FileSearch,
+  UsersRound,
   Menu,
   X,
   ChevronRight,
@@ -53,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/decisoes", label: "Decisões", icon: Gavel },
       { href: "/recomendacoes", label: "Recomendações", icon: Lightbulb },
+      { href: "/propostas-publicos", label: "Propostas x Públicos", icon: UsersRound },
     ],
   },
   {
