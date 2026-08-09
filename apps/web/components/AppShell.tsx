@@ -37,6 +37,7 @@ import {
   Lightbulb,
   FileSearch,
   UsersRound,
+  Sunrise,
   Menu,
   X,
   ChevronRight,
@@ -81,6 +82,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/tarefas", label: "Tarefas", icon: ListChecks },
       { href: "/agenda", label: "Agenda", icon: CalendarDays },
+      { href: "/briefing", label: "Briefing diário", icon: Sunrise },
       { href: "/campo", label: "Escuta de campo", icon: Radio },
       { href: "/demandas-observadas", label: "Demandas", icon: ClipboardList },
       { href: "/geolocalizacao", label: "Mapa", icon: MapPin },
