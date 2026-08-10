@@ -13,6 +13,8 @@ export function ConcorrenteForm({ campanhaId }: { campanhaId: string }) {
   const [pontosFortes, setPontosFortes] = useState("");
   const [pontosFracos, setPontosFracos] = useState("");
   const [promessas, setPromessas] = useState("");
+  const [dossieMandato, setDossieMandato] = useState("");
+  const [argumentos, setArgumentos] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -30,6 +32,8 @@ export function ConcorrenteForm({ campanhaId }: { campanhaId: string }) {
       pontos_fortes: pontosFortes.trim() || null,
       pontos_fracos: pontosFracos.trim() || null,
       promessas: promessas.trim() || null,
+      dossie_mandato: dossieMandato.trim() || null,
+      argumentos: argumentos.trim() || null,
     });
 
     setCarregando(false);
@@ -45,6 +49,8 @@ export function ConcorrenteForm({ campanhaId }: { campanhaId: string }) {
     setPontosFortes("");
     setPontosFracos("");
     setPromessas("");
+    setDossieMandato("");
+    setArgumentos("");
     router.refresh();
   }
 
@@ -96,6 +102,28 @@ export function ConcorrenteForm({ campanhaId }: { campanhaId: string }) {
           rows={2}
           value={promessas}
           onChange={(e) => setPromessas(e.target.value)}
+          className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">Dossiê do Mandato</label>
+        <textarea
+          rows={3}
+          value={dossieMandato}
+          onChange={(e) => setDossieMandato(e.target.value)}
+          placeholder="Histórico de mandatos, votações relevantes, projetos aprovados/rejeitados…"
+          className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="block text-xs font-medium text-neutral-500">Argumentos</label>
+        <textarea
+          rows={3}
+          value={argumentos}
+          onChange={(e) => setArgumentos(e.target.value)}
+          placeholder="Contra-argumentos e pontos de ataque para debates e comparações…"
           className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
         />
       </div>

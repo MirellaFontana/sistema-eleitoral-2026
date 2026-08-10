@@ -9,6 +9,8 @@ const LABEL: Record<string, string> = {
   pontos_fortes: "pontos fortes",
   pontos_fracos: "pontos fracos",
   promessas: "promessas de campanha",
+  dossie_mandato: "dossiê do mandato",
+  argumentos: "argumentos contra o concorrente",
 };
 
 export async function POST(request: Request) {

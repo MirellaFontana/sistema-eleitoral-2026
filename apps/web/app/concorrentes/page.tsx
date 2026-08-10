@@ -44,7 +44,7 @@ export default async function ConcorrentesPage() {
 
   const { data: concorrentes } = await supabase
     .from("concorrentes")
-    .select("id, nome, partido, pontos_fortes, pontos_fracos, promessas, created_at")
+    .select("id, nome, partido, pontos_fortes, pontos_fracos, promessas, dossie_mandato, argumentos, created_at")
     .order("created_at", { ascending: false });
 
   return (
@@ -53,7 +53,7 @@ export default async function ConcorrentesPage() {
         <div>
           <h1 className="text-lg font-semibold">Concorrentes</h1>
           <p className="text-sm text-neutral-500">
-            Análise de oposição — nome, partido, pontos fortes/fracos e promessas de campanha.
+            Análise de oposição — pontos fortes/fracos, promessas, dossiê do mandato e argumentos.
           </p>
         </div>
 

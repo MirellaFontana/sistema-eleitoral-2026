@@ -14,6 +14,8 @@ type Concorrente = {
   pontos_fortes: string | null;
   pontos_fracos: string | null;
   promessas: string | null;
+  dossie_mandato: string | null;
+  argumentos: string | null;
   created_at: string;
 };
 
@@ -158,6 +160,8 @@ function CardConcorrente({
     pontos_fortes: c.pontos_fortes ?? "",
     pontos_fracos: c.pontos_fracos ?? "",
     promessas: c.promessas ?? "",
+    dossie_mandato: c.dossie_mandato ?? "",
+    argumentos: c.argumentos ?? "",
   });
 
   async function salvar() {
@@ -170,6 +174,8 @@ function CardConcorrente({
         pontos_fortes: campos.pontos_fortes.trim() || null,
         pontos_fracos: campos.pontos_fracos.trim() || null,
         promessas: campos.promessas.trim() || null,
+        dossie_mandato: campos.dossie_mandato.trim() || null,
+        argumentos: campos.argumentos.trim() || null,
       })
       .eq("id", c.id);
     setSalvando(false);
@@ -177,7 +183,7 @@ function CardConcorrente({
     onAtualizar();
   }
 
-  async function resumirCampo(campo: "pontos_fortes" | "pontos_fracos" | "promessas") {
+  async function resumirCampo(campo: "pontos_fortes" | "pontos_fracos" | "promessas" | "dossie_mandato" | "argumentos") {
     const texto = campos[campo];
     if (!texto.trim()) return;
     setResumindo(campo);
@@ -224,10 +230,16 @@ function CardConcorrente({
           </div>
         </div>
 
-        {(["pontos_fortes", "pontos_fracos", "promessas"] as const).map((campo) => (
+        {(["pontos_fortes", "pontos_fracos", "promessas", "dossie_mandato", "argumentos"] as const).map((campo) => (
           <div key={campo} className="relative">
             <CampoEditavel
-              label={campo === "pontos_fortes" ? "Pontos fortes" : campo === "pontos_fracos" ? "Pontos fracos" : "Promessas"}
+              label={
+                campo === "pontos_fortes" ? "Pontos fortes"
+                : campo === "pontos_fracos" ? "Pontos fracos"
+                : campo === "promessas" ? "Promessas"
+                : campo === "dossie_mandato" ? "Dossiê do Mandato"
+                : "Argumentos"
+              }
               value={campos[campo]}
               onChange={(v) => setCampos({ ...campos, [campo]: v })}
             />
@@ -261,6 +273,8 @@ function CardConcorrente({
                 pontos_fortes: c.pontos_fortes ?? "",
                 pontos_fracos: c.pontos_fracos ?? "",
                 promessas: c.promessas ?? "",
+                dossie_mandato: c.dossie_mandato ?? "",
+                argumentos: c.argumentos ?? "",
               });
               setEditando(false);
             }}
@@ -302,6 +316,8 @@ function CardConcorrente({
       {c.pontos_fortes && <TextoFormatado texto={c.pontos_fortes} label="Pontos fortes" />}
       {c.pontos_fracos && <TextoFormatado texto={c.pontos_fracos} label="Pontos fracos" />}
       {c.promessas && <TextoFormatado texto={c.promessas} label="Promessas" />}
+      {c.dossie_mandato && <TextoFormatado texto={c.dossie_mandato} label="Dossiê do Mandato" />}
+      {c.argumentos && <TextoFormatado texto={c.argumentos} label="Argumentos" />}
       <SinaisConcorrente concorrenteId={c.id} podeRegistrar={podeEditar} />
       <AnunciosConcorrente nome={c.nome} />
     </li>
