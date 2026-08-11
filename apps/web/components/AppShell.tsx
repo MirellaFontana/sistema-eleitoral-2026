@@ -50,6 +50,9 @@ import { NotificacaoBell } from "./NotificacaoBell";
 type NavItem = { href: string; label: string; icon: LucideIcon };
 type NavGroup = { label: string; items: NavItem[] };
 
+const PAPEIS_SO_JURIDICO = new Set(["Advogado responsável", "Assistente jurídico"]);
+const GRUPOS_JURIDICO = new Set(["Jurídico"]);
+
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Estratégia",
@@ -209,9 +212,16 @@ export function AppShell({
   const pathname = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
   const [devMode, setDevMode] = useState(false);
+  const [advMode, setAdvMode] = useState(false);
+
+  const soJuridico = PAPEIS_SO_JURIDICO.has(papel ?? "") || advMode;
+  const gruposVisiveis = soJuridico
+    ? NAV_GROUPS.filter((g) => GRUPOS_JURIDICO.has(g.label))
+    : NAV_GROUPS;
+
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(() => {
     const set = new Set<string>();
-    for (const g of NAV_GROUPS) {
+    for (const g of gruposVisiveis) {
       if (g.items.some((i) => i.href === pathname)) set.add(g.label);
     }
     return set;
@@ -230,6 +240,9 @@ export function AppShell({
     const supabase = createClient();
     supabase.rpc("is_dev_plataforma").then(({ data }) => {
       if (data === true) setDevMode(true);
+    });
+    supabase.rpc("is_advogado_externo").then(({ data }) => {
+      if (data === true) setAdvMode(true);
     });
   }, []);
 
@@ -272,7 +285,7 @@ export function AppShell({
             onNavigate={() => setMenuAberto(false)}
           />
 
-          {NAV_GROUPS.map((group) => {
+          {gruposVisiveis.map((group) => {
             const aberto = gruposAbertos.has(group.label);
             return (
               <div key={group.label}>
@@ -343,6 +356,14 @@ export function AppShell({
                 className="hidden items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 hover:bg-amber-200 sm:inline-flex"
               >
                 Dev
+              </Link>
+            )}
+            {advMode && (
+              <Link
+                href="/adv/clientes"
+                className="hidden items-center gap-1 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-700 hover:bg-teal-200 sm:inline-flex"
+              >
+                Clientes
               </Link>
             )}
           </div>

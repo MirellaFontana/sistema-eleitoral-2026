@@ -5,6 +5,11 @@ export async function isDev(supabase: SupabaseClient): Promise<boolean> {
   return data === true;
 }
 
+export async function isAdvExterno(supabase: SupabaseClient): Promise<boolean> {
+  const { data } = await supabase.rpc("is_advogado_externo");
+  return data === true;
+}
+
 export async function listarCampanhas(supabase: SupabaseClient) {
   const { data } = await supabase
     .from("campanhas")
