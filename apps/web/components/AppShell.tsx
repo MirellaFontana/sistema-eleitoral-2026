@@ -214,7 +214,7 @@ export function AppShell({
   const [devMode, setDevMode] = useState(false);
   const [advMode, setAdvMode] = useState(false);
 
-  const soJuridico = PAPEIS_SO_JURIDICO.has(papel ?? "") || advMode;
+  const soJuridico = !devMode && (PAPEIS_SO_JURIDICO.has(papel ?? "") || advMode);
   const gruposVisiveis = soJuridico
     ? NAV_GROUPS.filter((g) => GRUPOS_JURIDICO.has(g.label))
     : NAV_GROUPS;
