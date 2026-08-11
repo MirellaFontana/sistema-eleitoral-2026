@@ -19,6 +19,7 @@ export function AdvogadosExternos({ advogados }: { advogados: Advogado[] }) {
   const [aberto, setAberto] = useState(false);
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
+  const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -27,19 +28,27 @@ export function AdvogadosExternos({ advogados }: { advogados: Advogado[] }) {
     setErro(null);
     setCarregando(true);
 
-    const { error } = await supabase.from("advogados_externos").insert({
-      email: email.trim().toLowerCase(),
-      nome: nome.trim(),
+    const res = await fetch("/api/dev/advogados-externos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        nome: nome.trim(),
+        senha,
+      }),
     });
 
+    const data = await res.json();
     setCarregando(false);
-    if (error) {
-      setErro(error.message);
+
+    if (!res.ok) {
+      setErro(data.error ?? "Erro ao cadastrar");
       return;
     }
 
     setEmail("");
     setNome("");
+    setSenha("");
     setAberto(false);
     router.refresh();
   }
@@ -74,17 +83,18 @@ export function AdvogadosExternos({ advogados }: { advogados: Advogado[] }) {
         </button>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3 rounded border border-teal-200 bg-teal-50/30 p-4">
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-500">Nome</label>
+            <input
+              required
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Dr. João Silva"
+              className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+            />
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-neutral-500">Nome</label>
-              <input
-                required
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Dr. João Silva"
-                className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-              />
-            </div>
             <div className="space-y-1">
               <label className="block text-xs font-medium text-neutral-500">Email</label>
               <input
@@ -93,6 +103,18 @@ export function AdvogadosExternos({ advogados }: { advogados: Advogado[] }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="advogado@email.com"
+                className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-neutral-500">Senha</label>
+              <input
+                required
+                type="password"
+                minLength={6}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
                 className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
               />
             </div>
