@@ -37,6 +37,7 @@ import {
   Lightbulb,
   FileSearch,
   UsersRound,
+  Briefcase,
   Sunrise,
   Menu,
   X,
@@ -100,6 +101,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Jurídico",
     items: [
+      { href: "/juridico/processos", label: "Processos", icon: Briefcase },
       { href: "/juridico/consulta", label: "Tira-dúvidas", icon: Search },
       { href: "/dossie-juridico", label: "Dossiê jurídico", icon: Gavel },
       { href: "/calendario-eleitoral", label: "Calendário eleitoral", icon: CalendarClock },
