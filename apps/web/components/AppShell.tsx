@@ -52,6 +52,7 @@ type NavGroup = { label: string; items: NavItem[] };
 
 const PAPEIS_SO_JURIDICO = new Set(["Advogado responsável", "Assistente jurídico"]);
 const GRUPOS_JURIDICO = new Set(["Jurídico"]);
+const HREFS_EXTRA_JURIDICO = new Set(["/monitoramento"]);
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -216,7 +217,11 @@ export function AppShell({
 
   const soJuridico = !devMode && (PAPEIS_SO_JURIDICO.has(papel ?? "") || advMode);
   const gruposVisiveis = soJuridico
-    ? NAV_GROUPS.filter((g) => GRUPOS_JURIDICO.has(g.label))
+    ? (NAV_GROUPS.map((g) => {
+        if (GRUPOS_JURIDICO.has(g.label)) return g;
+        const items = g.items.filter((i) => HREFS_EXTRA_JURIDICO.has(i.href));
+        return items.length ? { ...g, items } : null;
+      }).filter(Boolean) as NavGroup[])
     : NAV_GROUPS;
 
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(() => {
