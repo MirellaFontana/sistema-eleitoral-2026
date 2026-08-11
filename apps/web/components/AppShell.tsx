@@ -277,13 +277,15 @@ export function AppShell({
         </div>
 
         <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 pb-4">
-          <NavLink
-            href="/dashboard"
-            label="Sala de Decisão"
-            icon={LayoutDashboard}
-            active={pathname === "/dashboard"}
-            onNavigate={() => setMenuAberto(false)}
-          />
+          {!soJuridico && (
+            <NavLink
+              href="/dashboard"
+              label="Sala de Decisão"
+              icon={LayoutDashboard}
+              active={pathname === "/dashboard"}
+              onNavigate={() => setMenuAberto(false)}
+            />
+          )}
 
           {gruposVisiveis.map((group) => {
             const aberto = gruposAbertos.has(group.label);

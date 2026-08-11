@@ -17,12 +17,14 @@ export default async function Home() {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (usuarioInterno) redirect("/dashboard");
+  const [dev, adv] = await Promise.all([isDev(supabase), isAdvExterno(supabase)]);
 
-  const dev = await isDev(supabase);
+  if (usuarioInterno) {
+    if (!dev && adv) redirect("/juridico/processos");
+    redirect("/dashboard");
+  }
+
   if (dev) redirect("/dev/campanhas");
-
-  const adv = await isAdvExterno(supabase);
   if (adv) redirect("/adv/clientes");
 
   redirect("/onboarding");
