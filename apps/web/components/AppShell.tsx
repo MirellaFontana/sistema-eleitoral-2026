@@ -305,7 +305,7 @@ export function AppShell({
                       return next;
                     })
                   }
-                  className="flex w-full items-center justify-between px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-600 hover:text-slate-400"
+                  className="flex w-full items-center justify-between px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 hover:text-slate-300"
                 >
                   {group.label}
                   <ChevronRight
