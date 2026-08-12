@@ -108,13 +108,14 @@ export default async function MonitoramentoPage() {
   const fontes = fontesData ?? [];
   const snapRaw = snapshotsData?.[0] ?? null;
 
-  // Build flat link list matching the same order the IA prompt used [i] indices
+  // Build flat link/date lists matching the same order the IA prompt used [i] indices
   let linksFlat: string[] = [];
+  let datesFlat: (string | null)[] = [];
   if (snapRaw?.resultados_brutos) {
-    const brutos = snapRaw.resultados_brutos as { noticias?: { link: string }[]; redes?: { resultados?: { link: string }[] } }[];
+    const brutos = snapRaw.resultados_brutos as { noticias?: { link: string; publicadoEm?: string | null }[]; redes?: { resultados?: { link: string; publicadoEm?: string | null }[] } }[];
     for (const g of brutos) {
-      for (const n of g.noticias ?? []) linksFlat.push(n.link);
-      for (const r of g.redes?.resultados ?? []) linksFlat.push(r.link);
+      for (const n of g.noticias ?? []) { linksFlat.push(n.link); datesFlat.push(n.publicadoEm ?? null); }
+      for (const r of g.redes?.resultados ?? []) { linksFlat.push(r.link); datesFlat.push(r.publicadoEm ?? null); }
     }
   }
 
@@ -169,6 +170,7 @@ export default async function MonitoramentoPage() {
           <UltimoSnapshot
             snapshot={ultimoSnapshot}
             linksFlat={linksFlat}
+            datesFlat={datesFlat}
             campanhaId={eu.campanha_id}
             intervaloAtual={intervaloMonitoramento}
             podeConfigurar={podeRegistrar}

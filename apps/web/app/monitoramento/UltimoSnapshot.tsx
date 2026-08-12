@@ -32,6 +32,14 @@ type Snapshot = {
   created_at: string;
 };
 
+function formatDate(raw: string): string {
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  } catch { return ""; }
+}
+
 const SENTIMENTO_STYLE: Record<string, { bg: string; text: string }> = {
   positivo: { bg: "bg-emerald-50", text: "text-emerald-700" },
   negativo: { bg: "bg-red-50", text: "text-red-700" },
@@ -51,12 +59,14 @@ const OPCOES_INTERVALO = [
 export function UltimoSnapshot({
   snapshot,
   linksFlat = [],
+  datesFlat = [],
   campanhaId,
   intervaloAtual,
   podeConfigurar,
 }: {
   snapshot: Snapshot | null;
   linksFlat?: string[];
+  datesFlat?: (string | null)[];
   campanhaId: string;
   intervaloAtual: number | null;
   podeConfigurar: boolean;
@@ -276,6 +286,8 @@ export function UltimoSnapshot({
                       <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
                         {g.mencoes.map((m, i) => {
                           const url = linksFlat[m.indice];
+                          const rawDate = datesFlat[m.indice];
+                          const dateLabel = rawDate ? formatDate(rawDate) : null;
                           const jaSalvo = salvos.has(`${m.indice}`);
                           return (
                             <span key={i} className="inline-flex items-center gap-1">
@@ -289,11 +301,13 @@ export function UltimoSnapshot({
                                 >
                                   <ExternalLink size={10} />
                                   {m.fonte}
+                                  {dateLabel && <span className="font-normal text-neutral-400">· {dateLabel}</span>}
                                 </a>
                               ) : (
                                 <span className="flex items-center gap-1 text-[11px] text-neutral-500" title={m.titulo_original}>
                                   <ExternalLink size={10} className="text-indigo-400" />
                                   {m.fonte}
+                                  {dateLabel && <span className="text-neutral-400">· {dateLabel}</span>}
                                 </span>
                               )}
                               {podeConfigurar && (
