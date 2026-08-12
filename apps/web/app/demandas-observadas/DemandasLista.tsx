@@ -311,9 +311,6 @@ function DemandaCard({
             (d.palavras_chave as string[]).map((p) => (
               <span key={p} className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">{p}</span>
             ))}
-          {responsavelNome && (
-            <span className="text-indigo-600">→ {responsavelNome}</span>
-          )}
           {podeEditar && (
             <button
               type="button"
@@ -325,9 +322,6 @@ function DemandaCard({
           )}
         </div>
         <p className="text-sm">{d.demanda}</p>
-        {d.encaminhamento && (
-          <p className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">Encaminhamento: {d.encaminhamento}</p>
-        )}
         {d.resposta && (
           <p className="text-xs text-green-700 bg-green-50 rounded px-2 py-1">Resposta: {d.resposta}</p>
         )}
@@ -347,16 +341,6 @@ function DemandaCard({
           <div className="flex flex-wrap gap-1.5 pt-1">
             {d.status === "registrada" && (
               <button onClick={() => atualizarStatus("em_analise")} disabled={salvando} className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 hover:bg-blue-200">Analisar</button>
-            )}
-            {(d.status === "em_analise" || d.status === "registrada") && (
-              <select
-                onChange={(e) => { if (e.target.value) atribuirResponsavel(e.target.value); }}
-                defaultValue=""
-                className="rounded border border-neutral-200 px-1.5 py-0.5 text-[10px]"
-              >
-                <option value="">Encaminhar para…</option>
-                {membros.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-              </select>
             )}
             <button onClick={() => atualizarStatus("resolvida")} disabled={salvando} className="rounded bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 hover:bg-green-200">Resolver</button>
             <button onClick={() => atualizarStatus("descartada")} disabled={salvando} className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-200">Descartar</button>
