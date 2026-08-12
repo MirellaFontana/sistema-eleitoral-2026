@@ -133,6 +133,7 @@ export function DiretrizesEditor({
   const [vocabProibido, setVocabProibido] = useState<string[]>([]);
   const [sensiveis, setSensiveis] = useState<string[]>([]);
   const [limites, setLimites] = useState("");
+  const [feitosMandatos, setFeitosMandatos] = useState("");
   const [mensagensMae, setMensagensMae] = useState<MensagemMae[]>([]);
 
   // Nova posição
@@ -157,6 +158,7 @@ export function DiretrizesEditor({
         setVocabProibido(d.vocabulario_proibido ?? []);
         setSensiveis(d.assuntos_sensiveis ?? []);
         setLimites(d.limites ?? "");
+        setFeitosMandatos(d.feitos_mandatos_anteriores ?? "");
         setMensagensMae(d.mensagens_mae ?? []);
       }
       setPosicoes(data.posicoes ?? []);
@@ -188,6 +190,7 @@ export function DiretrizesEditor({
           vocabulario_proibido: vocabProibido,
           assuntos_sensiveis: sensiveis,
           limites,
+          feitos_mandatos_anteriores: feitosMandatos,
           mensagens_mae: mensagensMae,
         }),
       });
@@ -481,6 +484,21 @@ export function DiretrizesEditor({
             className="w-full rounded border border-neutral-200 px-3 py-2 text-sm disabled:bg-neutral-50"
           />
         </div>
+      </section>
+
+      {/* Feitos de mandatos anteriores */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Feitos de mandatos anteriores
+        </h2>
+        <textarea
+          value={feitosMandatos}
+          onChange={(e) => setFeitosMandatos(e.target.value)}
+          disabled={!podeEditar}
+          rows={5}
+          placeholder="Realizações e conquistas de mandatos anteriores do candidato: obras, projetos, leis aprovadas, emendas destinadas, programas implementados…"
+          className="w-full rounded border border-neutral-200 px-3 py-2 text-sm disabled:bg-neutral-50"
+        />
       </section>
 
       {/* Mensagens-mãe */}

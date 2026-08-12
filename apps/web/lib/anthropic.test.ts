@@ -9,7 +9,7 @@ describe("montarContextoDiretrizes", () => {
   it("includes header with status", () => {
     const d: DiretrizCompleta = {
       identidade: null, valores: null, vocabulario_preferido: [], vocabulario_proibido: [],
-      assuntos_sensiveis: [], limites: null, mensagens_mae: [], status: "aprovada", posicoes: [],
+      assuntos_sensiveis: [], limites: null, feitos_mandatos_anteriores: null, mensagens_mae: [], status: "aprovada", posicoes: [],
     };
     const r = montarContextoDiretrizes(d);
     expect(r).toContain("status: aprovada");
@@ -20,7 +20,7 @@ describe("montarContextoDiretrizes", () => {
     const d: DiretrizCompleta = {
       identidade: "Líder comunitário", valores: "Educação e saúde",
       vocabulario_preferido: [], vocabulario_proibido: [], assuntos_sensiveis: [],
-      limites: null, mensagens_mae: [], status: "rascunho", posicoes: [],
+      limites: null, feitos_mandatos_anteriores: null, mensagens_mae: [], status: "rascunho", posicoes: [],
     };
     const r = montarContextoDiretrizes(d);
     expect(r).toContain("Líder comunitário");
@@ -33,7 +33,7 @@ describe("montarContextoDiretrizes", () => {
       vocabulario_preferido: ["comunidade", "transparência"],
       vocabulario_proibido: ["inimigo"],
       assuntos_sensiveis: ["religião"],
-      limites: "Nunca atacar adversário", mensagens_mae: [], status: "aprovada", posicoes: [],
+      limites: "Nunca atacar adversário", feitos_mandatos_anteriores: null, mensagens_mae: [], status: "aprovada", posicoes: [],
     };
     const r = montarContextoDiretrizes(d);
     expect(r).toContain("comunidade, transparência");
@@ -46,7 +46,7 @@ describe("montarContextoDiretrizes", () => {
   it("includes mensagens-mãe", () => {
     const d: DiretrizCompleta = {
       identidade: null, valores: null, vocabulario_preferido: [], vocabulario_proibido: [],
-      assuntos_sensiveis: [], limites: null, status: "aprovada", posicoes: [],
+      assuntos_sensiveis: [], limites: null, feitos_mandatos_anteriores: null, status: "aprovada", posicoes: [],
       mensagens_mae: [{ tema: "Saúde", mensagem: "Saúde para todos", adaptacoes: "jovens: linguagem informal" }],
     };
     const r = montarContextoDiretrizes(d);
@@ -57,7 +57,7 @@ describe("montarContextoDiretrizes", () => {
   it("includes positions and warns about undefined topics", () => {
     const d: DiretrizCompleta = {
       identidade: null, valores: null, vocabulario_preferido: [], vocabulario_proibido: [],
-      assuntos_sensiveis: [], limites: null, mensagens_mae: [], status: "aprovada",
+      assuntos_sensiveis: [], limites: null, feitos_mandatos_anteriores: null, mensagens_mae: [], status: "aprovada",
       posicoes: [
         { tema_nome: "Transporte", tema_livre: null, posicao: "Mais ônibus", evidencias: "pesquisa X", status: "definida" },
         { tema_nome: null, tema_livre: "Aborto", posicao: "", evidencias: null, status: "sem_definicao" },

@@ -20,7 +20,7 @@ type Alerta = {
       mencoes: { fonte: string; titulo_original: string }[];
     }[];
   } | null;
-  snapshot_brutos: { noticias?: { link: string; fonte: string }[]; redes?: { resultados?: { link: string; fonte: string }[] } }[] | null;
+  snapshot_brutos: { noticias?: { link: string; fonte: string; publicadoEm?: string | null }[]; redes?: { resultados?: { link: string; fonte: string; publicadoEm?: string | null }[] } }[] | null;
 };
 
 type MateriaLink = { fonte: string; titulo: string; url: string };
@@ -32,6 +32,14 @@ const DESTINATARIOS = [
   { papel: "redator_marketing", label: "Comunicação" },
   { papel: "advogado_responsavel", label: "Advogado responsável" },
 ];
+
+const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
+
+function recente(publicadoEm?: string | null): boolean {
+  if (!publicadoEm) return false;
+  const d = new Date(publicadoEm).getTime();
+  return !isNaN(d) && Date.now() - d <= SEMANA_MS;
+}
 
 function extrairMaterias(alerta: Alerta): MateriaLink[] {
   const materias: MateriaLink[] = [];
@@ -48,8 +56,8 @@ function extrairMaterias(alerta: Alerta): MateriaLink[] {
     const textoLower = alerta.texto_ia.toLowerCase();
     const flatLinks: { link: string; fonte: string }[] = [];
     for (const g of alerta.snapshot_brutos) {
-      for (const n of g.noticias ?? []) flatLinks.push(n);
-      for (const r of g.redes?.resultados ?? []) flatLinks.push(r);
+      for (const n of g.noticias ?? []) { if (recente(n.publicadoEm)) flatLinks.push(n); }
+      for (const r of g.redes?.resultados ?? []) { if (recente(r.publicadoEm)) flatLinks.push(r); }
     }
 
     for (const grupo of alerta.snapshot_analise.grupos) {
@@ -216,6 +224,11 @@ export function AlertasPanel({ alertas: alertasBrutos, campanhaId }: { alertas: 
         <div className="border-t border-neutral-100 divide-y divide-neutral-100">
           {alertas.length === 0 && (
             <p className="p-4 text-xs text-neutral-400">Nenhum alerta registrado.</p>
+          )}
+          {alertas.length > 0 && (
+            <p className="px-3 pt-2 text-[11px] text-indigo-600">
+              Verificar no Menu Estratégia &rarr; Recomendações, os métodos para lidar com estes fatores.
+            </p>
           )}
           {alertas.map((a) => {
             const materias = extrairMaterias(a);

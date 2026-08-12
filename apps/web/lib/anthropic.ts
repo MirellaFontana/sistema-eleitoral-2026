@@ -25,6 +25,7 @@ export type DiretrizCompleta = {
   vocabulario_proibido: string[];
   assuntos_sensiveis: string[];
   limites: string | null;
+  feitos_mandatos_anteriores: string | null;
   mensagens_mae: { tema: string; mensagem: string; adaptacoes: string }[];
   status: string;
   posicoes: {
@@ -52,6 +53,8 @@ export function montarContextoDiretrizes(d: DiretrizCompleta | null): string {
   if (d.assuntos_sensiveis.length > 0)
     partes.push(`\n## Assuntos sensíveis (tratar com cuidado)\n${d.assuntos_sensiveis.join(", ")}`);
   if (d.limites) partes.push(`\n## Limites (o que NUNCA fazer ou dizer)\n${d.limites}`);
+
+  if (d.feitos_mandatos_anteriores) partes.push(`\n## Feitos de mandatos anteriores\n${d.feitos_mandatos_anteriores}`);
 
   if (d.mensagens_mae.length > 0) {
     const msgs = d.mensagens_mae

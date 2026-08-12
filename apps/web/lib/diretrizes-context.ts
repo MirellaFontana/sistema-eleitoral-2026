@@ -8,7 +8,7 @@ export async function obterContextoDiretrizes(
   const [{ data: diretriz }, { data: posicoes }] = await Promise.all([
     supabase
       .from("diretrizes_campanha")
-      .select("identidade, valores, vocabulario_preferido, vocabulario_proibido, assuntos_sensiveis, limites, mensagens_mae, status")
+      .select("identidade, valores, vocabulario_preferido, vocabulario_proibido, assuntos_sensiveis, limites, feitos_mandatos_anteriores, mensagens_mae, status")
       .eq("campanha_id", campanhaId)
       .maybeSingle(),
     supabase

@@ -26,10 +26,12 @@ export function decodificarHtml(texto: string) {
     .trim();
 }
 
+const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
+
 export function extrairNoticiasRss(xml: string): Resultado[] {
+  const agora = Date.now();
   const blocos = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
   return blocos
-    .slice(0, 15)
     .map((bloco) => {
       const titulo = bloco.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "";
       const link = bloco.match(/<link>([\s\S]*?)<\/link>/)?.[1] ?? "";
@@ -42,7 +44,13 @@ export function extrairNoticiasRss(xml: string): Resultado[] {
         publicadoEm: pubDate,
       };
     })
-    .filter((item) => item.titulo && item.link);
+    .filter((item) => {
+      if (!item.titulo || !item.link) return false;
+      if (!item.publicadoEm) return true;
+      const d = new Date(item.publicadoEm).getTime();
+      return !isNaN(d) && agora - d <= SEMANA_MS;
+    })
+    .slice(0, 15);
 }
 
 export async function buscarTermo(

@@ -89,12 +89,7 @@ export function SalaDecisao() {
               {r.temasIncoerentes} {r.temasIncoerentes === 1 ? "tema com baixa coerência" : "temas com baixa coerência"}
             </Link>
           )}
-          {r.fontesComProblema > 0 && (
-            <Link href="/fontes" className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-red-700 hover:bg-red-100">
-              {r.fontesComProblema} {r.fontesComProblema === 1 ? "fonte com problema" : "fontes com problema"}
-            </Link>
-          )}
-          {r.normativasDesatualizadas > 0 && (
+{r.normativasDesatualizadas > 0 && (
             <Link href="/base-normativa" className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-orange-700 hover:bg-orange-100">
               {r.normativasDesatualizadas} {r.normativasDesatualizadas === 1 ? "norma alterada" : "normas alteradas"}
             </Link>

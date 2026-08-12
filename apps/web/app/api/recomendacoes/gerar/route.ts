@@ -61,12 +61,16 @@ export async function POST() {
 
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
+  const umaSemanaAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
   const [
     alertasRes, demandasRes, concorrentesRes, temasRes, snapshotRes, tarefasRes,
     sinaisConcRes, propostasRes, sinaisCampoRes,
   ] = await Promise.all([
     supabase.from("alertas").select("texto_ia, created_at")
-      .eq("status_envio", "pendente_configuracao").order("created_at", { ascending: false }).limit(20),
+      .eq("status_envio", "pendente_configuracao")
+      .gte("created_at", umaSemanaAtras)
+      .order("created_at", { ascending: false }).limit(20),
     supabase.from("demandas_observadas").select("regiao, cidades, tema, demanda")
       .order("created_at", { ascending: false }).limit(30),
     supabase.from("concorrentes").select("nome, partido, pontos_fortes, pontos_fracos, promessas"),
@@ -74,7 +78,9 @@ export async function POST() {
       .select("nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
       .order("ordem").limit(20),
     supabase.from("monitoramento_snapshots")
-      .select("analise_ia, created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      .select("analise_ia, created_at")
+      .gte("created_at", umaSemanaAtras)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("tarefas").select("titulo, status, prazo")
       .eq("status", "a_fazer").order("created_at", { ascending: false }).limit(15),
     supabase.from("sinais_concorrentes").select("titulo, tipo, descricao, impacto, concorrentes(nome)")

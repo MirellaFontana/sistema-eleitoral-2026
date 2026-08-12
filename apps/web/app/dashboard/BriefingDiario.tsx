@@ -25,12 +25,24 @@ export function BriefingDiario({
   const [carregando, setCarregando] = useState(false);
   const [reproduzindo, setReproduzindo] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const keepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [vozesCarregadas, setVozesCarregadas] = useState(false);
 
-  useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
+  useEffect(() => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    const carregar = () => { if (synth.getVoices().length > 0) setVozesCarregadas(true); };
+    carregar();
+    synth.addEventListener("voiceschanged", carregar);
+    return () => {
+      synth.removeEventListener("voiceschanged", carregar);
+      synth.cancel();
+      if (keepAliveRef.current) clearInterval(keepAliveRef.current);
+    };
+  }, []);
 
   function melhorVozPtBR(): SpeechSynthesisVoice | null {
     const vozes = window.speechSynthesis.getVoices();
-    // Preferência: Google pt-BR > qualquer pt-BR > pt > null
     return (
       vozes.find((v) => v.lang === "pt-BR" && v.name.toLowerCase().includes("google")) ??
       vozes.find((v) => v.lang === "pt-BR") ??
@@ -39,9 +51,16 @@ export function BriefingDiario({
     );
   }
 
+  function pararKeepAlive() {
+    if (keepAliveRef.current) { clearInterval(keepAliveRef.current); keepAliveRef.current = null; }
+  }
+
   function toggleLeitura() {
+    const synth = window.speechSynthesis;
+    if (!synth) { setErro("Seu navegador não suporta leitura em voz alta."); return; }
     if (reproduzindo) {
-      window.speechSynthesis.cancel();
+      synth.cancel();
+      pararKeepAlive();
       setReproduzindo(false);
       return;
     }
@@ -53,11 +72,13 @@ export function BriefingDiario({
     u.pitch = 1.05;
     const voz = melhorVozPtBR();
     if (voz) u.voice = voz;
-    u.onend = () => setReproduzindo(false);
-    u.onerror = () => setReproduzindo(false);
+    u.onend = () => { setReproduzindo(false); pararKeepAlive(); };
+    u.onerror = (e) => { setReproduzindo(false); pararKeepAlive(); setErro("Erro na leitura: " + (e.error ?? "desconhecido")); };
     utteranceRef.current = u;
-    window.speechSynthesis.speak(u);
+    synth.speak(u);
     setReproduzindo(true);
+    // ponytail: Chrome pausa speechSynthesis após ~15s; resume() periódico contorna
+    keepAliveRef.current = setInterval(() => { if (synth.speaking) { synth.pause(); synth.resume(); } }, 10_000);
   }
 
   async function gerar() {
@@ -134,7 +155,7 @@ export function BriefingDiario({
 
       {briefing ? (
         <div className="space-y-2">
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-neutral-400" suppressHydrationWarning>
             Gerado às{" "}
             {new Date(briefing.created_at).toLocaleTimeString("pt-BR", {
               hour: "2-digit",

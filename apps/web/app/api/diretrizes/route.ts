@@ -69,6 +69,7 @@ export async function PUT(request: Request) {
     vocabulario_proibido: Array.isArray(body.vocabulario_proibido) ? body.vocabulario_proibido : [],
     assuntos_sensiveis: Array.isArray(body.assuntos_sensiveis) ? body.assuntos_sensiveis : [],
     limites: sanitizarTextoOpcional(body.limites, 5000),
+    feitos_mandatos_anteriores: sanitizarTextoOpcional(body.feitos_mandatos_anteriores, 10000),
     mensagens_mae: Array.isArray(body.mensagens_mae) ? body.mensagens_mae : [],
     atualizada_por: user.id,
     updated_at: new Date().toISOString(),

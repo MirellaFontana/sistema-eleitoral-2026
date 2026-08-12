@@ -100,6 +100,7 @@ export default async function MonitoramentoPage() {
     supabase
       .from("alertas")
       .select("id, texto_ia, canal, status_envio, lido_em, created_at, monitoramento_item_id, snapshot_id, monitoramento_itens(url, descricao, categoria), monitoramento_snapshots(analise_ia, resultados_brutos)")
+      .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
       .order("created_at", { ascending: false })
       .limit(10),
   ]);
@@ -131,7 +132,7 @@ export default async function MonitoramentoPage() {
       created_at: a.created_at as string,
       monitoramento_itens: item as { url: string | null; descricao: string; categoria: string } | null,
       snapshot_analise: snap?.analise_ia as { grupos: { titulo_grupo: string; sentimento: string; mencoes: { fonte: string; titulo_original: string }[] }[] } | null,
-      snapshot_brutos: snap?.resultados_brutos as { noticias?: { link: string; fonte: string }[]; redes?: { resultados?: { link: string; fonte: string }[] } }[] | null,
+      snapshot_brutos: snap?.resultados_brutos as { noticias?: { link: string; fonte: string; publicadoEm?: string | null }[]; redes?: { resultados?: { link: string; fonte: string; publicadoEm?: string | null }[] } }[] | null,
     };
   });
 
