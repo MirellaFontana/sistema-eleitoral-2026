@@ -25,7 +25,9 @@ export async function GET(request: Request) {
 
     try {
       const res = await fetch(`https://${f.dominio}`, {
-        method: "HEAD",
+        method: "GET",
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; EleitoBot/1.0; +https://eleito.online)" },
+        redirect: "follow",
         signal: AbortSignal.timeout(10_000),
       });
       status = res.status;
