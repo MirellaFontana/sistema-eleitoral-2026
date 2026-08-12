@@ -29,6 +29,7 @@ export function InviteUserForm({ territorios, funcoes }: { territorios: Territor
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [senha, setSenha] = useState("");
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [papel, setPapel] = useState("redator_marketing");
   const [territorioId, setTerritorioId] = useState("");
   const [expiraEm, setExpiraEm] = useState("");
@@ -123,14 +124,23 @@ export function InviteUserForm({ territorios, funcoes }: { territorios: Territor
           <label className="block text-xs font-medium text-neutral-500">
             Senha <span className="font-normal text-neutral-400">(opcional)</span>
           </label>
-          <input
-            type="password"
-            minLength={6}
-            placeholder="Deixe vazio para enviar convite por e-mail"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-          />
+          <div className="relative">
+            <input
+              type={senhaVisivel ? "text" : "password"}
+              minLength={6}
+              placeholder="Deixe vazio para enviar convite por e-mail"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              className="w-full rounded border border-neutral-300 px-2 py-1.5 pr-12 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setSenhaVisivel(!senhaVisivel)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-neutral-400 hover:text-neutral-600"
+            >
+              {senhaVisivel ? "ocultar" : "ver"}
+            </button>
+          </div>
         </div>
       </div>
 
