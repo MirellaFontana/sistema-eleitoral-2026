@@ -21,13 +21,14 @@ const PAPEIS = [
   { value: "apoio_coordenacao", label: "Apoio de coordenação" },
 ];
 
-const MFA_OBRIGATORIO = new Set(["coord_campanha", "candidato"]);
+const MFA_OBRIGATORIO = new Set(["coord_campanha"]);
 
 export function InviteUserForm({ territorios, funcoes }: { territorios: Territorio[]; funcoes: Funcao[] }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [senha, setSenha] = useState("");
   const [papel, setPapel] = useState("redator_marketing");
   const [territorioId, setTerritorioId] = useState("");
   const [expiraEm, setExpiraEm] = useState("");
@@ -56,6 +57,7 @@ export function InviteUserForm({ territorios, funcoes }: { territorios: Territor
         email,
         nome,
         telefone: telefone.trim(),
+        senha: senha.trim() || null,
         papel,
         territorio_id: precisaTerritorio ? territorioId : null,
         exige_mfa: MFA_OBRIGATORIO.has(papel),
@@ -71,11 +73,12 @@ export function InviteUserForm({ territorios, funcoes }: { territorios: Territor
       return;
     }
 
-    setSucesso(`Convite enviado para ${email}.`);
+    setSucesso(senha.trim() ? `Usuário ${email} criado com senha.` : `Convite enviado para ${email}.`);
     setTimeout(() => setSucesso(null), 3000);
     setEmail("");
     setNome("");
     setTelefone("");
+    setSenha("");
     router.refresh();
   }
 
@@ -113,6 +116,19 @@ export function InviteUserForm({ territorios, funcoes }: { territorios: Territor
             placeholder="+55819..."
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}
+            className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="block text-xs font-medium text-neutral-500">
+            Senha <span className="font-normal text-neutral-400">(opcional)</span>
+          </label>
+          <input
+            type="password"
+            minLength={6}
+            placeholder="Deixe vazio para enviar convite por e-mail"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
         </div>
