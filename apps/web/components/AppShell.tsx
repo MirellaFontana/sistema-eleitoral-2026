@@ -39,6 +39,7 @@ import {
   UsersRound,
   Briefcase,
   Sunrise,
+  HelpCircle,
   Menu,
   X,
   ChevronRight,
@@ -132,6 +133,12 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/marketing", label: "Marketing", icon: Megaphone },
       { href: "/marketing/impulsionamento", label: "Impulsionamento (Ads)", icon: Rocket },
       { href: "/pecas-conteudo", label: "Peças de conteúdo", icon: FileText },
+    ],
+  },
+  {
+    label: "Suporte",
+    items: [
+      { href: "/ajuda", label: "Ajuda do sistema", icon: HelpCircle },
     ],
   },
 ];
