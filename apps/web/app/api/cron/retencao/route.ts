@@ -18,9 +18,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "nenhuma regra ativa" });
   }
 
+  const TABELAS_PERMITIDAS = new Set(["cidadaos", "mensagens", "log_auditoria", "consentimentos_lgpd"]);
   const resultados: { tabela: string; acao: string; afetados: number; erro?: string }[] = [];
 
   for (const cfg of configs) {
+    if (!TABELAS_PERMITIDAS.has(cfg.tabela)) {
+      resultados.push({ tabela: cfg.tabela, acao: cfg.acao, afetados: 0, erro: "tabela não permitida para retenção automática" });
+      continue;
+    }
     const limite = new Date(Date.now() - cfg.dias_retencao * 86_400_000).toISOString();
 
     try {

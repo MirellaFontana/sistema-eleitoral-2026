@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
   const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     `connect-src 'self' ${supabaseOrigin} wss://*.supabase.co https://nominatim.openstreetmap.org`,
     `img-src 'self' data: blob: ${supabaseOrigin} https://tile.openstreetmap.org`,
