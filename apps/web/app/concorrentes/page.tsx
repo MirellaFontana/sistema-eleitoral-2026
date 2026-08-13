@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
+import { BotaoImprimir } from "@/components/BotaoImprimir";
 import { ConcorrenteForm } from "./ConcorrenteForm";
 import { ConcorrentesList } from "./ConcorrentesList";
 
@@ -50,11 +51,14 @@ export default async function ConcorrentesPage() {
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
-        <div>
-          <h1 className="text-lg font-semibold">Concorrentes</h1>
-          <p className="text-sm text-neutral-500">
-            Análise de oposição — pontos fortes/fracos, promessas, dossiê do mandato e argumentos.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-semibold">Concorrentes</h1>
+            <p className="text-sm text-neutral-500">
+              Análise de oposição — pontos fortes/fracos, promessas, dossiê do mandato e argumentos.
+            </p>
+          </div>
+          <BotaoImprimir />
         </div>
 
         {podeEditar && (

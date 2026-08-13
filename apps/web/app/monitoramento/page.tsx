@@ -6,6 +6,7 @@ import { MonitoramentoWorkspace } from "./MonitoramentoWorkspace";
 import { FontesPanel } from "./FontesPanel";
 import { UltimoSnapshot } from "./UltimoSnapshot";
 import { ItensRegistrados } from "./ItensRegistrados";
+import { BotaoImprimir } from "@/components/BotaoImprimir";
 import { AlertasPanel } from "./AlertasPanel";
 import type { TermoView } from "./TermosMonitoramento";
 
@@ -148,12 +149,15 @@ export default async function MonitoramentoPage() {
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-8">
-        <div>
-          <h1 className="text-lg font-semibold">Monitoramento</h1>
-          <p className="text-sm text-neutral-500">
-            Menções ao candidato encontradas na internet — de ameaça jurídica e gestão de crise a
-            menções de sentimento e oportunidades de marketing.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-semibold">Monitoramento</h1>
+            <p className="text-sm text-neutral-500">
+              Menções ao candidato encontradas na internet — de ameaça jurídica e gestão de crise a
+              menções de sentimento e oportunidades de marketing.
+            </p>
+          </div>
+          <BotaoImprimir />
         </div>
 
         <AlertasPanel alertas={alertas} campanhaId={eu.campanha_id} />

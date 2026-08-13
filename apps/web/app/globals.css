@@ -36,3 +36,11 @@ textarea:focus-visible {
   box-shadow: 0 0 0 2px #4f46e5;
   border-color: #4f46e5;
 }
+
+@media print {
+  aside, header, form, button, .print\:hidden { display: none !important; }
+  body { background: white !important; color: black !important; }
+  main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  .flex.min-h-screen { display: block !important; }
+  .min-w-0.flex-1 { display: block !important; }
+}

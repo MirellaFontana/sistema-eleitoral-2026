@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
+import { BotaoImprimir } from "@/components/BotaoImprimir";
 import { PropostasClient } from "./PropostasClient";
 
 const PAPEL_LABEL: Record<string, string> = {

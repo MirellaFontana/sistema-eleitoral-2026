@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
+import { BotaoImprimir } from "@/components/BotaoImprimir";
 import { PropostasPublicosClient } from "./PropostasPublicosClient";
 
 const PAPEL_LABEL: Record<string, string> = {
@@ -90,11 +91,14 @@ export default async function PropostasPublicosPage() {
   return (
     <AppShell campanhaNome={campanha?.nome_candidato ?? undefined} papel={PAPEL_LABEL[eu.papel]}>
       <main className="mx-auto w-full max-w-4xl flex-1 space-y-8 px-4 py-8">
-        <div>
-          <h1 className="text-lg font-semibold">Propostas x Públicos</h1>
-          <p className="text-sm text-neutral-500">
-            Mapeamento de demandas, reclamações e propostas por segmento de público-alvo.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-lg font-semibold">Propostas x Públicos</h1>
+            <p className="text-sm text-neutral-500">
+              Mapeamento de demandas, reclamações e propostas por segmento de público-alvo.
+            </p>
+          </div>
+          <BotaoImprimir />
         </div>
 
         <PropostasPublicosClient

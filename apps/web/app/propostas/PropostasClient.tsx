@@ -10,6 +10,7 @@ import {
   Check,
   Ban,
   Send,
+  Printer,
 } from "lucide-react";
 
 type Proposta = {
@@ -80,9 +81,19 @@ export function PropostasClient({
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-neutral-900">Propostas</h1>
-          <p className="text-sm text-neutral-500">Propostas da campanha por tema</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-neutral-900">Propostas</h1>
+            <p className="text-sm text-neutral-500">Propostas da campanha por tema</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 rounded border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 print:hidden"
+          >
+            <Printer size={14} strokeWidth={2} />
+            Imprimir
+          </button>
         </div>
         {podeCriar && (
           <button
