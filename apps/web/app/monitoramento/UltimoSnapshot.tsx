@@ -225,6 +225,18 @@ export function UltimoSnapshot({
         <p className="text-sm text-red-600">Erro na última busca: {snapshot.erro}</p>
       )}
 
+      {snapshot && !snapshot.erro && !analise && (
+        <div className="rounded bg-neutral-50 p-3 text-center">
+          <p className="text-sm text-neutral-600">
+            Busca realizada em {dataFormatada} — nenhuma menção encontrada.
+          </p>
+          <p className="text-xs text-neutral-400 mt-1">
+            Os termos monitorados não retornaram resultados neste ciclo. Isso é normal quando não há
+            notícias ou publicações recentes sobre os termos cadastrados.
+          </p>
+        </div>
+      )}
+
       {analise && (
         <>
           <div className="rounded bg-indigo-50 p-2">

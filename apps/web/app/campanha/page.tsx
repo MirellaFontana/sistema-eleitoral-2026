@@ -5,6 +5,7 @@ import { proximaRotaMfa } from "@/lib/mfa";
 import { CampanhaForm } from "./CampanhaForm";
 import { FotosCampanha } from "./FotosCampanha";
 import { ChavesApiPanel } from "./ChavesApiPanel";
+import { ExcluirCampanha } from "./ExcluirCampanha";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -120,6 +121,21 @@ export default async function CampanhaPage() {
 
         {isCoordCampanha && (
           <ChavesApiPanel chavesIniciais={chavesStatus} />
+        )}
+
+        {isCoordCampanha && campanha && (
+          <section className="space-y-3 border-t border-neutral-200 pt-8">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-red-500">
+                Zona de perigo
+              </h2>
+              <p className="text-sm text-neutral-400">
+                Excluir a campanha remove permanentemente todos os dados — usuários, propostas,
+                monitoramento, agenda, conteúdo e histórico.
+              </p>
+            </div>
+            <ExcluirCampanha campanhaId={campanha.id} nomeCandidato={campanha.nome_candidato} />
+          </section>
         )}
       </main>
     </AppShell>
