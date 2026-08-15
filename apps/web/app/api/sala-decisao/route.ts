@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+const STATUS_LABEL: Record<string, string> = {
+  nao_relacionado: "não relacionado",
+  identificado: "identificado",
+  contato_realizado: "contato realizado",
+  relacionamento_ativo: "rel. ativo",
+  parceiro: "parceiro",
+  em_avaliacao: "em avaliação",
+  inativo: "inativo",
+};
+
 type Item = {
   id: string;
   titulo: string;
@@ -32,6 +42,7 @@ export async function GET() {
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
     snapshotRes, recsRecentesRes, demandasRes, demandasPrazoRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes, sinaisConcorrentesRes,
+    ativosSemContatoRes, ativosRecentesRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -97,6 +108,17 @@ export async function GET() {
       .select("id, titulo, descricao, concorrente_id, concorrentes(nome), created_at")
       .gte("created_at", new Date(hoje.getTime() - 3 * 86_400_000).toISOString())
       .order("created_at", { ascending: false }).limit(5),
+    supabase.from("ativos_politicos")
+      .select("id, nome, cargo_atual, nivel_influencia, status_campanha, cidade, categorias_ativo_politico(nome)")
+      .eq("campanha_id", eu.campanha_id)
+      .in("nivel_influencia", ["muito_alto", "alto"])
+      .in("status_campanha", ["identificado", "nao_relacionado"])
+      .limit(5),
+    supabase.from("ativos_politicos")
+      .select("id, nome, cargo_atual, status_campanha, created_at")
+      .eq("campanha_id", eu.campanha_id)
+      .gte("created_at", ontem)
+      .order("created_at", { ascending: false }).limit(5),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -115,6 +137,8 @@ export async function GET() {
   const recsAvaliadas = recsAvaliadasRes.data ?? [];
   const narrativa = narrativaRes.data;
   const sinaisConcorrentes = sinaisConcorrentesRes.data ?? [];
+  const ativosSemContato = ativosSemContatoRes.data ?? [];
+  const ativosRecentes = ativosRecentesRes.data ?? [];
 
   type TemaAnalise = { tema?: string; consistencia?: string; lacunas?: string[]; ressonancia_propria?: { nivel?: string } };
   const temasNarrativa = (narrativa?.analise ?? []) as TemaAnalise[];
@@ -314,6 +338,20 @@ export async function GET() {
     });
   }
 
+  for (const a of ativosSemContato) {
+    const cat = Array.isArray(a.categorias_ativo_politico) ? a.categorias_ativo_politico[0] : a.categorias_ativo_politico;
+    facaHoje.push({
+      id: `ativo-${a.id}`,
+      titulo: `Articular: ${a.nome}`,
+      descricao: `${cat?.nome ?? "Ativo"} de influência ${a.nivel_influencia}${a.cargo_atual ? ` — ${a.cargo_atual}` : ""}${a.cidade ? ` em ${a.cidade}` : ""}`,
+      tipo: "ativo_politico",
+      urgencia: a.nivel_influencia === "muito_alto" ? "alta" : "media",
+      fonte: "Ativos Políticos",
+      porqueEstouVendo: `Ativo político com influência ${a.nivel_influencia} e status "${STATUS_LABEL[a.status_campanha] ?? a.status_campanha}" — sem contato realizado.`,
+      link: `/ativos-politicos/${a.id}`,
+    });
+  }
+
   const oQueMudou: Item[] = [];
   if (snapshot?.analise_ia) {
     const dt = new Date(snapshot.created_at).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -344,6 +382,19 @@ export async function GET() {
     });
   }
 
+  for (const a of ativosRecentes) {
+    oQueMudou.push({
+      id: `ativo-novo-${a.id}`,
+      titulo: `Novo ativo: ${a.nome}`,
+      descricao: a.cargo_atual ?? "",
+      tipo: "ativo_politico",
+      urgencia: "baixa",
+      fonte: "Ativos Políticos",
+      porqueEstouVendo: "Ativo político cadastrado nas últimas 24h.",
+      link: `/ativos-politicos/${a.id}`,
+    });
+  }
+
   for (const ra of recsAvaliadas) {
     const qualidade = ra.avaliacao_qualidade as string | null;
     const emoji = qualidade === "sucesso" ? "Sucesso" : qualidade === "parcial" ? "Parcial" : qualidade === "falha" ? "Falha" : "Avaliada";
@@ -366,6 +417,7 @@ export async function GET() {
     decisoesAtivas: decisoesAtivas.length,
     demandasComPrazo: demandasComPrazo.length,
     sinaisConcorrentes: sinaisConcorrentes.length,
+    ativosSemContato: ativosSemContato.length,
   };
 
   return NextResponse.json({ decidaAgora, facaHoje, fiqueAtento, oQueMudou, resumo });

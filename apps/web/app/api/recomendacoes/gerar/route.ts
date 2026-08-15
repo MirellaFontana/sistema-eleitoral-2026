@@ -9,7 +9,7 @@ import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 const PAPEIS_GERAM = new Set(["coord_campanha", "candidato", "coord_marketing"]);
 
 const SISTEMA = `Você é consultor estratégico sênior de campanha eleitoral brasileira. Analise todos os dados
-fornecidos (alertas, monitoramento, demandas, diretrizes, agenda, concorrentes) e produza
+fornecidos (alertas, monitoramento, demandas, diretrizes, agenda, concorrentes, ativos políticos) e produza
 RECOMENDAÇÕES ACIONÁVEIS para a coordenação.
 
 Cada recomendação deve ser EXPLICÁVEL: registre os fatos que a fundamentam, as regras/lógica
@@ -36,6 +36,8 @@ Regras:
 - Se as diretrizes não cobrem um tema relevante, recomende definir posição (tipo: "posicionamento").
 - Se há alertas negativos sem resposta, recomende ação (tipo: "comunicacao" ou "risco").
 - Se há demandas recorrentes sem proposta, aponte (tipo: "campo" ou "oportunidade").
+- Se há ativos políticos de alta influência sem contato realizado ou inativos, recomende ação de articulação.
+- Se há ativos parceiros em regiões sem propostas, recomende ação de campo nessas regiões.
 - Cada recomendação deve ser acionável — diga O QUE fazer, não apenas o que observar.
 - Confiança "baixa" quando poucos dados sustentam; "alta" quando múltiplas fontes convergem.`;
 
@@ -65,7 +67,7 @@ export async function POST() {
 
   const [
     alertasRes, demandasRes, concorrentesRes, temasRes, snapshotRes, tarefasRes,
-    sinaisConcRes, propostasRes, sinaisCampoRes,
+    sinaisConcRes, propostasRes, sinaisCampoRes, ativosRes,
   ] = await Promise.all([
     supabase.from("alertas").select("texto_ia, created_at")
       .eq("status_envio", "pendente_configuracao")
@@ -89,6 +91,11 @@ export async function POST() {
       .in("status", ["aprovada", "em_revisao"]).order("created_at", { ascending: false }).limit(20),
     supabase.from("sinais_campo").select("tema, frase_representativa, intensidade, perguntas_objecoes, reacao_discurso")
       .order("created_at", { ascending: false }).limit(20),
+    supabase.from("ativos_politicos")
+      .select("nome, cargo_atual, partido, nivel_influencia, status_campanha, abrangencia, cidade, categorias_ativo_politico(nome, grupo)")
+      .eq("campanha_id", eu.campanha_id)
+      .in("nivel_influencia", ["muito_alto", "alto"])
+      .order("created_at", { ascending: false }).limit(30),
   ]);
 
   const temasCtx: TemaComItens[] = (temasRes.data ?? []).map((t) => ({
@@ -146,6 +153,13 @@ export async function POST() {
     })
     .join("\n") || "(nenhum sinal de campo)";
 
+  const ativosTxt = (ativosRes.data ?? [])
+    .map((a) => {
+      const cat = Array.isArray(a.categorias_ativo_politico) ? a.categorias_ativo_politico[0] : a.categorias_ativo_politico;
+      return `- ${a.nome} (${cat?.nome ?? "?"}, ${a.cargo_atual ?? "sem cargo"}, ${a.partido ?? "sem partido"}) influência=${a.nivel_influencia} status=${a.status_campanha} abrangência=${a.abrangencia}${a.cidade ? ` cidade=${a.cidade}` : ""}`;
+    })
+    .join("\n") || "(nenhum ativo político de alta influência)";
+
   const mensagem = [
     `CANDIDATO: ${campanha?.nome_candidato ?? "(não cadastrado)"}`,
     diretrizes || null,
@@ -158,6 +172,7 @@ export async function POST() {
     `SINAIS DE CAMPO:\n${sinaisCampoTxt}`,
     `MONITORAMENTO:\n${monitoramentoTxt}`,
     `TAREFAS PENDENTES:\n${tarefasTxt}`,
+    `ATIVOS POLÍTICOS (alta influência):\n${ativosTxt}`,
   ].filter(Boolean).join("\n\n");
 
   let raw: string;
