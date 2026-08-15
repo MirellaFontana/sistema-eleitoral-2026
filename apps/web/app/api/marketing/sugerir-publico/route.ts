@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { montarContextoConhecimento, type TemaComItens } from "@/lib/anthropic";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
@@ -95,8 +95,7 @@ export async function POST(request: Request) {
       maxTokens: 300,
     });
   } catch (err) {
-    const m = err instanceof Error ? err.message : "erro na IA";
-    return NextResponse.json({ error: `falha ao sugerir público: ${m}` }, { status: 502 });
+    return respostaErroIA(err);
   }
 
   const linha = sugestao.split("\n").find((l) => l.trim().length > 0)?.trim() ?? sugestao.trim();

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { sanitizarTexto } from "@/lib/sanitizar";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 import {
@@ -137,8 +137,7 @@ export async function POST(request: Request) {
       jsonMode: true,
     });
   } catch (err) {
-    const m = err instanceof Error ? err.message : "erro na IA";
-    return NextResponse.json({ error: `falha ao gerar plano: ${m}` }, { status: 502 });
+    return respostaErroIA(err);
   }
 
   const plano = parseJsonSeguro(raw);

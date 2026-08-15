@@ -6,7 +6,7 @@ import {
   montarContextoConhecimento,
   type TemaComItens,
 } from "@/lib/anthropic";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
@@ -86,8 +86,7 @@ export async function POST() {
       maxTokens: 1500,
     });
   } catch (err) {
-    const mensagem = err instanceof Error ? err.message : "erro desconhecido ao chamar IA";
-    return NextResponse.json({ error: `Falha ao gerar análise: ${mensagem}` }, { status: 502 });
+    return respostaErroIA(err);
   }
 
   const { data: row, error } = await supabase

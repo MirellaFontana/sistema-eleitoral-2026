@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { type SupabaseClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 import { obterChaveApi } from "./chaves-api";
 
 export type ProvedorIA = "anthropic" | "openai" | "google_gemini" | "xai_grok";
@@ -203,3 +204,12 @@ export async function criarClienteIA(supabase: SupabaseClient): Promise<ClienteI
 }
 
 export { MODELOS as MODELOS_IA };
+
+export function respostaErroIA(err: unknown): NextResponse {
+  const raw = err instanceof Error ? err.message : String(err);
+  const sobrecarregado = /overloaded|high demand|529|503|UNAVAILABLE/i.test(raw);
+  const msg = sobrecarregado
+    ? "O modelo de IA está sobrecarregado no momento. Tente novamente em alguns segundos."
+    : "Erro ao consultar a IA. Tente novamente.";
+  return NextResponse.json({ error: msg }, { status: sobrecarregado ? 503 : 502 });
+}

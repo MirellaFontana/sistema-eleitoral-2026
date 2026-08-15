@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { SISTEMA_AVALIADOR_PECAS } from "@/lib/anthropic";
 import { sanitizarTexto } from "@/lib/sanitizar";
 import { parseJsonSeguro } from "@/lib/parse-json-seguro";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 
 const PAPEIS_QUE_AVALIAM = new Set([
   "coord_campanha",
@@ -90,8 +90,7 @@ export async function POST(request: Request) {
       jsonMode: true,
     });
   } catch (err) {
-    const m = err instanceof Error ? err.message : "erro desconhecido";
-    return NextResponse.json({ error: `Falha ao avaliar peça: ${m}` }, { status: 502 });
+    return respostaErroIA(err);
   }
 
   const parsed = parseJsonSeguro(raw);

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { obterChaveApi } from "@/lib/chaves-api";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { SISTEMA_REVISOR_COMPLIANCE } from "@/lib/anthropic";
 import { GoogleGenAI } from "@google/genai";
 import { parseJsonSeguro } from "@/lib/parse-json-seguro";
@@ -126,8 +126,7 @@ export async function POST(request: Request) {
       });
       respostaRaw = resp.text?.trim() ?? "";
     } catch (err) {
-      const m = err instanceof Error ? err.message : "erro na chamada Gemini";
-      return NextResponse.json({ error: `falha ao revisar imagem: ${m}` }, { status: 502 });
+      return respostaErroIA(err);
     }
   } else {
     // Só texto — usa o cliente IA abstrato (Anthropic → OpenAI → Gemini → Grok).
@@ -146,8 +145,7 @@ export async function POST(request: Request) {
         jsonMode: true,
       });
     } catch (err) {
-      const m = err instanceof Error ? err.message : "erro na IA";
-      return NextResponse.json({ error: `falha ao revisar peça: ${m}` }, { status: 502 });
+      return respostaErroIA(err);
     }
   }
 

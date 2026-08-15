@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { montarContextoConhecimento, type TemaComItens } from "@/lib/anthropic";
 import { parseJsonSeguro, parseJsonArraySeguro } from "@/lib/parse-json-seguro";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
@@ -169,8 +169,7 @@ export async function POST() {
       jsonMode: true,
     });
   } catch (err) {
-    const m = err instanceof Error ? err.message : "erro na IA";
-    return NextResponse.json({ error: m }, { status: 502 });
+    return respostaErroIA(err);
   }
 
   const arrayParsed = parseJsonArraySeguro(raw);

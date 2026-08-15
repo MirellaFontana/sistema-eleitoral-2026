@@ -6,7 +6,7 @@ import {
   montarContextoConhecimento,
   type TemaComItens,
 } from "@/lib/anthropic";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 // Quem pode gerar direto pelo papel (candidato é o dono do briefing; coordenação prepara
@@ -215,8 +215,7 @@ export async function POST() {
       maxTokens: 4000,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "erro desconhecido ao chamar IA";
-    return NextResponse.json({ error: `Falha ao gerar briefing: ${msg}` }, { status: 502 });
+    return respostaErroIA(err);
   }
 
   const contextoUsado = `${eventos.length} evento(s) da agenda, ${demandas?.length ?? 0} demanda(s) observada(s), ${vinculos?.length ?? 0} vínculo(s) de liderança, ${temasCtx.reduce((n, t) => n + t.itens.length, 0)} item(ns) da base de conhecimento em ${temasCtx.length} tema(s), ${(sinaisCampo ?? []).length} sinal(is) de campo, ${(sinaisConcorrentes ?? []).length} sinal(is) de concorrentes`;

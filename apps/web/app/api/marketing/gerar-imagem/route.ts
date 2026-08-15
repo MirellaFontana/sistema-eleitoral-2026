@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { obterChaveApi } from "@/lib/chaves-api";
+import { respostaErroIA } from "@/lib/ia-client";
 import { GoogleGenAI, Modality } from "@google/genai";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
@@ -89,7 +90,6 @@ REGRAS TÉCNICAS OBRIGATÓRIAS:
       { status: 502 },
     );
   } catch (err) {
-    const m = err instanceof Error ? err.message : "erro na chamada Gemini";
-    return NextResponse.json({ error: `falha ao gerar imagem: ${m}` }, { status: 502 });
+    return respostaErroIA(err);
   }
 }

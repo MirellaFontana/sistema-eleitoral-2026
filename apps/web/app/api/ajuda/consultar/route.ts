@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { criarClienteIA } from "@/lib/ia-client";
+import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { SISTEMA_AJUDA_SISTEMA } from "@/lib/anthropic";
 
 export async function POST(request: Request) {
@@ -38,7 +38,6 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ resposta, provedor: ia.provedor });
   } catch (err) {
-    const m = err instanceof Error ? err.message : "erro na IA";
-    return NextResponse.json({ error: m }, { status: 502 });
+    return respostaErroIA(err);
   }
 }
