@@ -80,26 +80,51 @@ export function AtivosListaClient({
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [ativos, setAtivos] = useState(ativosIniciais);
+  const [total, setTotal] = useState(totalInicial);
+  const [pagina, setPagina] = useState(1);
+  const [carregando, setCarregando] = useState(false);
   const [busca, setBusca] = useState("");
+  const [buscaApi, setBuscaApi] = useState("");
   const [mostrarForm, setMostrarForm] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  const porPagina = 50;
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
 
   const categoriasAgrupadas = categorias.reduce<Record<string, Categoria[]>>((acc, c) => {
     (acc[c.grupo] ??= []).push(c);
     return acc;
   }, {});
 
-  const filtrados = busca.trim().length >= 2
-    ? ativosIniciais.filter((a) => {
-        const q = busca.toLowerCase();
-        return a.nome.toLowerCase().includes(q)
-          || (a.nome_social?.toLowerCase().includes(q) ?? false)
-          || (a.cargo_atual?.toLowerCase().includes(q) ?? false)
-          || (a.cidade?.toLowerCase().includes(q) ?? false)
-          || (a.partido?.toLowerCase().includes(q) ?? false);
-      })
-    : ativosIniciais;
+  async function carregarPagina(pag: number, buscarTexto?: string) {
+    setCarregando(true);
+    const params = new URLSearchParams({ pagina: String(pag) });
+    const q = buscarTexto ?? buscaApi;
+    if (q) params.set("busca", q);
+    const res = await fetch(`/api/ativos-politicos?${params}`);
+    if (res.ok) {
+      const data = await res.json();
+      setAtivos(data.ativos);
+      setTotal(data.total);
+      setPagina(pag);
+    }
+    setCarregando(false);
+  }
+
+  function handleBusca(valor: string) {
+    setBusca(valor);
+    if (valor.trim().length >= 2) {
+      setBuscaApi(valor.trim());
+      carregarPagina(1, valor.trim());
+    } else if (valor.trim().length === 0 && buscaApi) {
+      setBuscaApi("");
+      carregarPagina(1, "");
+    }
+  }
+
+  const filtrados = ativos;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -141,7 +166,7 @@ export function AtivosListaClient({
 
     setSalvando(false);
     setMostrarForm(false);
-    startTransition(() => router.refresh());
+    carregarPagina(1);
   }
 
   return (
@@ -283,7 +308,7 @@ export function AtivosListaClient({
         <input
           type="search"
           value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          onChange={(e) => handleBusca(e.target.value)}
           placeholder="Buscar por nome, cargo, cidade…"
           className="w-full rounded border px-2.5 py-1.5 pl-8 text-sm"
         />
@@ -342,10 +367,28 @@ export function AtivosListaClient({
         </table>
       </div>
 
-      {totalInicial > 50 && (
-        <p className="text-xs text-neutral-400">
-          Mostrando {Math.min(50, filtrados.length)} de {totalInicial.toLocaleString("pt-BR")} ativos.
-        </p>
+      {total > porPagina && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-neutral-400">
+            Página {pagina} de {totalPaginas} · {total.toLocaleString("pt-BR")} ativos
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => carregarPagina(pagina - 1)}
+              disabled={pagina <= 1 || carregando}
+              className="rounded border px-3 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-30"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => carregarPagina(pagina + 1)}
+              disabled={pagina >= totalPaginas || carregando}
+              className="rounded border px-3 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-30"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const status = url.searchParams.get("status");
   const busca = url.searchParams.get("busca");
   const pagina = Math.max(1, parseInt(url.searchParams.get("pagina") ?? "1"));
-  const porPagina = 50;
+  const porPagina = Math.min(200, Math.max(1, parseInt(url.searchParams.get("porPagina") ?? "50")));
 
   let query = supabase
     .from("ativos_politicos")

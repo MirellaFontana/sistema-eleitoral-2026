@@ -91,12 +91,23 @@ export function ImportarClient({ categorias }: { categorias: Categoria[] }) {
     const nomesSeen = new Set<string>();
     let duplicados = 0;
 
+    // Buscar nomes existentes no banco para detectar duplicatas cross-import
+    const existentesRes = await fetch("/api/ativos-politicos?pagina=1&porPagina=9999");
+    const nomesExistentes = new Set<string>();
+    if (existentesRes.ok) {
+      const data = await existentesRes.json();
+      for (const a of data.ativos ?? []) {
+        nomesExistentes.add((a.nome as string).toLowerCase());
+        if (a.nome_social) nomesExistentes.add((a.nome_social as string).toLowerCase());
+      }
+    }
+
     for (const row of rows) {
       const nome = row[mapeamento.nome]?.trim();
       if (!nome) { erros++; continue; }
 
       const nomeKey = nome.toLowerCase();
-      if (nomesSeen.has(nomeKey)) { duplicados++; continue; }
+      if (nomesSeen.has(nomeKey) || nomesExistentes.has(nomeKey)) { duplicados++; continue; }
       nomesSeen.add(nomeKey);
 
       const body: Record<string, string | null> = { nome, categoria_id: categoriaId };
