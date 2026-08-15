@@ -69,7 +69,8 @@ export async function POST() {
     return true;
   });
 
-  const REDES_NOMES = new Set(["X (Twitter)", "YouTube", "Instagram", "Facebook", "TikTok", "Threads", "Bluesky"]);
+  const REDES_PREFIXOS = ["X (Twitter)", "YouTube", "Instagram", "Facebook", "TikTok", "Threads", "Bluesky"];
+  const isRede = (fonte: string) => REDES_PREFIXOS.some((p) => fonte.startsWith(p));
 
   const snapshot = {
     campanha_id: eu.campanha_id,
@@ -109,7 +110,7 @@ export async function POST() {
 
     if (existe) continue;
 
-    const isRede = REDES_NOMES.has(m.fonte);
+    const isRede = isRede(m.fonte);
     const { error } = await supabase.from("monitoramento_itens").insert({
       campanha_id: eu.campanha_id,
       url: m.link,
@@ -124,6 +125,6 @@ export async function POST() {
     ok: true,
     total: unicos.length,
     novos,
-    redes: unicos.filter((m) => REDES_NOMES.has(m.fonte)).length,
+    redes: unicos.filter((m) => isRede(m.fonte)).length,
   });
 }

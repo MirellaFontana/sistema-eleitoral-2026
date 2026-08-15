@@ -79,11 +79,12 @@ export async function buscarRedesSociais(termo: string): Promise<Resultado[]> {
           const titulo = bloco.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "";
           const link = bloco.match(/<link\/?>([^<]+)/)?.[1]?.trim() ?? "";
           const pubDate = bloco.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? null;
+          const autor = bloco.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] ?? "";
           if (!titulo || !link) continue;
           resultados.push({
             titulo: decodificarHtml(titulo).slice(0, 200),
             link,
-            fonte: nome,
+            fonte: autor ? `${nome} · ${decodificarHtml(autor)}` : nome,
             publicadoEm: pubDate,
           });
         }
