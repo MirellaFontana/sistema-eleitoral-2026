@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Phone, Mail, Pencil, Save, X } from "lucide-react";
+import { ArrowLeft, MapPin, Phone, Mail, Pencil, Save, X, Calendar, Flag, ClipboardList, Eye, MessageSquare } from "lucide-react";
 
 type Categoria = { id: string; nome: string; grupo: string };
 
@@ -373,6 +373,47 @@ export function AtivoPerfilClient({
           )}
         </>
       )}
+
+      {/* Ações rápidas — integração com outros módulos */}
+      <section className="rounded-lg border border-neutral-200 p-4 space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Ações rápidas</h2>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/agenda?participante=${encodeURIComponent(ativo.nome as string)}`}
+            className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            <Calendar size={13} /> Agendar encontro
+          </Link>
+          <Link
+            href={`/campo?ativo=${encodeURIComponent(ativo.nome as string)}`}
+            className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            <Flag size={13} /> Registrar ação de campo
+          </Link>
+          <Link
+            href={`/tarefas?responsavel=${encodeURIComponent(ativo.nome as string)}`}
+            className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            <ClipboardList size={13} /> Criar tarefa
+          </Link>
+          <Link
+            href={`/monitoramento?busca=${encodeURIComponent(ativo.nome as string)}`}
+            className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            <Eye size={13} /> Monitorar menções
+          </Link>
+          {ativo.whatsapp && (
+            <a
+              href={`https://wa.me/55${(ativo.whatsapp as string).replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+            >
+              <MessageSquare size={13} /> WhatsApp
+            </a>
+          )}
+        </div>
+      </section>
 
       {/* Relacionamentos */}
       <section className="rounded-lg border border-neutral-200 p-4 space-y-3">

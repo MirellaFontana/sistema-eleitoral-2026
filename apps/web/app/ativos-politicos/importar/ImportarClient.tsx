@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Upload, CheckCircle, AlertTriangle } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type Categoria = { id: string; nome: string; grupo: string };
 
@@ -50,28 +51,52 @@ export function ImportarClient({ categorias }: { categorias: Categoria[] }) {
   const [categoriaId, setCategoriaId] = useState("");
   const [resultado, setResultado] = useState({ importados: 0, erros: 0, duplicados: 0 });
 
+  function processarDados(h: string[], r: Record<string, string>[]) {
+    setHeaders(h);
+    setRows(r);
+    const auto: Record<string, string> = {};
+    for (const campo of CAMPOS_DESTINO) {
+      const match = h.find((col) =>
+        col.toLowerCase().replace(/[^a-z]/g, "").includes(campo.key.replace(/_/g, ""))
+      );
+      if (match) auto[campo.key] = match;
+    }
+    setMapeamento(auto);
+    setEtapa("mapeamento");
+  }
+
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const { headers: h, rows: r } = parseCSV(text);
-      setHeaders(h);
-      setRows(r);
+    const isXlsx = /\.xlsx?$/i.test(file.name);
 
-      const auto: Record<string, string> = {};
-      for (const campo of CAMPOS_DESTINO) {
-        const match = h.find((col) =>
-          col.toLowerCase().replace(/[^a-z]/g, "").includes(campo.key.replace(/_/g, ""))
-        );
-        if (match) auto[campo.key] = match;
-      }
-      setMapeamento(auto);
-      setEtapa("mapeamento");
-    };
-    reader.readAsText(file, "UTF-8");
+    if (isXlsx) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const data = new Uint8Array(ev.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+        if (json.length === 0) return;
+        const h = Object.keys(json[0]);
+        const r = json.map((row) => {
+          const out: Record<string, string> = {};
+          for (const k of h) out[k] = String(row[k] ?? "");
+          return out;
+        });
+        processarDados(h, r);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const text = ev.target?.result as string;
+        const { headers: h, rows: r } = parseCSV(text);
+        processarDados(h, r);
+      };
+      reader.readAsText(file, "UTF-8");
+    }
   }
 
   function handleMapear(campo: string, coluna: string) {
@@ -138,7 +163,7 @@ export function ImportarClient({ categorias }: { categorias: Categoria[] }) {
       <div>
         <h1 className="text-lg font-semibold">Importar Ativos Políticos</h1>
         <p className="text-sm text-neutral-500">
-          Importe ativos em massa via arquivo CSV (separado por vírgula ou ponto-e-vírgula).
+          Importe ativos em massa via arquivo CSV ou Excel (.xlsx).
         </p>
       </div>
 
@@ -146,10 +171,10 @@ export function ImportarClient({ categorias }: { categorias: Categoria[] }) {
       {etapa === "upload" && (
         <div className="flex flex-col items-center gap-4 rounded-lg border-2 border-dashed border-neutral-300 p-12">
           <Upload size={32} className="text-neutral-400" />
-          <p className="text-sm text-neutral-500">Selecione um arquivo CSV</p>
+          <p className="text-sm text-neutral-500">Selecione um arquivo CSV ou Excel</p>
           <input
             type="file"
-            accept=".csv,.txt"
+            accept=".csv,.txt,.xlsx,.xls"
             onChange={handleFile}
             className="text-sm"
           />
