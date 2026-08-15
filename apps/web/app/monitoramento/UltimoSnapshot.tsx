@@ -77,6 +77,7 @@ export function UltimoSnapshot({
   const [configAberta, setConfigAberta] = useState(false);
   const [executando, setExecutando] = useState(false);
   const [executandoScrapling, setExecutandoScrapling] = useState(false);
+  const [periodoScrapling, setPeriodoScrapling] = useState("7d");
   const [salvando, setSalvando] = useState(false);
   const [intervalo, setIntervalo] = useState<number | null>(intervaloAtual);
   const [erro, setErro] = useState<string | null>(null);
@@ -120,7 +121,11 @@ export function UltimoSnapshot({
     setExecutandoScrapling(true);
     setErro(null);
     try {
-      const res = await fetch("/api/monitoramento/scrapling", { method: "POST" });
+      const res = await fetch("/api/monitoramento/scrapling", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodo: periodoScrapling }),
+      });
       const data = await res.json();
       if (!res.ok || data.ok === false) {
         setErro(data.erro ?? data.error ?? "erro na busca profunda");
@@ -192,13 +197,25 @@ export function UltimoSnapshot({
             </button>
           )}
           {podeConfigurar && (
-            <button
-              onClick={executarScrapling}
-              disabled={executandoScrapling}
-              className="flex items-center gap-1 rounded border border-indigo-300 px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
-            >
-              {executandoScrapling ? "Varrendo…" : "Busca profunda"}
-            </button>
+            <div className="flex items-center gap-0">
+              <select
+                value={periodoScrapling}
+                onChange={(e) => setPeriodoScrapling(e.target.value)}
+                disabled={executandoScrapling}
+                className="rounded-l border border-r-0 border-indigo-300 bg-white px-1.5 py-1 text-xs text-indigo-600 disabled:opacity-50"
+              >
+                <option value="1d">24h</option>
+                <option value="3d">3 dias</option>
+                <option value="7d">7 dias</option>
+              </select>
+              <button
+                onClick={executarScrapling}
+                disabled={executandoScrapling}
+                className="flex items-center gap-1 rounded-r border border-indigo-300 px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+              >
+                {executandoScrapling ? "Varrendo…" : "Busca profunda"}
+              </button>
+            </div>
           )}
           {podeConfigurar && (
             <button

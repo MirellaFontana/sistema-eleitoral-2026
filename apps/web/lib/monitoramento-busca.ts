@@ -63,12 +63,12 @@ const REDES_SOCIAIS = [
   { dominio: "bsky.app", nome: "Bluesky" },
 ] as const;
 
-export async function buscarRedesSociais(termo: string): Promise<Resultado[]> {
+export async function buscarRedesSociais(termo: string, periodo: string = "7d"): Promise<Resultado[]> {
   const resultados: Resultado[] = [];
 
   await Promise.all(
     REDES_SOCIAIS.map(async ({ dominio, nome }) => {
-      const query = `"${termo}" site:${dominio}`;
+      const query = `"${termo}" site:${dominio} when:${periodo}`;
       const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
       try {
         const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });

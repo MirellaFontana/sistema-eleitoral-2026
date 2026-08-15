@@ -10,7 +10,9 @@ const PAPEIS_QUE_EXECUTAM = new Set([
   "redator_marketing",
 ]);
 
-export async function POST() {
+const PERIODOS_VALIDOS = new Set(["1d", "3d", "7d"]);
+
+export async function POST(request: Request) {
   const supabase = await createClient();
 
   const {
@@ -28,6 +30,9 @@ export async function POST() {
     return NextResponse.json({ error: "sem permissão" }, { status: 403 });
   }
 
+  const body = await request.json().catch(() => ({}));
+  const periodo = PERIODOS_VALIDOS.has(body.periodo) ? body.periodo : "7d";
+
   const { data: termos } = await supabase
     .from("termos_monitoramento")
     .select("id, termo, rotulo")
@@ -43,14 +48,15 @@ export async function POST() {
       const [noticias, redes] = await Promise.all([
         (async () => {
           try {
-            const url = `https://news.google.com/rss/search?q=${encodeURIComponent(`"${t.termo}"`)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+            const query = `"${t.termo}" when:${periodo}`;
+            const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
             const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
             return res.ok ? extrairNoticiasRss(await res.text()) : [];
           } catch {
             return [];
           }
         })(),
-        buscarRedesSociais(t.termo),
+        buscarRedesSociais(t.termo, periodo),
       ]);
 
       return { termoId: t.id, termo: t.termo, rotulo: t.rotulo, noticias, redes };
