@@ -76,6 +76,7 @@ export function UltimoSnapshot({
   const [aberto, setAberto] = useState(false);
   const [configAberta, setConfigAberta] = useState(false);
   const [executando, setExecutando] = useState(false);
+  const [executandoScrapling, setExecutandoScrapling] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [intervalo, setIntervalo] = useState<number | null>(intervaloAtual);
   const [erro, setErro] = useState<string | null>(null);
@@ -112,6 +113,24 @@ export function UltimoSnapshot({
       setErro("Falha de conexão.");
     } finally {
       setExecutando(false);
+    }
+  }
+
+  async function executarScrapling() {
+    setExecutandoScrapling(true);
+    setErro(null);
+    try {
+      const res = await fetch("/api/monitoramento/scrapling", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) {
+        setErro(data.erro ?? data.error ?? "erro na busca profunda");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setErro("Falha de conexão.");
+    } finally {
+      setExecutandoScrapling(false);
     }
   }
 
@@ -170,6 +189,15 @@ export function UltimoSnapshot({
             >
               <Settings size={12} />
               Frequência
+            </button>
+          )}
+          {podeConfigurar && (
+            <button
+              onClick={executarScrapling}
+              disabled={executandoScrapling}
+              className="flex items-center gap-1 rounded border border-indigo-300 px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+            >
+              {executandoScrapling ? "Varrendo…" : "Busca profunda"}
             </button>
           )}
           {podeConfigurar && (

@@ -43,6 +43,10 @@ import {
   Menu,
   X,
   ChevronRight,
+  Landmark,
+  Link2,
+  Upload,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { SignOutButton } from "./SignOutButton";
@@ -54,6 +58,7 @@ type NavGroup = { label: string; items: NavItem[] };
 const PAPEIS_SO_JURIDICO = new Set(["Advogado responsável", "Assistente jurídico"]);
 const GRUPOS_JURIDICO = new Set(["Jurídico"]);
 const HREFS_EXTRA_JURIDICO = new Set(["/monitoramento"]);
+const FF_ATIVOS = process.env.NEXT_PUBLIC_FF_ATIVOS === "true";
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -133,6 +138,17 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/marketing", label: "Marketing", icon: Megaphone },
       { href: "/marketing/impulsionamento", label: "Impulsionamento (Ads)", icon: Rocket },
       { href: "/pecas-conteudo", label: "Peças de conteúdo", icon: FileText },
+    ],
+  },
+  {
+    label: "Ativos Políticos",
+    items: [
+      { href: "/ativos-politicos", label: "Dashboard", icon: Landmark },
+      { href: "/ativos-politicos/lista", label: "Lista de Ativos", icon: Users },
+      { href: "/ativos-politicos/mapa", label: "Mapa", icon: MapPin },
+      { href: "/ativos-politicos/relacoes", label: "Relações", icon: Link2 },
+      { href: "/ativos-politicos/importar", label: "Importação", icon: Upload },
+      { href: "/ativos-politicos/configuracoes", label: "Configurações", icon: Settings },
     ],
   },
   {
@@ -223,13 +239,16 @@ export function AppShell({
   const [advMode, setAdvMode] = useState(false);
 
   const soJuridico = !devMode && (PAPEIS_SO_JURIDICO.has(papel ?? "") || advMode);
+  const gruposBase = FF_ATIVOS
+    ? NAV_GROUPS
+    : NAV_GROUPS.filter((g) => g.label !== "Ativos Políticos");
   const gruposVisiveis = soJuridico
-    ? (NAV_GROUPS.map((g) => {
+    ? (gruposBase.map((g) => {
         if (GRUPOS_JURIDICO.has(g.label)) return g;
         const items = g.items.filter((i) => HREFS_EXTRA_JURIDICO.has(i.href));
         return items.length ? { ...g, items } : null;
       }).filter(Boolean) as NavGroup[])
-    : NAV_GROUPS;
+    : gruposBase;
 
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(() => {
     const set = new Set<string>();
