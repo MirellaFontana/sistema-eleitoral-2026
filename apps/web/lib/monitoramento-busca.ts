@@ -78,14 +78,13 @@ export async function buscarRedesSociais(termo: string): Promise<Resultado[]> {
         for (const bloco of blocos.slice(0, 10)) {
           const titulo = bloco.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "";
           const link = bloco.match(/<link\/?>([^<]+)/)?.[1]?.trim() ?? "";
-          const pubDate = bloco.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? null;
           const autor = bloco.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] ?? "";
           if (!titulo || !link) continue;
           resultados.push({
             titulo: decodificarHtml(titulo).slice(0, 200),
             link,
             fonte: autor ? `${nome} · ${decodificarHtml(autor)}` : nome,
-            publicadoEm: pubDate,
+            publicadoEm: null, // RSS retorna data de indexação do Google, não da publicação original
           });
         }
       } catch {
