@@ -58,7 +58,6 @@ type NavGroup = { label: string; items: NavItem[] };
 const PAPEIS_SO_JURIDICO = new Set(["Advogado responsável", "Assistente jurídico"]);
 const GRUPOS_JURIDICO = new Set(["Jurídico"]);
 const HREFS_EXTRA_JURIDICO = new Set(["/monitoramento"]);
-const FF_ATIVOS = process.env.NEXT_PUBLIC_FF_ATIVOS === "true";
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -239,9 +238,7 @@ export function AppShell({
   const [advMode, setAdvMode] = useState(false);
 
   const soJuridico = !devMode && (PAPEIS_SO_JURIDICO.has(papel ?? "") || advMode);
-  const gruposBase = FF_ATIVOS
-    ? NAV_GROUPS
-    : NAV_GROUPS.filter((g) => g.label !== "Ativos Políticos");
+  const gruposBase = NAV_GROUPS;
   const gruposVisiveis = soJuridico
     ? (gruposBase.map((g) => {
         if (GRUPOS_JURIDICO.has(g.label)) return g;
