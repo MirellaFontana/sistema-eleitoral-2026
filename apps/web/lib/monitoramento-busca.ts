@@ -53,6 +53,54 @@ export function extrairNoticiasRss(xml: string): Resultado[] {
     .slice(0, 15);
 }
 
+const REDES_SOCIAIS = [
+  { dominio: "x.com", nome: "X (Twitter)" },
+  { dominio: "youtube.com", nome: "YouTube" },
+  { dominio: "instagram.com", nome: "Instagram" },
+  { dominio: "facebook.com", nome: "Facebook" },
+  { dominio: "tiktok.com", nome: "TikTok" },
+  { dominio: "threads.net", nome: "Threads" },
+  { dominio: "bsky.app", nome: "Bluesky" },
+] as const;
+
+export async function buscarRedesSociais(termo: string): Promise<Resultado[]> {
+  const resultados: Resultado[] = [];
+
+  await Promise.all(
+    REDES_SOCIAIS.map(async ({ dominio, nome }) => {
+      const query = `"${termo}" site:${dominio}`;
+      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+      try {
+        const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (!res.ok) return;
+        const xml = await res.text();
+        const blocos = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
+        for (const bloco of blocos.slice(0, 10)) {
+          const titulo = bloco.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? "";
+          const link = bloco.match(/<link\/?>([^<]+)/)?.[1]?.trim() ?? "";
+          const pubDate = bloco.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? null;
+          if (!titulo || !link) continue;
+          resultados.push({
+            titulo: decodificarHtml(titulo).slice(0, 200),
+            link,
+            fonte: nome,
+            publicadoEm: pubDate,
+          });
+        }
+      } catch {
+        // silently skip failed network
+      }
+    }),
+  );
+
+  const vistos = new Set<string>();
+  return resultados.filter((r) => {
+    if (vistos.has(r.link)) return false;
+    vistos.add(r.link);
+    return true;
+  }).slice(0, 30);
+}
+
 export async function buscarTermo(
   termoRow: { id: string; termo: string; rotulo: string | null },
   twitterToken: string | undefined,
