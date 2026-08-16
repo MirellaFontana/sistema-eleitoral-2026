@@ -38,6 +38,11 @@ Regras:
 - Se há demandas recorrentes sem proposta, aponte (tipo: "campo" ou "oportunidade").
 - Se há ativos políticos de alta influência sem contato realizado ou inativos, recomende ação de articulação.
 - Se há ativos parceiros em regiões sem propostas, recomende ação de campo nessas regiões.
+- Use os dados de ANÁLISE TERRITORIAL para identificar lacunas de cobertura, concentrações, territórios estratégicos e cruzamentos relevantes.
+- Cruze ativos × municípios × demandas para encontrar territórios com alta relevância e baixa cobertura operacional.
+- Cruze ativos × partido × cargo para mapear a estrutura política territorial.
+- Identifique lacunas cadastrais (ativos sem município, sem contato, sem classificação de influência).
+- NÃO invente fatos sobre pessoas. Apenas analise os dados fornecidos.
 - Cada recomendação deve ser acionável — diga O QUE fazer, não apenas o que observar.
 - Confiança "baixa" quando poucos dados sustentam; "alta" quando múltiplas fontes convergem.`;
 
@@ -67,7 +72,7 @@ export async function POST() {
 
   const [
     alertasRes, demandasRes, concorrentesRes, temasRes, snapshotRes, tarefasRes,
-    sinaisConcRes, propostasRes, sinaisCampoRes, ativosRes,
+    sinaisConcRes, propostasRes, sinaisCampoRes, ativosRes, ativosTodosRes, historicoAtivosRes,
   ] = await Promise.all([
     supabase.from("alertas").select("texto_ia, created_at")
       .eq("status_envio", "pendente_configuracao")
@@ -96,6 +101,12 @@ export async function POST() {
       .eq("campanha_id", eu.campanha_id)
       .in("nivel_influencia", ["muito_alto", "alto"])
       .order("created_at", { ascending: false }).limit(30),
+    supabase.from("ativos_politicos")
+      .select("id, cidade, partido, nivel_influencia, status_campanha, setor, categorias_ativo_politico(nome)")
+      .eq("campanha_id", eu.campanha_id),
+    supabase.from("historico_ativos")
+      .select("ativo_id")
+      .eq("campanha_id", eu.campanha_id),
   ]);
 
   const temasCtx: TemaComItens[] = (temasRes.data ?? []).map((t) => ({
@@ -160,6 +171,62 @@ export async function POST() {
     })
     .join("\n") || "(nenhum ativo político de alta influência)";
 
+  // Análise territorial agregada
+  const todosAtivos = ativosTodosRes.data ?? [];
+  const histAtivos = new Set((historicoAtivosRes.data ?? []).map((h) => h.ativo_id));
+  let analiseTerritorial = "";
+  if (todosAtivos.length > 0) {
+    const porCidade = new Map<string, { total: number; semAcao: number; alta: number; semContato: number }>();
+    const porPartido = new Map<string, number>();
+    const porStatus = new Map<string, number>();
+    const porSetor = new Map<string, number>();
+    let semCidade = 0;
+
+    for (const a of todosAtivos) {
+      const cidade = (a.cidade as string) || "";
+      if (!cidade) { semCidade++; continue; }
+      const entry = porCidade.get(cidade) ?? { total: 0, semAcao: 0, alta: 0, semContato: 0 };
+      entry.total++;
+      if (!histAtivos.has(a.id)) entry.semAcao++;
+      if (a.nivel_influencia === "muito_alto" || a.nivel_influencia === "alto") entry.alta++;
+      if (a.status_campanha === "identificado" || a.status_campanha === "nao_relacionado") entry.semContato++;
+      porCidade.set(cidade, entry);
+
+      if (a.partido) porPartido.set(a.partido as string, (porPartido.get(a.partido as string) ?? 0) + 1);
+      porStatus.set(a.status_campanha as string, (porStatus.get(a.status_campanha as string) ?? 0) + 1);
+      if (a.setor) porSetor.set(a.setor as string, (porSetor.get(a.setor as string) ?? 0) + 1);
+    }
+
+    const cidadeEntries = [...porCidade.entries()].sort((a, b) => b[1].total - a[1].total);
+    const top10 = cidadeEntries.slice(0, 10).map(([c, v]) => `  ${c}: ${v.total} ativos (${v.alta} alta influência, ${v.semContato} sem contato, ${v.semAcao} sem ação)`).join("\n");
+
+    const statusTxt = [...porStatus.entries()].map(([s, n]) => `${s}: ${n}`).join(", ");
+    const partidoTxt = [...porPartido.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([p, n]) => `${p}: ${n}`).join(", ");
+    const setorTxt = [...porSetor.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([s, n]) => `${s}: ${n}`).join(", ");
+
+    const baixaCobertura = cidadeEntries
+      .filter(([, v]) => v.total >= 3 && v.semAcao / v.total > 0.6)
+      .slice(0, 5)
+      .map(([c, v]) => `  ${c}: ${v.total} ativos, ${v.semAcao} sem ação (${Math.round(100 * v.semAcao / v.total)}%)`)
+      .join("\n");
+
+    const polos = cidadeEntries
+      .filter(([, v]) => v.alta >= 3)
+      .slice(0, 5)
+      .map(([c, v]) => `  ${c}: ${v.alta} de alta influência`)
+      .join("\n");
+
+    analiseTerritorial = [
+      `Total de ativos: ${todosAtivos.length} (${semCidade} sem município registrado)`,
+      `Status da rede: ${statusTxt}`,
+      partidoTxt ? `Distribuição partidária: ${partidoTxt}` : null,
+      setorTxt ? `Distribuição por setor: ${setorTxt}` : null,
+      top10 ? `Municípios com mais ativos:\n${top10}` : null,
+      baixaCobertura ? `ALERTA — Territórios com alta concentração e baixa cobertura operacional:\n${baixaCobertura}` : null,
+      polos ? `Polos estratégicos (alta influência):\n${polos}` : null,
+    ].filter(Boolean).join("\n");
+  }
+
   const mensagem = [
     `CANDIDATO: ${campanha?.nome_candidato ?? "(não cadastrado)"}`,
     diretrizes || null,
@@ -173,6 +240,7 @@ export async function POST() {
     `MONITORAMENTO:\n${monitoramentoTxt}`,
     `TAREFAS PENDENTES:\n${tarefasTxt}`,
     `ATIVOS POLÍTICOS (alta influência):\n${ativosTxt}`,
+    analiseTerritorial ? `ANÁLISE TERRITORIAL (dados agregados da rede de ativos):\n${analiseTerritorial}` : null,
   ].filter(Boolean).join("\n\n");
 
   let raw: string;

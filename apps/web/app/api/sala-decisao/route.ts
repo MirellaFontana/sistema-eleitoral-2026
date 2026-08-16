@@ -43,6 +43,7 @@ export async function GET() {
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
     snapshotRes, recsRecentesRes, demandasRes, demandasPrazoRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes, sinaisConcorrentesRes,
     ativosSemContatoRes, ativosRecentesRes,
+    ativosTodosRes, historicoAtivosRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -119,6 +120,12 @@ export async function GET() {
       .eq("campanha_id", eu.campanha_id)
       .gte("created_at", ontem)
       .order("created_at", { ascending: false }).limit(5),
+    supabase.from("ativos_politicos")
+      .select("id, cidade, partido, nivel_influencia, status_campanha, abrangencia, setor, categorias_ativo_politico(nome, grupo)")
+      .eq("campanha_id", eu.campanha_id),
+    supabase.from("historico_ativos")
+      .select("ativo_id")
+      .eq("campanha_id", eu.campanha_id),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -139,6 +146,8 @@ export async function GET() {
   const sinaisConcorrentes = sinaisConcorrentesRes.data ?? [];
   const ativosSemContato = ativosSemContatoRes.data ?? [];
   const ativosRecentes = ativosRecentesRes.data ?? [];
+  const ativosTodos = ativosTodosRes.data ?? [];
+  const historicoAtivos = historicoAtivosRes.data ?? [];
 
   type TemaAnalise = { tema?: string; consistencia?: string; lacunas?: string[]; ressonancia_propria?: { nivel?: string } };
   const temasNarrativa = (narrativa?.analise ?? []) as TemaAnalise[];
@@ -410,6 +419,137 @@ export async function GET() {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Insights territoriais — análises determinísticas sobre ativos políticos
+  // ---------------------------------------------------------------------------
+  if (ativosTodos.length > 0) {
+    const ativosComHistorico = new Set(historicoAtivos.map((h) => h.ativo_id));
+
+    // Agrupar por cidade
+    const porCidade = new Map<string, typeof ativosTodos>();
+    for (const a of ativosTodos) {
+      const c = (a.cidade as string) ?? "(sem cidade)";
+      const arr = porCidade.get(c);
+      if (arr) arr.push(a); else porCidade.set(c, [a]);
+    }
+
+    // Agrupar por partido
+    const porPartido = new Map<string, number>();
+    for (const a of ativosTodos) {
+      if (a.partido) porPartido.set(a.partido as string, (porPartido.get(a.partido as string) ?? 0) + 1);
+    }
+
+    // Agrupar por setor
+    const porSetor = new Map<string, number>();
+    for (const a of ativosTodos) {
+      if (a.setor) porSetor.set(a.setor as string, (porSetor.get(a.setor as string) ?? 0) + 1);
+    }
+
+    // Agrupar por status
+    const porStatus = new Map<string, number>();
+    for (const a of ativosTodos) {
+      const s = a.status_campanha as string;
+      porStatus.set(s, (porStatus.get(s) ?? 0) + 1);
+    }
+
+    // Insight: municípios com muitos ativos mas sem ações (sem histórico)
+    const cidadesSemAcao: { cidade: string; total: number; semAcao: number }[] = [];
+    for (const [cidade, ativos] of porCidade) {
+      if (cidade === "(sem cidade)") continue;
+      const semAcao = ativos.filter((a) => !ativosComHistorico.has(a.id)).length;
+      if (semAcao >= 3 && semAcao / ativos.length > 0.6) {
+        cidadesSemAcao.push({ cidade, total: ativos.length, semAcao });
+      }
+    }
+    cidadesSemAcao.sort((a, b) => b.semAcao - a.semAcao);
+    for (const c of cidadesSemAcao.slice(0, 3)) {
+      fiqueAtento.push({
+        id: `terr-cobertura-${c.cidade}`,
+        titulo: `Baixa cobertura operacional: ${c.cidade}`,
+        descricao: `${c.total} ativos cadastrados, ${c.semAcao} sem nenhuma ação registrada.`,
+        tipo: "territorio",
+        urgencia: c.semAcao >= 5 ? "alta" : "media",
+        fonte: "Ativos Políticos",
+        porqueEstouVendo: `O município ${c.cidade} possui ${c.total} ativos políticos, mas ${c.semAcao} (${Math.round(100 * c.semAcao / c.total)}%) não tiveram nenhuma interação registrada.`,
+        link: "/ativos-politicos/lista",
+      });
+    }
+
+    // Insight: concentração de lideranças por setor em poucos municípios
+    const setorCidades = new Map<string, Map<string, number>>();
+    for (const a of ativosTodos) {
+      if (!a.setor || !a.cidade) continue;
+      const s = a.setor as string;
+      const c = a.cidade as string;
+      if (!setorCidades.has(s)) setorCidades.set(s, new Map());
+      const m = setorCidades.get(s)!;
+      m.set(c, (m.get(c) ?? 0) + 1);
+    }
+    for (const [setor, cidades] of setorCidades) {
+      const totalSetor = [...cidades.values()].reduce((a, b) => a + b, 0);
+      if (totalSetor < 5 || cidades.size > 3) continue;
+      const cidadesList = [...cidades.entries()].sort((a, b) => b[1] - a[1]).map(([c, n]) => `${c} (${n})`).join(", ");
+      fiqueAtento.push({
+        id: `terr-concentracao-${setor}`,
+        titulo: `Concentração do setor ${setor}`,
+        descricao: `${totalSetor} lideranças de "${setor}" concentradas em ${cidades.size} município${cidades.size > 1 ? "s" : ""}: ${cidadesList}.`,
+        tipo: "territorio",
+        urgencia: "media",
+        fonte: "Ativos Políticos",
+        porqueEstouVendo: `Há concentração de lideranças do setor "${setor}" em poucos municípios, o que pode indicar lacuna em outros territórios.`,
+        link: "/ativos-politicos/lista",
+      });
+    }
+
+    // Insight: muitos ativos sem contato (geral)
+    const semContato = (porStatus.get("identificado") ?? 0) + (porStatus.get("nao_relacionado") ?? 0);
+    if (semContato >= 10) {
+      fiqueAtento.push({
+        id: "terr-sem-contato-geral",
+        titulo: `${semContato} lideranças sem contato registrado`,
+        descricao: `De ${ativosTodos.length} ativos cadastrados, ${semContato} ainda não tiveram contato realizado pela campanha.`,
+        tipo: "territorio",
+        urgencia: semContato >= 20 ? "alta" : "media",
+        fonte: "Ativos Políticos",
+        porqueEstouVendo: `${Math.round(100 * semContato / ativosTodos.length)}% dos ativos políticos estão com status "identificado" ou "não relacionado" — sem contato da campanha.`,
+        link: "/ativos-politicos/lista",
+      });
+    }
+
+    // Insight: ativos sem cidade (lacuna cadastral)
+    const semCidade = ativosTodos.filter((a) => !a.cidade).length;
+    if (semCidade >= 5) {
+      fiqueAtento.push({
+        id: "terr-sem-cidade",
+        titulo: `${semCidade} ativos sem município registrado`,
+        descricao: `Isso impede a análise territorial e a identificação de lacunas geográficas.`,
+        tipo: "territorio",
+        urgencia: semCidade >= 10 ? "alta" : "media",
+        fonte: "Ativos Políticos",
+        porqueEstouVendo: `${semCidade} de ${ativosTodos.length} ativos políticos não possuem município cadastrado — lacuna que compromete a inteligência territorial.`,
+        link: "/ativos-politicos/lista",
+      });
+    }
+
+    // Insight: cidades com muitos ativos de alta influência (polo estratégico)
+    for (const [cidade, ativos] of porCidade) {
+      if (cidade === "(sem cidade)") continue;
+      const altaInfl = ativos.filter((a) => a.nivel_influencia === "muito_alto" || a.nivel_influencia === "alto").length;
+      if (altaInfl >= 3) {
+        fiqueAtento.push({
+          id: `terr-polo-${cidade}`,
+          titulo: `Polo estratégico: ${cidade}`,
+          descricao: `${altaInfl} ativos de alta/muito alta influência em ${cidade}.`,
+          tipo: "territorio",
+          urgencia: "baixa",
+          fonte: "Ativos Políticos",
+          porqueEstouVendo: `${cidade} concentra ${altaInfl} ativos com influência alta ou superior — território estrategicamente relevante.`,
+          link: "/ativos-politicos/lista",
+        });
+      }
+    }
+  }
+
   const resumo = {
     fontesComProblema: 0,
     normativasDesatualizadas: normativasDesatualizadas.length,
@@ -418,6 +558,7 @@ export async function GET() {
     demandasComPrazo: demandasComPrazo.length,
     sinaisConcorrentes: sinaisConcorrentes.length,
     ativosSemContato: ativosSemContato.length,
+    totalAtivos: ativosTodos.length,
   };
 
   return NextResponse.json({ decidaAgora, facaHoje, fiqueAtento, oQueMudou, resumo });
