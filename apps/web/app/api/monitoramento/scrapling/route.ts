@@ -116,11 +116,10 @@ export async function POST(request: Request) {
 
     if (existe) continue;
 
-    const isRede = isRede(m.fonte);
     const { error } = await supabase.from("monitoramento_itens").insert({
       campanha_id: eu.campanha_id,
       url: m.link,
-      descricao: `[${isRede ? "Rede social" : "Busca profunda"}] ${m.titulo}`,
+      descricao: `[${isRede(m.fonte) ? "Rede social" : "Busca profunda"}] ${m.titulo}`,
       categoria: "mencao_neutra",
       status: "novo",
     });

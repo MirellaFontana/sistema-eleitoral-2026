@@ -298,11 +298,11 @@ export function AtivoPerfilClient({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-xl font-semibold">{ativo.nome as string}</h1>
-              {ativo.nome_social && <p className="text-sm text-neutral-500">{ativo.nome_social as string}</p>}
+              {!!ativo.nome_social && <p className="text-sm text-neutral-500">{ativo.nome_social as string}</p>}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-neutral-600">
                 {cat && <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs font-medium">{cat.nome}</span>}
-                {ativo.cargo_atual && <span>{ativo.cargo_atual as string}</span>}
-                {ativo.partido && <span>· {ativo.partido as string}</span>}
+                {!!ativo.cargo_atual && <span>{ativo.cargo_atual as string}</span>}
+                {!!ativo.partido && <span>· {ativo.partido as string}</span>}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -321,35 +321,35 @@ export function AtivoPerfilClient({
             <section className="rounded-lg border border-neutral-200 p-4 space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Informações</h2>
               <dl className="space-y-2 text-sm">
-                {ativo.cidade && (
+                {!!ativo.cidade && (
                   <div className="flex items-center gap-2">
                     <MapPin size={14} className="text-neutral-400" />
                     <span>{ativo.cidade as string}{ativo.estado ? `/${ativo.estado}` : ""}{ativo.bairro ? ` — ${ativo.bairro}` : ""}</span>
                   </div>
                 )}
-                {ativo.telefone && (
+                {!!ativo.telefone && (
                   <div className="flex items-center gap-2">
                     <Phone size={14} className="text-neutral-400" />
                     <span>{ativo.telefone as string}</span>
                   </div>
                 )}
-                {ativo.whatsapp && ativo.whatsapp !== ativo.telefone && (
+                {!!ativo.whatsapp && ativo.whatsapp !== ativo.telefone && (
                   <div className="flex items-center gap-2">
                     <Phone size={14} className="text-neutral-400" />
                     <span>WhatsApp: {ativo.whatsapp as string}</span>
                   </div>
                 )}
-                {ativo.email && (
+                {!!ativo.email && (
                   <div className="flex items-center gap-2">
                     <Mail size={14} className="text-neutral-400" />
                     <span>{ativo.email as string}</span>
                   </div>
                 )}
-                {ativo.entidade && <div><span className="text-neutral-400">Entidade:</span> {ativo.entidade as string}</div>}
-                {ativo.setor && <div><span className="text-neutral-400">Setor:</span> {ativo.setor as string}</div>}
-                {ativo.cargo_anterior && <div><span className="text-neutral-400">Cargo anterior:</span> {ativo.cargo_anterior as string}</div>}
+                {!!ativo.entidade && <div><span className="text-neutral-400">Entidade:</span> {ativo.entidade as string}</div>}
+                {!!ativo.setor && <div><span className="text-neutral-400">Setor:</span> {ativo.setor as string}</div>}
+                {!!ativo.cargo_anterior && <div><span className="text-neutral-400">Cargo anterior:</span> {ativo.cargo_anterior as string}</div>}
                 {terr && <div><span className="text-neutral-400">Território:</span> {terr.nome_bairro ?? "—"}{terr.cidade ? ` — ${terr.cidade}` : ""}</div>}
-                {ativo.geolocalizacao && <div className="text-xs text-emerald-600">Geolocalizado</div>}
+                {!!ativo.geolocalizacao && <div className="text-xs text-emerald-600">Geolocalizado</div>}
               </dl>
             </section>
 
@@ -365,7 +365,7 @@ export function AtivoPerfilClient({
             </section>
           </div>
 
-          {ativo.observacoes && (
+          {!!ativo.observacoes && (
             <section className="rounded-lg border border-neutral-200 p-4 space-y-2">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Observações</h2>
               <p className="text-sm whitespace-pre-wrap">{ativo.observacoes as string}</p>
@@ -402,7 +402,7 @@ export function AtivoPerfilClient({
           >
             <Eye size={13} /> Monitorar menções
           </Link>
-          {ativo.whatsapp && (
+          {!!ativo.whatsapp && (
             <a
               href={`https://wa.me/55${(ativo.whatsapp as string).replace(/\D/g, "")}`}
               target="_blank"
