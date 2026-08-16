@@ -17,6 +17,7 @@ import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { BriefingDiario } from "./BriefingDiario";
 import { SalaDecisao } from "./SalaDecisao";
+import { hojeBR } from "@/lib/fuso";
 
 const PAPEIS_BRIEFING_DIRETO = new Set(["candidato", "coord_campanha"]);
 
@@ -98,10 +99,10 @@ export default async function DashboardPage() {
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
 
   const hoje = new Date();
-  const semanaInicial = new Date(inicioSemana(hoje).getTime() - 7 * SEMANA_MS);
-  const hojeIso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
-  const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const hojeIso = hojeBR();
+  const inicioDia = new Date(`${hojeIso}T00:00:00-03:00`);
   const fimDia = new Date(inicioDia.getTime() + 86_400_000);
+  const semanaInicial = new Date(inicioSemana(hoje).getTime() - 7 * SEMANA_MS);
 
   // Contagens e detalhes respeitam a RLS da sessão — papel sem acesso a uma tabela vê
   // zero/vazio na seção correspondente, sem lógica extra por papel.
@@ -283,7 +284,7 @@ export default async function DashboardPage() {
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-3">
                     <span className="text-[10px] text-neutral-400">
-                      {new Date(a.created_at).toLocaleDateString("pt-BR")}
+                      {new Date(a.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                     </span>
                     {a.encaminhado_nota && (
                       <span className="text-[10px] text-neutral-400">{a.encaminhado_nota}</span>

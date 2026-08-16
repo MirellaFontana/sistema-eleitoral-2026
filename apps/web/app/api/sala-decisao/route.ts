@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hojeBR, diasFrenteBR, inicioDiasAtrasBR, formatarDataBR } from "@/lib/fuso";
 
 const STATUS_LABEL: Record<string, string> = {
   nao_relacionado: "não relacionado",
@@ -35,9 +36,9 @@ export async function GET() {
   if (!eu) return NextResponse.json({ error: "sem campanha" }, { status: 403 });
 
   const hoje = new Date();
-  const hojeIso = hoje.toISOString().slice(0, 10);
-  const em3dias = new Date(hoje.getTime() + 3 * 86_400_000).toISOString().slice(0, 10);
-  const ontem = new Date(hoje.getTime() - 86_400_000).toISOString();
+  const hojeIso = hojeBR();
+  const em3dias = diasFrenteBR(3);
+  const ontem = inicioDiasAtrasBR(1);
 
   const [
     recsRes, alertasRes, tarefasRes, prazosRes, diretrizesRes,
@@ -86,7 +87,7 @@ export async function GET() {
     supabase.from("sinais_campo")
       .select("id, tema, frase_representativa, intensidade, created_at")
       .eq("intensidade", "forte")
-      .gte("created_at", new Date(hoje.getTime() - 3 * 86_400_000).toISOString())
+      .gte("created_at", inicioDiasAtrasBR(3))
       .order("created_at", { ascending: false }).limit(5),
     supabase.from("decisoes")
       .select("id, titulo, status, acao_planejada, prazo, resultado")
@@ -107,7 +108,7 @@ export async function GET() {
       .order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("sinais_concorrentes")
       .select("id, titulo, descricao, concorrente_id, concorrentes(nome), created_at")
-      .gte("created_at", new Date(hoje.getTime() - 3 * 86_400_000).toISOString())
+      .gte("created_at", inicioDiasAtrasBR(3))
       .order("created_at", { ascending: false }).limit(5),
     supabase.from("ativos_politicos")
       .select("id, nome, cargo_atual, nivel_influencia, status_campanha, cidade, categorias_ativo_politico(nome)")
@@ -175,7 +176,7 @@ export async function GET() {
       ? Math.round((new Date(t.prazo + "T12:00:00").getTime() - hoje.getTime()) / 86_400_000)
       : null;
     const prazoTxt = t.prazo
-      ? `Prazo: ${new Date(t.prazo + "T12:00:00").toLocaleDateString("pt-BR")}`
+      ? `Prazo: ${formatarDataBR(t.prazo + "T12:00:00")}`
       : "";
     const vencendo = diasPrazo !== null && diasPrazo <= 1;
     facaHoje.push({
@@ -221,7 +222,7 @@ export async function GET() {
 
   for (const dec of decisoesAtivas) {
     const prazoTxt = dec.prazo
-      ? `Prazo: ${new Date(dec.prazo + "T12:00:00").toLocaleDateString("pt-BR")}`
+      ? `Prazo: ${formatarDataBR(dec.prazo + "T12:00:00")}`
       : "";
     facaHoje.push({
       id: `dec-${dec.id}`,
@@ -307,7 +308,7 @@ export async function GET() {
     fiqueAtento.push({
       id: `norm-${n.id}`,
       titulo: `Norma alterada: ${n.titulo}`,
-      descricao: n.data_verificacao ? `Verificada em ${new Date(n.data_verificacao + "T12:00:00").toLocaleDateString("pt-BR")}` : "",
+      descricao: n.data_verificacao ? `Verificada em ${formatarDataBR(n.data_verificacao + "T12:00:00")}` : "",
       tipo: "normativa",
       urgencia: "alta",
       fonte: "Base normativa",
@@ -363,7 +364,7 @@ export async function GET() {
 
   const oQueMudou: Item[] = [];
   if (snapshot?.analise_ia) {
-    const dt = new Date(snapshot.created_at).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const dt = formatarDataBR(snapshot.created_at, { hour: "2-digit", minute: "2-digit" });
     const analise = snapshot.analise_ia as Record<string, unknown>;
     const resumo = typeof analise.resumo === "string" ? analise.resumo : "Novo snapshot de monitoramento disponível.";
     oQueMudou.push({
@@ -382,7 +383,7 @@ export async function GET() {
     oQueMudou.push({
       id: `recnew-${r.id}`,
       titulo: r.titulo,
-      descricao: `Gerada ${new Date(r.created_at).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+      descricao: `Gerada ${formatarDataBR(r.created_at, { hour: "2-digit", minute: "2-digit" })}`,
       tipo: r.tipo,
       urgencia: r.urgencia,
       fonte: "Recomendação nova",

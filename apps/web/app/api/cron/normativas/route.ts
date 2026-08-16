@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verificarCronAuth } from "@/lib/cron-auth";
 import { GoogleGenAI } from "@google/genai";
+import { hojeBR } from "@/lib/fuso";
 
 function extrairTextoLegivel(html: string): string {
   return html
@@ -96,7 +97,7 @@ export async function GET(request: Request) {
       const mudou = f.hash_conteudo !== null && f.hash_conteudo !== novoHash;
 
       const updates: Record<string, unknown> = {
-        data_verificacao: new Date().toISOString().slice(0, 10),
+        data_verificacao: hojeBR(),
         hash_conteudo: novoHash,
         updated_at: new Date().toISOString(),
       };

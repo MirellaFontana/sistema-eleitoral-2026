@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizarTextoOpcional } from "@/lib/sanitizar";
+import { hojeBR } from "@/lib/fuso";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       territorio_id: body.territorio_id || null,
       evento_id: body.evento_id || null,
       local_descricao: sanitizarTextoOpcional(body.local_descricao, 500),
-      data_registro: body.data_registro || new Date().toISOString().slice(0, 10),
+      data_registro: body.data_registro || hojeBR(),
       tema: sanitizarTextoOpcional(body.tema, 200),
       perguntas_objecoes: Array.isArray(body.perguntas_objecoes)
         ? body.perguntas_objecoes.map((p: unknown) => typeof p === "string" ? p.trim().slice(0, 1000) : "")

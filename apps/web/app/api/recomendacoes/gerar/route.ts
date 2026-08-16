@@ -5,6 +5,7 @@ import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { montarContextoConhecimento, type TemaComItens } from "@/lib/anthropic";
 import { parseJsonSeguro, parseJsonArraySeguro } from "@/lib/parse-json-seguro";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { formatarDataBR } from "@/lib/fuso";
 
 const PAPEIS_GERAM = new Set(["coord_campanha", "candidato", "coord_marketing"]);
 
@@ -135,7 +136,7 @@ export async function POST() {
     .join("\n") || "(nenhum concorrente)";
 
   const monitoramentoTxt = snapshotRes.data?.analise_ia
-    ? `Último monitoramento (${new Date(snapshotRes.data.created_at).toLocaleDateString("pt-BR")}):\n${JSON.stringify(snapshotRes.data.analise_ia, null, 0).slice(0, 3000)}`
+    ? `Último monitoramento (${formatarDataBR(snapshotRes.data.created_at)}):\n${JSON.stringify(snapshotRes.data.analise_ia, null, 0).slice(0, 3000)}`
     : "(sem monitoramento recente)";
 
   const tarefasTxt = (tarefasRes.data ?? [])

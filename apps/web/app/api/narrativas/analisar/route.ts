@@ -114,7 +114,7 @@ export async function POST() {
     .join("\n") || "(nenhuma demanda)";
 
   const snapshots = (snapshotRes.data ?? []).map((s) => {
-    const dt = new Date(s.created_at).toLocaleDateString("pt-BR");
+    const dt = new Date(s.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
     const analise = s.analise_ia ? JSON.stringify(s.analise_ia, null, 0).slice(0, 2000) : "";
     const brutos = Array.isArray(s.resultados_brutos)
       ? (s.resultados_brutos as { titulo?: string; fonte?: string }[]).slice(0, 15).map((r) => `  "${r.titulo ?? "?"}" (${r.fonte ?? "?"})`).join("\n")

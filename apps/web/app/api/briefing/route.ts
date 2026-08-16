@@ -8,6 +8,7 @@ import {
 } from "@/lib/anthropic";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { hojeBR, inicioDiasAtrasBR } from "@/lib/fuso";
 
 // Quem pode gerar direto pelo papel (candidato é o dono do briefing; coordenação prepara
 // pra ele). Outros papéis passam pela permissão delegável 'usar_ia' (migration 0040).
@@ -24,7 +25,7 @@ const TIPO_EVENTO_LABEL: Record<string, string> = {
 };
 
 function horaLocal(iso: string): string {
-  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 }
 
 export async function POST() {
@@ -60,11 +61,9 @@ export async function POST() {
     }
   }
 
-  // Eventos de hoje (dia local do servidor, mesmo critério do dashboard).
-  const hoje = new Date();
-  const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const hojeIso = hojeBR();
+  const inicioDia = new Date(`${hojeIso}T00:00:00-03:00`);
   const fimDia = new Date(inicioDia.getTime() + 86_400_000);
-  const hojeIso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
 
   const { data: eventos, error: errEventos } = await supabase
     .from("eventos_campanha")
@@ -110,7 +109,7 @@ export async function POST() {
     .limit(50);
 
   // Sinais de campo recentes (intensidade forte/moderada dos últimos 3 dias).
-  const tresDiasAtras = new Date(hoje.getTime() - 3 * 86_400_000).toISOString();
+  const tresDiasAtras = inicioDiasAtrasBR(3);
   const { data: sinaisCampo } = await supabase
     .from("sinais_campo")
     .select("tema, frase_representativa, intensidade, local_descricao, created_at")

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { proximaRotaMfa } from "@/lib/mfa";
 import { BotaoImprimir } from "@/components/BotaoImprimir";
+import { hojeBR } from "@/lib/fuso";
 import { EventoForm } from "./EventoForm";
 import { EventoCard, type EventoView, type Participante } from "./EventoCard";
 
@@ -77,6 +78,7 @@ function labelDia(iso: string): string {
     weekday: "long",
     day: "2-digit",
     month: "long",
+    timeZone: "America/Sao_Paulo",
   });
 }
 
@@ -146,8 +148,7 @@ export default async function AgendaPage({
   const liderancas = liderancasRes.data ?? [];
   const eventos = ((eventosRes.data ?? []) as unknown as LinhaEvento[]).map(paraView);
 
-  const inicioHoje = new Date();
-  inicioHoje.setHours(0, 0, 0, 0);
+  const inicioHoje = new Date(`${hojeBR()}T00:00:00-03:00`);
   const proximos = eventos.filter((e) => new Date(e.dataInicio) >= inicioHoje);
   const anteriores = eventos
     .filter((e) => new Date(e.dataInicio) < inicioHoje)

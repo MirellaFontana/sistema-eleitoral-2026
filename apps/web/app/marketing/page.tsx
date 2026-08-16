@@ -235,7 +235,7 @@ export default async function MarketingPage() {
                     </span>
                     <span className="ml-auto text-xs text-neutral-400">
                       {new Date(lote.created_at).toLocaleString("pt-BR", {
-                        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo",
                       })}
                     </span>
                   </div>
@@ -303,7 +303,7 @@ export default async function MarketingPage() {
                         </span>
                       )}
                       <span className="ml-auto text-xs text-neutral-400">
-                        {new Date(a.created_at).toLocaleDateString("pt-BR")}
+                        {new Date(a.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </span>
                     </div>
                     {av.sintese?.recomendacoes?.[0] && (
