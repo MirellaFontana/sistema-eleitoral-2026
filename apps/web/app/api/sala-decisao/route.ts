@@ -45,6 +45,7 @@ export async function GET() {
     snapshotRes, recsRecentesRes, demandasRes, demandasPrazoRes, sinaisCampoRes, decisoesRes, fontesRes, normativasRes, recsAvaliadasRes, narrativaRes, sinaisConcorrentesRes,
     ativosSemContatoRes, ativosRecentesRes,
     ativosTodosRes, historicoAtivosRes,
+    chapasRes, candidaturasRes,
   ] = await Promise.all([
     supabase.from("recomendacoes")
       .select("id, titulo, descricao, tipo, urgencia, status, fatos_utilizados, confianca")
@@ -127,6 +128,13 @@ export async function GET() {
     supabase.from("historico_ativos")
       .select("ativo_id")
       .eq("campanha_id", eu.campanha_id),
+    supabase.from("chapas_proporcionais")
+      .select("id, partido, status, eleicao_id, eleicoes_proporcionais(cargo, estado, vagas)")
+      .eq("campanha_id", eu.campanha_id),
+    supabase.from("candidaturas_chapa")
+      .select("id, chapa_id, nome, genero, votos_projetados, votos_historicos, status, municipios_forca")
+      .eq("campanha_id", eu.campanha_id)
+      .in("status", ["confirmado", "provavel"]),
   ]);
 
   const recs = recsRes.data ?? [];
@@ -149,6 +157,8 @@ export async function GET() {
   const ativosRecentes = ativosRecentesRes.data ?? [];
   const ativosTodos = ativosTodosRes.data ?? [];
   const historicoAtivos = historicoAtivosRes.data ?? [];
+  const chapas = chapasRes.data ?? [];
+  const candidaturas = candidaturasRes.data ?? [];
 
   type TemaAnalise = { tema?: string; consistencia?: string; lacunas?: string[]; ressonancia_propria?: { nivel?: string } };
   const temasNarrativa = (narrativa?.analise ?? []) as TemaAnalise[];
@@ -551,6 +561,105 @@ export async function GET() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Insights de chapas proporcionais
+  // ---------------------------------------------------------------------------
+  if (chapas.length > 0) {
+    for (const chapa of chapas) {
+      const cands = candidaturas.filter((c) => c.chapa_id === chapa.id);
+      const eleicao = Array.isArray(chapa.eleicoes_proporcionais)
+        ? chapa.eleicoes_proporcionais[0]
+        : chapa.eleicoes_proporcionais;
+      const vagas = (eleicao as Record<string, unknown>)?.vagas as number ?? 0;
+      const cargo = (eleicao as Record<string, unknown>)?.cargo as string ?? "";
+      const estado = (eleicao as Record<string, unknown>)?.estado as string ?? "";
+      const limiteMax = vagas + 1;
+
+      if (cands.length === 0) continue;
+
+      // Cota de gênero
+      const masc = cands.filter((c) => c.genero === "masculino").length;
+      const fem = cands.filter((c) => c.genero === "feminino").length;
+      const total = masc + fem;
+      if (total > 0) {
+        const minCota = Math.ceil(total * 0.3);
+        if (fem < minCota) {
+          fiqueAtento.push({
+            id: `chapa-cota-${chapa.id}`,
+            titulo: `Cota de gênero irregular: ${chapa.partido}`,
+            descricao: `${fem} candidatura(s) feminina(s) de ${total} — mínimo exigido: ${minCota} (30%).`,
+            tipo: "chapa",
+            urgencia: "alta",
+            fonte: "Chapas Proporcionais",
+            porqueEstouVendo: `A chapa de ${cargo} (${estado}) do ${chapa.partido} não atende à cota mínima de gênero.`,
+            link: "/chapas-proporcionais/chapas",
+          });
+        }
+      }
+
+      // Limite de candidaturas
+      if (total >= limiteMax) {
+        fiqueAtento.push({
+          id: `chapa-limite-${chapa.id}`,
+          titulo: `Limite atingido: ${chapa.partido}`,
+          descricao: `${total} candidatura(s) para ${vagas} vaga(s) — limite máximo é ${limiteMax}.`,
+          tipo: "chapa",
+          urgencia: "media",
+          fonte: "Chapas Proporcionais",
+          porqueEstouVendo: `A chapa atingiu o limite máximo de candidaturas (vagas + 1).`,
+          link: "/chapas-proporcionais/chapas",
+        });
+      }
+
+      // Candidatos abaixo do mínimo projetado (estimativa rápida)
+      const votosProjetadosTotal = cands.reduce((s, c) => s + ((c.votos_projetados as number) ?? 0), 0);
+      if (votosProjetadosTotal > 0 && vagas > 0) {
+        const qeEstimado = Math.floor(votosProjetadosTotal * 3 / vagas);
+        const minimoEst = Math.floor(qeEstimado * 0.1);
+        if (minimoEst > 0) {
+          const abaixo = cands.filter((c) => ((c.votos_projetados as number) ?? 0) < minimoEst && ((c.votos_projetados as number) ?? 0) > 0).length;
+          if (abaixo >= 3) {
+            fiqueAtento.push({
+              id: `chapa-minimo-${chapa.id}`,
+              titulo: `${abaixo} candidatos abaixo do mínimo: ${chapa.partido}`,
+              descricao: `Estimativa de votação individual mínima: ${minimoEst.toLocaleString("pt-BR")} votos.`,
+              tipo: "chapa",
+              urgencia: "media",
+              fonte: "Chapas Proporcionais",
+              porqueEstouVendo: `${abaixo} candidatos da chapa estão com projeção abaixo de 10% do QE estimado.`,
+              link: "/chapas-proporcionais/simulador",
+            });
+          }
+        }
+      }
+
+      // Concentração territorial
+      const todosmunicipios: string[] = [];
+      for (const c of cands) {
+        const mf = c.municipios_forca as string[] | null;
+        if (mf) todosmunicipios.push(...mf);
+      }
+      if (todosmunicipios.length > 0) {
+        const munCount = new Map<string, number>();
+        for (const m of todosmunicipios) munCount.set(m, (munCount.get(m) ?? 0) + 1);
+        const sobreposicoes = [...munCount.entries()].filter(([, n]) => n >= 3);
+        if (sobreposicoes.length > 0) {
+          const top = sobreposicoes.sort((a, b) => b[1] - a[1]).slice(0, 3);
+          fiqueAtento.push({
+            id: `chapa-sobreposicao-${chapa.id}`,
+            titulo: `Sobreposição territorial: ${chapa.partido}`,
+            descricao: top.map(([m, n]) => `${m} (${n} candidatos)`).join(", "),
+            tipo: "chapa",
+            urgencia: "media",
+            fonte: "Chapas Proporcionais",
+            porqueEstouVendo: `Múltiplos candidatos concentrados nos mesmos municípios — potencial de competição interna.`,
+            link: "/chapas-proporcionais/chapas",
+          });
+        }
+      }
+    }
+  }
+
   const resumo = {
     fontesComProblema: 0,
     normativasDesatualizadas: normativasDesatualizadas.length,
@@ -560,6 +669,8 @@ export async function GET() {
     sinaisConcorrentes: sinaisConcorrentes.length,
     ativosSemContato: ativosSemContato.length,
     totalAtivos: ativosTodos.length,
+    chapasProporcionais: chapas.length,
+    candidaturasChapa: candidaturas.length,
   };
 
   return NextResponse.json({ decidaAgora, facaHoje, fiqueAtento, oQueMudou, resumo });

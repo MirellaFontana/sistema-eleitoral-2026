@@ -44,6 +44,9 @@ Regras:
 - Cruze ativos × partido × cargo para mapear a estrutura política territorial.
 - Identifique lacunas cadastrais (ativos sem município, sem contato, sem classificação de influência).
 - NÃO invente fatos sobre pessoas. Apenas analise os dados fornecidos.
+- Se há dados de chapas proporcionais, analise: cota de gênero, concentração territorial, candidatos abaixo do mínimo, sobreposição de território, distância para a próxima cadeira.
+- Se há chapas sem candidatos suficientes ou com cota irregular, recomende ação imediata.
+- NÃO projete cadeiras sem dados de votos válidos estimados — apenas aponte riscos e oportunidades com base nos dados fornecidos.
 - Cada recomendação deve ser acionável — diga O QUE fazer, não apenas o que observar.
 - Confiança "baixa" quando poucos dados sustentam; "alta" quando múltiplas fontes convergem.`;
 
@@ -74,6 +77,7 @@ export async function POST() {
   const [
     alertasRes, demandasRes, concorrentesRes, temasRes, snapshotRes, tarefasRes,
     sinaisConcRes, propostasRes, sinaisCampoRes, ativosRes, ativosTodosRes, historicoAtivosRes,
+    chapasRes, candidaturasRes,
   ] = await Promise.all([
     supabase.from("alertas").select("texto_ia, created_at")
       .eq("status_envio", "pendente_configuracao")
@@ -108,6 +112,13 @@ export async function POST() {
     supabase.from("historico_ativos")
       .select("ativo_id")
       .eq("campanha_id", eu.campanha_id),
+    supabase.from("chapas_proporcionais")
+      .select("id, partido, federacao, status, votos_legenda_estimados, eleicoes_proporcionais(cargo, estado, vagas, ano)")
+      .eq("campanha_id", eu.campanha_id),
+    supabase.from("candidaturas_chapa")
+      .select("chapa_id, nome, genero, votos_projetados, votos_historicos, status, territorio_principal, municipios_forca, competitividade")
+      .eq("campanha_id", eu.campanha_id)
+      .in("status", ["confirmado", "provavel"]),
   ]);
 
   const temasCtx: TemaComItens[] = (temasRes.data ?? []).map((t) => ({
@@ -228,6 +239,35 @@ export async function POST() {
     ].filter(Boolean).join("\n");
   }
 
+  // Contexto de chapas proporcionais
+  const chapasList = chapasRes.data ?? [];
+  const candsList = candidaturasRes.data ?? [];
+  let chapasTxt = "";
+  if (chapasList.length > 0) {
+    const linhas: string[] = [];
+    for (const ch of chapasList) {
+      const el = Array.isArray(ch.eleicoes_proporcionais) ? ch.eleicoes_proporcionais[0] : ch.eleicoes_proporcionais;
+      const cands = candsList.filter((c) => c.chapa_id === ch.id);
+      const masc = cands.filter((c) => c.genero === "masculino").length;
+      const fem = cands.filter((c) => c.genero === "feminino").length;
+      const votosProj = cands.reduce((s, c) => s + ((c.votos_projetados as number) ?? 0), 0);
+      const votosHist = cands.reduce((s, c) => s + ((c.votos_historicos as number) ?? 0), 0);
+      const territorios = [...new Set(cands.flatMap((c) => (c.municipios_forca as string[]) ?? []))];
+
+      linhas.push(`CHAPA: ${ch.partido}${ch.federacao ? ` (Fed. ${ch.federacao})` : ""} — ${(el as Record<string, unknown>)?.cargo ?? "?"} ${(el as Record<string, unknown>)?.estado ?? ""}`);
+      linhas.push(`  Vagas: ${(el as Record<string, unknown>)?.vagas ?? "?"} | Candidatos: ${cands.length} (${masc}M/${fem}F) | Status: ${ch.status}`);
+      linhas.push(`  Votos projetados: ${votosProj.toLocaleString("pt-BR")} | Votos históricos: ${votosHist.toLocaleString("pt-BR")} | Legenda estimada: ${(ch.votos_legenda_estimados ?? 0).toLocaleString("pt-BR")}`);
+      if (territorios.length > 0) linhas.push(`  Municípios de força: ${territorios.slice(0, 15).join(", ")}`);
+
+      const top5 = cands.sort((a, b) => ((b.votos_projetados as number) ?? 0) - ((a.votos_projetados as number) ?? 0)).slice(0, 5);
+      for (const c of top5) {
+        linhas.push(`    - ${c.nome}: projeção ${((c.votos_projetados as number) ?? 0).toLocaleString("pt-BR")} | histórico ${((c.votos_historicos as number) ?? 0).toLocaleString("pt-BR")} | ${c.competitividade ?? "?"} | ${c.territorio_principal ?? "sem território"}`);
+      }
+      if (cands.length > 5) linhas.push(`    ... e mais ${cands.length - 5} candidatos`);
+    }
+    chapasTxt = linhas.join("\n");
+  }
+
   const mensagem = [
     `CANDIDATO: ${campanha?.nome_candidato ?? "(não cadastrado)"}`,
     diretrizes || null,
@@ -242,6 +282,7 @@ export async function POST() {
     `TAREFAS PENDENTES:\n${tarefasTxt}`,
     `ATIVOS POLÍTICOS (alta influência):\n${ativosTxt}`,
     analiseTerritorial ? `ANÁLISE TERRITORIAL (dados agregados da rede de ativos):\n${analiseTerritorial}` : null,
+    chapasTxt ? `CHAPAS PROPORCIONAIS:\n${chapasTxt}` : null,
   ].filter(Boolean).join("\n\n");
 
   let raw: string;

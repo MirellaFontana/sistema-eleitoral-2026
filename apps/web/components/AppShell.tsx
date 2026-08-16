@@ -6,10 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   Activity,
+  BarChart3,
+  Calculator,
   LayoutDashboard,
   UserCog,
   Users,
   Heart,
+  History,
   Network,
   ListChecks,
   MapPin,
@@ -148,6 +151,15 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/ativos-politicos/relacoes", label: "Relações", icon: Link2 },
       { href: "/ativos-politicos/importar", label: "Importação", icon: Upload },
       { href: "/ativos-politicos/configuracoes", label: "Configurações", icon: Settings },
+    ],
+  },
+  {
+    label: "Eleição",
+    items: [
+      { href: "/chapas-proporcionais", label: "Visão Geral", icon: BarChart3 },
+      { href: "/chapas-proporcionais/chapas", label: "Chapas", icon: Users },
+      { href: "/chapas-proporcionais/simulador", label: "Simulador", icon: Calculator },
+      { href: "/chapas-proporcionais/historico", label: "Histórico", icon: History },
     ],
   },
   {
