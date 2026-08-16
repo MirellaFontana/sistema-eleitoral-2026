@@ -26,7 +26,7 @@ export async function GET(_req: Request, ctx: Ctx) {
 
   const { data, error } = await supabase
     .from("chapas_proporcionais")
-    .select("*, candidaturas_proporcionais(*)")
+    .select("*, candidaturas_chapa(*)")
     .eq("id", chapaId)
     .eq("eleicao_id", eleicaoId)
     .single();

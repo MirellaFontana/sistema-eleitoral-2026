@@ -27,7 +27,7 @@ export async function PUT(request: Request, ctx: Ctx) {
   const body = await request.json();
 
   const { data, error } = await supabase
-    .from("candidaturas_proporcionais")
+    .from("candidaturas_chapa")
     .update({
       nome: body.nome,
       nome_urna: body.nome_urna,
@@ -73,7 +73,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   if (!eleicao) return NextResponse.json({ error: "eleição não encontrada" }, { status: 404 });
 
   const { error } = await supabase
-    .from("candidaturas_proporcionais")
+    .from("candidaturas_chapa")
     .delete()
     .eq("id", candidaturaId);
 

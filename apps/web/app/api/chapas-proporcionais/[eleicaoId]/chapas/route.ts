@@ -27,7 +27,7 @@ export async function GET(_req: Request, ctx: Ctx) {
 
   const { data, error } = await supabase
     .from("chapas_proporcionais")
-    .select("*, candidaturas_proporcionais(genero)")
+    .select("*, candidaturas_chapa(genero)")
     .eq("eleicao_id", eleicaoId)
     .order("created_at", { ascending: false });
 
@@ -35,7 +35,7 @@ export async function GET(_req: Request, ctx: Ctx) {
 
   const regra = obterRegra(eleicao.ano);
   const resultado = (data ?? []).map((chapa) => {
-    const cands = chapa.candidaturas_proporcionais ?? [];
+    const cands = chapa.candidaturas_chapa ?? [];
     const masc = cands.filter((c: { genero: string }) => c.genero === "masculino").length;
     const fem = cands.filter((c: { genero: string }) => c.genero === "feminino").length;
     return {
@@ -78,6 +78,7 @@ export async function POST(request: Request, ctx: Ctx) {
     .from("chapas_proporcionais")
     .insert({
       eleicao_id: eleicaoId,
+      campanha_id: eu.campanha_id,
       partido: body.partido,
       federacao: body.federacao || null,
       nome_coligacao: body.nome_coligacao || null,

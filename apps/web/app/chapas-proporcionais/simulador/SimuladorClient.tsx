@@ -209,7 +209,7 @@ export function SimuladorClient({ eleicoes }: { eleicoes: Eleicao[] }) {
 
     const chapasInput: ChapaSimInput[] = chapasData.map((ch) => {
       const chapaId = ch.id as string;
-      const cands = (ch.candidaturas_proporcionais ?? []) as CandData[];
+      const cands = (ch.candidaturas_chapa ?? []) as CandData[];
       return {
         chapaId,
         partido: ch.partido as string,
@@ -231,7 +231,7 @@ export function SimuladorClient({ eleicoes }: { eleicoes: Eleicao[] }) {
   function buildApiPartidos() {
     return chapasData.map((ch) => {
       const chapaId = ch.id as string;
-      const cands = (ch.candidaturas_proporcionais ?? []) as CandData[];
+      const cands = (ch.candidaturas_chapa ?? []) as CandData[];
       return {
         id: chapaId,
         nome: ch.partido as string,
@@ -327,7 +327,7 @@ export function SimuladorClient({ eleicoes }: { eleicoes: Eleicao[] }) {
           <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Dados de entrada</h2>
           {chapasData.map((ch) => {
             const chapaId = ch.id as string;
-            const cands = (ch.candidaturas_proporcionais ?? []) as CandData[];
+            const cands = (ch.candidaturas_chapa ?? []) as CandData[];
             return (
               <div key={chapaId} className="rounded-lg border border-neutral-200 p-4 space-y-2">
                 <div className="flex items-center justify-between">
@@ -487,8 +487,8 @@ export function SimuladorClient({ eleicoes }: { eleicoes: Eleicao[] }) {
               >
                 <option value="">Cenário (opcional)</option>
                 <option value="otimista">Otimista</option>
-                <option value="moderado">Moderado</option>
-                <option value="pessimista">Pessimista</option>
+                <option value="base">Base</option>
+                <option value="conservador">Conservador</option>
               </select>
               <button
                 onClick={salvarSimulacao}

@@ -34,14 +34,19 @@ export async function POST(request: Request, ctx: Ctx) {
   const regra = obterRegra(eleicao.ano);
   const resultado = simular(body.votos_validos_estimados, eleicao.vagas, body.partidos, regra);
 
+  if (!body.titulo?.trim()) {
+    return NextResponse.json({ error: "titulo é obrigatório para salvar" }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("simulacoes_proporcionais")
     .insert({
       eleicao_id: eleicaoId,
-      cenario: body.cenario || null,
-      titulo: body.titulo || null,
+      campanha_id: eu.campanha_id,
+      cenario: body.cenario || "base",
+      titulo: body.titulo.trim(),
       votos_validos_estimados: body.votos_validos_estimados,
-      entrada: body.partidos,
+      dados_partidos: body.partidos,
       resultado,
       criado_por: user.id,
     })

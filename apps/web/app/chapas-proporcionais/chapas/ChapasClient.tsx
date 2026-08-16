@@ -112,8 +112,8 @@ export function ChapasClient({ eleicoes }: { eleicoes: Eleicao[] }) {
         votos_historicos: Number(fd.get("votos_historicos")) || 0,
         votos_projetados: Number(fd.get("votos_projetados")) || 0,
         territorio_principal: fd.get("territorio_principal") || null,
-        municipios_forca: fd.get("municipios_forca") || null,
-        status: fd.get("status") || "potencial",
+        municipios_forca: fd.get("municipios_forca") ? (fd.get("municipios_forca") as string).split(",").map((s) => s.trim()).filter(Boolean) : null,
+        status: fd.get("status") || "convidado",
         observacoes_estrategicas: fd.get("observacoes") || null,
       }),
     });
@@ -325,7 +325,8 @@ export function ChapasClient({ eleicoes }: { eleicoes: Eleicao[] }) {
                         <input name="territorio_principal" placeholder="Território principal" className="rounded border px-2.5 py-1.5 text-sm" />
                         <input name="municipios_forca" placeholder="Municípios-força (separados por vírgula)" className="rounded border px-2.5 py-1.5 text-sm" />
                         <select name="status" className="rounded border px-2.5 py-1.5 text-sm">
-                          <option value="potencial">Potencial</option>
+                          <option value="convidado">Convidado</option>
+                          <option value="provavel">Provável</option>
                           <option value="confirmado">Confirmado</option>
                           <option value="descartado">Descartado</option>
                         </select>

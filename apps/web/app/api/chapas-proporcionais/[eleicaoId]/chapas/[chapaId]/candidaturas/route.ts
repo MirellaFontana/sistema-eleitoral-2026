@@ -25,7 +25,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   if (!eleicao) return NextResponse.json({ error: "eleição não encontrada" }, { status: 404 });
 
   const { data, error } = await supabase
-    .from("candidaturas_proporcionais")
+    .from("candidaturas_chapa")
     .select("*")
     .eq("chapa_id", chapaId)
     .order("votos_projetados", { ascending: false });
@@ -61,9 +61,10 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   const { data, error } = await supabase
-    .from("candidaturas_proporcionais")
+    .from("candidaturas_chapa")
     .insert({
       chapa_id: chapaId,
+      campanha_id: eu.campanha_id,
       nome: body.nome,
       nome_urna: body.nome_urna,
       numero: body.numero,
@@ -74,7 +75,7 @@ export async function POST(request: Request, ctx: Ctx) {
       territorio_principal: body.territorio_principal || null,
       municipios_forca: body.municipios_forca || null,
       ativo_politico_id: body.ativo_politico_id || null,
-      status: body.status || "potencial",
+      status: body.status || "convidado",
       observacoes_estrategicas: body.observacoes_estrategicas || null,
       potencial_mobilizacao: body.potencial_mobilizacao || null,
       criado_por: user.id,
