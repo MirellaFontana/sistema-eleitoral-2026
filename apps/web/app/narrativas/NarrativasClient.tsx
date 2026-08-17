@@ -15,6 +15,8 @@ import {
   Shield,
   Lightbulb,
   MessageCircle,
+  Upload,
+  FileText,
 } from "lucide-react";
 
 type NarrativaConcorrente = {
@@ -48,6 +50,7 @@ type Analise = {
   analise: TemaAnalise[];
   resumo: string | null;
   provedor_ia: string | null;
+  tipo: string;
   created_at: string;
 };
 
@@ -69,6 +72,9 @@ export function NarrativasClient({ podeAnalisar }: { podeAnalisar: boolean }) {
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState("");
   const [analiseAtiva, setAnaliseAtiva] = useState<string | null>(null);
+  const [mostrarUpload, setMostrarUpload] = useState(false);
+  const [textoRelatorio, setTextoRelatorio] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -99,8 +105,38 @@ export function NarrativasClient({ podeAnalisar }: { podeAnalisar: boolean }) {
     }
   }
 
+  async function enviarRelatorio() {
+    if (!textoRelatorio.trim()) return;
+    setEnviando(true);
+    setErro("");
+    try {
+      const res = await fetch("/api/narrativas/relatorio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: textoRelatorio }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setErro(json.error ?? "Erro ao salvar relatório"); return; }
+      setTextoRelatorio("");
+      setMostrarUpload(false);
+      await carregar();
+    } catch {
+      setErro("Erro de conexão");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function handleArquivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setTextoRelatorio(text);
+  }
+
   const atual = analises.find((a) => a.id === analiseAtiva);
   const temas = (atual?.analise ?? []) as TemaAnalise[];
+  const isRelatorioManual = atual?.tipo === "relatorio_manual";
 
   return (
     <main className="flex-1 px-6 py-6">
@@ -115,16 +151,74 @@ export function NarrativasClient({ podeAnalisar }: { podeAnalisar: boolean }) {
           </p>
         </div>
         {podeAnalisar && (
-          <button
-            onClick={analisar}
-            disabled={gerando}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {gerando ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            {gerando ? "Analisando…" : "Nova análise"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMostrarUpload(!mostrarUpload)}
+              className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+            >
+              <Upload size={14} />
+              Carregar relatório
+            </button>
+            <button
+              onClick={analisar}
+              disabled={gerando}
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {gerando ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              {gerando ? "Analisando…" : "Nova análise"}
+            </button>
+          </div>
         )}
       </div>
+
+      {mostrarUpload && podeAnalisar && (
+        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700">
+            <FileText size={14} /> Carregar relatório pronto
+          </h2>
+          <p className="mb-3 text-xs text-neutral-500">
+            Cole o texto do relatório abaixo ou importe um arquivo .txt/.md
+          </p>
+          <label className="mb-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50">
+            <Upload size={12} />
+            Importar arquivo (.txt, .md)
+            <input
+              type="file"
+              accept=".txt,.md,.text"
+              className="hidden"
+              onChange={handleArquivo}
+            />
+          </label>
+          <textarea
+            value={textoRelatorio}
+            onChange={(e) => setTextoRelatorio(e.target.value)}
+            rows={12}
+            placeholder="Cole aqui o conteúdo do relatório de narrativas…"
+            className="w-full rounded-lg border border-neutral-200 p-3 text-sm leading-relaxed text-neutral-800 placeholder:text-neutral-400 focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+          />
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-xs text-neutral-400">
+              {textoRelatorio.length > 0 ? `${textoRelatorio.length.toLocaleString("pt-BR")} caracteres` : ""}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setMostrarUpload(false); setTextoRelatorio(""); }}
+                className="rounded-lg px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={enviarRelatorio}
+                disabled={enviando || !textoRelatorio.trim()}
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {enviando ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                {enviando ? "Salvando…" : "Salvar relatório"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {erro && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -138,12 +232,13 @@ export function NarrativasClient({ podeAnalisar }: { podeAnalisar: boolean }) {
             <button
               key={a.id}
               onClick={() => setAnaliseAtiva(a.id)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 analiseAtiva === a.id
                   ? "bg-indigo-600 text-white"
                   : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
               }`}
             >
+              {a.tipo === "relatorio_manual" ? <FileText size={10} /> : <Sparkles size={10} />}
               {new Date(a.created_at).toLocaleDateString("pt-BR", {
                 day: "2-digit",
                 month: "2-digit",
@@ -162,8 +257,24 @@ export function NarrativasClient({ podeAnalisar }: { podeAnalisar: boolean }) {
           <BookOpen size={32} className="mx-auto mb-2 text-neutral-300" />
           <p className="text-sm text-neutral-500">
             Nenhuma análise de narrativas ainda. Clique em &quot;Nova análise&quot; para cruzar os
-            dados de monitoramento, concorrentes, demandas e diretrizes.
+            dados ou &quot;Carregar relatório&quot; para importar uma análise pronta.
           </p>
+        </div>
+      ) : isRelatorioManual ? (
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <FileText size={16} className="text-indigo-500" />
+            <h2 className="text-sm font-semibold text-neutral-700">Relatório importado</h2>
+            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+              manual
+            </span>
+          </div>
+          <p className="mb-3 text-xs text-neutral-400">
+            {new Date(atual.created_at).toLocaleString("pt-BR")}
+          </p>
+          <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed text-neutral-800">
+            {atual.resumo}
+          </div>
         </div>
       ) : (
         <>
