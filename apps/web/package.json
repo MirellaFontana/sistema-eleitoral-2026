@@ -16,6 +16,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@supabase/ssr": "^0.12.1",
     "@supabase/supabase-js": "^2.110.3",
+    "@tailwindcss/typography": "^0.5.20",
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",
     "lucide-react": "^1.25.0",
@@ -24,6 +25,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-leaflet": "^5.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "satori": "^0.29.0",
     "xlsx": "^0.18.5"
   },

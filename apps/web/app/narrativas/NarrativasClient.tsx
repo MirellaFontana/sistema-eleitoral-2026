@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   BookOpen,
   RefreshCw,
@@ -272,8 +274,8 @@ export function NarrativasClient({ podeAnalisar }: { podeAnalisar: boolean }) {
           <p className="mb-3 text-xs text-neutral-400">
             {new Date(atual.created_at).toLocaleString("pt-BR")}
           </p>
-          <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed text-neutral-800">
-            {atual.resumo}
+          <div className="prose prose-sm prose-neutral max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{atual.resumo}</ReactMarkdown>
           </div>
         </div>
       ) : (
