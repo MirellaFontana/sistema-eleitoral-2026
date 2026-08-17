@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ExternalLink } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Lock, ExternalLink, Trash2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { VerCapturaButton } from "./VerCapturaButton";
 
 export type ItemMonitoramento = {
@@ -55,8 +57,16 @@ export function ItensRegistrados({
   itens: ItemMonitoramento[];
   fontes?: { dominio: string; nome: string }[];
 }) {
+  const router = useRouter();
+  const supabase = createClient();
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
   const [soGraves, setSoGraves] = useState(false);
+
+  async function excluir(id: string) {
+    if (!confirm("Excluir este item do monitoramento?")) return;
+    await supabase.from("monitoramento_itens").delete().eq("id", id);
+    router.refresh();
+  }
 
   const categoriasPresentes = Array.from(new Set(itens.map((i) => i.categoria)));
 
@@ -145,7 +155,7 @@ export function ItensRegistrados({
                 </span>
               </div>
               <p className="text-sm leading-relaxed">{item.descricao}</p>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
                 {item.url && (
                   <a
                     href={item.url}
@@ -159,6 +169,14 @@ export function ItensRegistrados({
                   </a>
                 )}
                 {item.captura_path && <VerCapturaButton path={item.captura_path} />}
+                <button
+                  type="button"
+                  onClick={() => excluir(item.id)}
+                  title="Excluir item"
+                  className="ml-auto text-neutral-400 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             </li>
           );
