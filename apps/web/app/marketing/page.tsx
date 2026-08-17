@@ -8,6 +8,7 @@ import { AvaliacaoForm } from "./AvaliacaoForm";
 import { AnaliseButton } from "./AnaliseButton";
 import { AdaptarForm } from "./AdaptarForm";
 import { GerarImagemForm } from "./GerarImagemForm";
+import { GeracaoInteligenteButton } from "./GeracaoInteligenteButton";
 
 const PAPEL_LABEL: Record<string, string> = {
   embaixador: "Embaixador",
@@ -149,6 +150,23 @@ export default async function MarketingPage() {
             publicação são sempre responsabilidade de um humano da equipe.
           </p>
         </div>
+
+        {/* ── GERAÇÃO INTELIGENTE ──────────────────────────────────── */}
+        {podeGerar && (
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Geração inteligente de conteúdo
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                A IA cruza monitoramento, demandas, sinais de campo e propostas para encontrar
+                a melhor oportunidade de comunicação do momento e gerar conteúdo em 4 formatos
+                automaticamente (post, stories, WhatsApp, carrossel).
+              </p>
+            </div>
+            <GeracaoInteligenteButton />
+          </section>
+        )}
 
         {/* ── GERADOR DE PEÇAS ─────────────────────────────────────── */}
         {podeGerar && (
