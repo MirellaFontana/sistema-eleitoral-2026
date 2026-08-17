@@ -152,6 +152,21 @@ export function isErroDeAcesso(err: unknown): boolean {
   );
 }
 
+function isErroTransiente(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("overloaded") ||
+    msg.includes("high demand") ||
+    msg.includes("rate") ||
+    msg.includes("unavailable") ||
+    msg.includes("529") ||
+    msg.includes("503") ||
+    msg.includes("429") ||
+    msg.includes("too many")
+  );
+}
+
 type ClienteIAComFallback = ClienteIA & {
   _provedoresDisponiveis: { provedor: ProvedorIA; chave: string }[];
 };
@@ -178,7 +193,19 @@ export async function criarClienteIA(supabase: SupabaseClient): Promise<ClienteI
   const primeiro = disponiveis[0];
   const clienteBase = FABRICAS[primeiro.provedor](primeiro.chave);
 
-  if (disponiveis.length === 1) return clienteBase;
+  if (disponiveis.length === 1) {
+    const gerarOriginal = clienteBase.gerar.bind(clienteBase);
+    clienteBase.gerar = async (opts) => {
+      try {
+        return await gerarOriginal(opts);
+      } catch (err) {
+        if (!isErroTransiente(err)) throw err;
+        await new Promise((r) => setTimeout(r, 3000));
+        return gerarOriginal(opts);
+      }
+    };
+    return clienteBase;
+  }
 
   const cliente: ClienteIAComFallback = {
     provedor: primeiro.provedor,
@@ -193,7 +220,7 @@ export async function criarClienteIA(supabase: SupabaseClient): Promise<ClienteI
           return resultado;
         } catch (err) {
           const ultimo = i === disponiveis.length - 1;
-          if (ultimo || !isErroDeAcesso(err)) throw err;
+          if (ultimo || (!isErroDeAcesso(err) && !isErroTransiente(err))) throw err;
         }
       }
       throw new Error("Todos os provedores de IA falharam");
