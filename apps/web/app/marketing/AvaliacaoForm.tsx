@@ -8,6 +8,7 @@ type AvaliacaoJson = {
   praticas_midia?: { analise: string; veredicto: string };
   viralidade?: { analise: string; nota: number };
   clareza?: { analise: string; nota: number };
+  score_geral?: number;
   sintese?: { recomendacoes: string[]; decisao: string };
 };
 
@@ -60,12 +61,38 @@ function badgeDecisao(decisao: string) {
   return { cls: "bg-red-100 text-red-800", label: "Reprovar" };
 }
 
+function corScore(score: number) {
+  if (score >= 80) return { ring: "ring-green-500", text: "text-green-700", bg: "bg-green-50", label: "Excelente" };
+  if (score >= 60) return { ring: "ring-yellow-500", text: "text-yellow-700", bg: "bg-yellow-50", label: "Bom" };
+  if (score >= 40) return { ring: "ring-orange-500", text: "text-orange-700", bg: "bg-orange-50", label: "Regular" };
+  return { ring: "ring-red-500", text: "text-red-700", bg: "bg-red-50", label: "Fraco" };
+}
+
 function ResultadoAvaliacao({ av }: { av: AvaliacaoJson }) {
   const decisao = av.sintese?.decisao ? badgeDecisao(av.sintese.decisao) : null;
+  const score = av.score_geral;
+  const sc = score != null ? corScore(score) : null;
 
   return (
     <div className="space-y-4">
-      {decisao && (
+      {score != null && sc && (
+        <div className={`flex items-center gap-4 rounded-lg ${sc.bg} p-4`}>
+          <div className={`flex h-16 w-16 items-center justify-center rounded-full ring-4 ${sc.ring} bg-white`}>
+            <span className={`text-2xl font-bold ${sc.text}`}>{score}</span>
+          </div>
+          <div>
+            <p className={`text-lg font-semibold ${sc.text}`}>Score {sc.label}</p>
+            <p className="text-xs text-neutral-500">Legislação 30% · Clareza 25% · Viralidade 25% · Mídia 20%</p>
+          </div>
+          {decisao && (
+            <span className={`ml-auto rounded-full px-3 py-1 text-sm font-semibold ${decisao.cls}`}>
+              {decisao.label}
+            </span>
+          )}
+        </div>
+      )}
+
+      {!score && decisao && (
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-neutral-700">Decisão recomendada:</span>
           <span className={`rounded-full px-3 py-0.5 text-sm font-semibold ${decisao.cls}`}>

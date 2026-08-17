@@ -14,7 +14,7 @@ const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { formato, foco, duracao } = body as { formato: string; foco?: string; duracao?: string };
+  const { formato, foco, duracao, variacoes_ab } = body as { formato: string; foco?: string; duracao?: string; variacoes_ab?: boolean };
 
   if (!formato) {
     return NextResponse.json({ error: "formato é obrigatório" }, { status: 400 });
@@ -88,6 +88,9 @@ export async function POST(request: Request) {
     `FORMATO PEDIDO: ${formato}`,
     duracao?.trim() ? `DURAÇÃO / TEMPO DISPONÍVEL: ${duracao.trim()}` : "",
     foco?.trim() ? `FOCO / TEMA ESPECÍFICO: ${foco.trim()}` : "",
+    variacoes_ab
+      ? `MODO VARIAÇÕES A/B: Gere EXATAMENTE 3 variações da mesma peça. Cada variação deve ter um hook/abertura DIFERENTE e um CTA diferente, mantendo o mesmo tema e mensagem central. Separe claramente como "═══ VARIAÇÃO A ═══", "═══ VARIAÇÃO B ═══", "═══ VARIAÇÃO C ═══". Após as 3 variações, adicione uma linha "RECOMENDAÇÃO: [explique brevemente qual variação tende a performar melhor e por quê]."`
+      : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -97,7 +100,7 @@ export async function POST(request: Request) {
     sugestao = await ia.gerar({
       sistema: SISTEMA_GERADOR_PECAS,
       mensagens: [{ role: "user", content: mensagemUsuario }],
-      maxTokens: 3000,
+      maxTokens: variacoes_ab ? 6000 : 3000,
     });
   } catch (err) {
     return respostaErroIA(err);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function AnaliseButton() {
+export function AnaliseButton({ tipo = "pontos_cegos", label = "Analisar pontos cegos" }: { tipo?: string; label?: string }) {
   const router = useRouter();
   const [resultado, setResultado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -15,7 +15,11 @@ export function AnaliseButton() {
     setCarregando(true);
 
     try {
-      const res = await fetch("/api/marketing/analise", { method: "POST" });
+      const res = await fetch("/api/marketing/analise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setErro(data.error ?? "erro ao gerar análise");
@@ -37,7 +41,7 @@ export function AnaliseButton() {
         disabled={carregando}
         className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
-        {carregando ? "Analisando…" : "Analisar pontos cegos"}
+        {carregando ? "Analisando…" : label}
       </button>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}

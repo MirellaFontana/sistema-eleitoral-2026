@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   SISTEMA_ANALISE_CAMPANHA,
+  SISTEMA_ANALISE_MARKETING_CONCORRENTES,
   montarContextoConhecimento,
   type TemaComItens,
 } from "@/lib/anthropic";
@@ -11,7 +12,9 @@ import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
-export async function POST() {
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const tipo = (body as { tipo?: string }).tipo === "marketing_concorrentes" ? "marketing_concorrentes" : "pontos_cegos";
   const supabase = await createClient();
   const {
     data: { user },
@@ -80,10 +83,11 @@ export async function POST() {
 
   let analise: string;
   try {
+    const sistema = tipo === "marketing_concorrentes" ? SISTEMA_ANALISE_MARKETING_CONCORRENTES : SISTEMA_ANALISE_CAMPANHA;
     analise = await ia.gerar({
-      sistema: SISTEMA_ANALISE_CAMPANHA,
+      sistema,
       mensagens: [{ role: "user", content: contexto }],
-      maxTokens: 1500,
+      maxTokens: tipo === "marketing_concorrentes" ? 3000 : 1500,
     });
   } catch (err) {
     return respostaErroIA(err);
@@ -93,7 +97,7 @@ export async function POST() {
     .from("analises_campanha")
     .insert({
       campanha_id: eu.campanha_id,
-      tipo: "pontos_cegos",
+      tipo,
       analise,
       modelo_ia: ia.provedor,
     })

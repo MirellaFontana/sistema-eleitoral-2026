@@ -53,6 +53,7 @@ type AvaliacaoJson = {
   praticas_midia?: { veredicto?: string };
   viralidade?: { nota?: number };
   clareza?: { nota?: number };
+  score_geral?: number;
   sintese?: { decisao?: string; recomendacoes?: string[] };
 };
 
@@ -297,6 +298,16 @@ export default async function MarketingPage() {
                       <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium">
                         {a.canal}
                       </span>
+                      {av.score_geral != null && (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                          av.score_geral >= 80 ? "bg-green-100 text-green-800" :
+                          av.score_geral >= 60 ? "bg-yellow-100 text-yellow-800" :
+                          av.score_geral >= 40 ? "bg-orange-100 text-orange-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {av.score_geral}/100
+                        </span>
+                      )}
                       {decisao && (
                         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${decisao.cls}`}>
                           {decisao.label}
@@ -315,6 +326,22 @@ export default async function MarketingPage() {
                 );
               })}
             </ul>
+          </section>
+        )}
+
+        {/* ── ANÁLISE DE MARKETING DOS CONCORRENTES ─────────────── */}
+        {podeGerar && (
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+                Análise de marketing dos concorrentes
+              </h2>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                A IA analisa posicionamento, vulnerabilidades e oportunidades de comunicação
+                com base nos concorrentes cadastrados.
+              </p>
+            </div>
+            <AnaliseButton tipo="marketing_concorrentes" label="Analisar marketing dos concorrentes" />
           </section>
         )}
 
