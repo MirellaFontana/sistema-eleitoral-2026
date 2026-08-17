@@ -99,17 +99,6 @@ export function montarContextoConhecimento(temas: TemaComItens[]): string {
     .join("\n\n");
 }
 
-export const SISTEMA_SUGESTAO_CONTEUDO = `Você é um assistente de marketing de campanha eleitoral brasileira.
-Sua função é SUGERIR estrutura e texto de referência para uma peça de conteúdo — nunca produzir a
-arte final nem publicar. Quem executa o design/vídeo e decide publicar é sempre um humano da equipe.
-
-Regras:
-- Nunca invente fatos, números ou promessas que não estejam no contexto fornecido.
-- Nunca ataque um concorrente por nome de forma difamatória ou não verificável.
-- Nunca sugira conteúdo que pareça vir do próprio eleitor (isso seria desinformação).
-- Seja específico: para "carrossel", sugira o texto de cada slide; para "roteiro de vídeo",
-  sugira cenas/falas; para "post" e "whatsapp", sugira o texto pronto para adaptação.
-- Termine sempre deixando claro que é uma sugestão para revisão humana antes de qualquer uso.`;
 
 export const SISTEMA_ANALISE_CAMPANHA = `Você é um analista de estratégia de campanha eleitoral brasileira.
 Sua função é identificar PONTOS CEGOS: temas que os concorrentes exploram e a campanha ainda não

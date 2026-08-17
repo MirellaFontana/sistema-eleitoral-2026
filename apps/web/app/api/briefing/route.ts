@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import {
-  SISTEMA_BRIEFING_DIARIO,
-  montarContextoConhecimento,
-  type TemaComItens,
-} from "@/lib/anthropic";
+import { SISTEMA_BRIEFING_DIARIO } from "@/lib/anthropic";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
-import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { carregarContexto } from "@/lib/contexto-campanha";
 import { hojeBR, inicioDiasAtrasBR } from "@/lib/fuso";
 
 // Quem pode gerar direto pelo papel (candidato é o dono do briefing; coordenação prepara
@@ -126,26 +122,8 @@ export async function POST() {
     .order("created_at", { ascending: false })
     .limit(10);
 
-  // Temas + itens agrupados — público-alvo e regiões prioritárias enriquecem o contexto.
-  const { data: temasDb } = await supabase
-    .from("temas_campanha")
-    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
-    .order("ordem")
-    .limit(30);
-
-  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
-    nome: t.nome,
-    publicos_alvo: t.publicos_alvo ?? [],
-    regioes_prioritarias: t.regioes_prioritarias ?? [],
-    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
-  }));
-
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
-
-  const identidade = [
-    `Candidato: ${campanha?.nome_candidato ?? "–"} (${campanha?.nome_urna ?? "–"}, nº ${campanha?.numero_candidato ?? "–"})`,
-    `Cargo: ${campanha?.cargo ?? "–"} – ${campanha?.uf ?? "–"} | Partido: ${campanha?.partido ?? "–"}`,
-  ].join("\n");
+  const ctx = await carregarContexto(supabase, eu.campanha_id, ["identidade", "diretrizes", "temas"], campanha);
 
   const liderancasPorEvento = new Map<string, string[]>();
   for (const v of vinculos ?? []) {
@@ -185,18 +163,15 @@ export async function POST() {
     })
     .join("\n");
 
-  const conhecimento = montarContextoConhecimento(temasCtx);
-  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
-
   const mensagemUsuario = [
-    `IDENTIDADE DA CAMPANHA:\n${identidade}`,
-    diretrizes || null,
+    ctx.identidade ? `IDENTIDADE DA CAMPANHA:\n${ctx.identidade}` : null,
+    ctx.diretrizes || null,
     `AGENDA DE HOJE (${hojeIso}):\n${blocosEventos}`,
     blocoDemandas
       ? `DEMANDAS OBSERVADAS DA POPULAÇÃO (mais recentes primeiro):\n${blocoDemandas}`
       : "DEMANDAS OBSERVADAS: nenhuma registrada na campanha.",
-    conhecimento
-      ? `BASE DE CONHECIMENTO DA CAMPANHA (propostas, posições, público-alvo e regiões por tema):\n${conhecimento}`
+    ctx.temas
+      ? `BASE DE CONHECIMENTO DA CAMPANHA (propostas, posições, público-alvo e regiões por tema):\n${ctx.temas}`
       : "BASE DE CONHECIMENTO: nenhum item cadastrado.",
     (sinaisCampo ?? []).length > 0
       ? `SINAIS DE CAMPO (últimos 3 dias, intensidade forte/moderada):\n${(sinaisCampo ?? []).map((s) => `- [${s.intensidade}] ${s.tema ? `(${s.tema}) ` : ""}${s.frase_representativa ?? s.local_descricao ?? "sem detalhe"}`).join("\n")}`
@@ -217,7 +192,7 @@ export async function POST() {
     return respostaErroIA(err);
   }
 
-  const contextoUsado = `${eventos.length} evento(s) da agenda, ${demandas?.length ?? 0} demanda(s) observada(s), ${vinculos?.length ?? 0} vínculo(s) de liderança, ${temasCtx.reduce((n, t) => n + t.itens.length, 0)} item(ns) da base de conhecimento em ${temasCtx.length} tema(s), ${(sinaisCampo ?? []).length} sinal(is) de campo, ${(sinaisConcorrentes ?? []).length} sinal(is) de concorrentes`;
+  const contextoUsado = `${eventos.length} evento(s) da agenda, ${demandas?.length ?? 0} demanda(s) observada(s), ${vinculos?.length ?? 0} vínculo(s) de liderança, base de conhecimento carregada, ${(sinaisCampo ?? []).length} sinal(is) de campo, ${(sinaisConcorrentes ?? []).length} sinal(is) de concorrentes`;
 
   const { data: row, error } = await supabase
     .from("briefings_diarios")

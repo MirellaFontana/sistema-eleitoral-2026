@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
-import { montarContextoConhecimento, type TemaComItens } from "@/lib/anthropic";
-import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { carregarContexto, montarMensagemContexto } from "@/lib/contexto-campanha";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -57,35 +56,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nenhuma chave de IA configurada." }, { status: 400 });
   }
 
-  const { data: temasDb } = await supabase
-    .from("temas_campanha")
-    .select("nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
-    .order("ordem")
-    .limit(20);
-
-  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
-    nome: t.nome,
-    publicos_alvo: t.publicos_alvo ?? [],
-    regioes_prioritarias: t.regioes_prioritarias ?? [],
-    itens: (Array.isArray(t.base_conhecimento_itens)
-      ? t.base_conhecimento_itens
-      : []) as { titulo: string; descricao: string | null }[],
-  }));
-
-  const conhecimento = montarContextoConhecimento(temasCtx);
-  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
+  const ctx = await carregarContexto(supabase, eu.campanha_id, ["identidade", "diretrizes", "temas"], campanha);
 
-  const mensagem = [
-    campanha
-      ? `IDENTIDADE: ${campanha.nome_candidato ?? "–"} (${campanha.cargo ?? "–"} / ${campanha.uf ?? "–"})`
-      : "",
-    diretrizes || null,
-    conhecimento ? `BASE DE CONHECIMENTO:\n${conhecimento}` : "",
+  const mensagem = montarMensagemContexto(ctx, [
     `PEÇA:\n${peca_descricao.trim()}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  ]);
 
   let sugestao: string;
   try {

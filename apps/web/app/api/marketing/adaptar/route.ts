@@ -3,13 +3,9 @@ import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { sanitizarTexto } from "@/lib/sanitizar";
-import {
-  SISTEMA_ADAPTADOR_MENSAGEM,
-  montarContextoConhecimento,
-  type TemaComItens,
-} from "@/lib/anthropic";
+import { SISTEMA_ADAPTADOR_MENSAGEM } from "@/lib/anthropic";
 import { criarClienteIA } from "@/lib/ia-client";
-import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { carregarContexto, montarMensagemContexto } from "@/lib/contexto-campanha";
 
 type PedidoAdaptacao = { publico_alvo: string; canal: string };
 
@@ -101,41 +97,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: temasDb } = await supabase
-    .from("temas_campanha")
-    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
-    .order("ordem")
-    .limit(30);
-
-  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
-    nome: t.nome,
-    publicos_alvo: t.publicos_alvo ?? [],
-    regioes_prioritarias: t.regioes_prioritarias ?? [],
-    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
-  }));
-
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
+  const ctx = await carregarContexto(supabase, eu.campanha_id, ["identidade", "diretrizes", "temas"], campanha);
 
-  const identidade = [
-    `Candidato: ${campanha?.nome_candidato ?? "–"}`,
-    `Nome de urna: ${campanha?.nome_urna ?? "–"}`,
-    `Número: ${campanha?.numero_candidato ?? "–"}`,
-    `Cargo: ${campanha?.cargo ?? "–"} – ${campanha?.uf ?? "–"}`,
-    `Partido: ${campanha?.partido ?? "–"}`,
-    `Coligação: ${campanha?.coligacao ?? "–"}`,
-  ].join("\n");
-
-  const conhecimento = montarContextoConhecimento(temasCtx);
-  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
-
-  const contextoBase = [
-    `IDENTIDADE DA CAMPANHA:\n${identidade}`,
-    diretrizes || null,
-    conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA (público-alvo e regiões por tema):\n${conhecimento}` : "",
+  const contextoBase = montarMensagemContexto(ctx, [
     `MENSAGEM CENTRAL A ADAPTAR:\n${mensagem_central}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  ]);
 
   const resultados = await Promise.all(
     adaptacoes.map(async (a): Promise<{ pedido: PedidoAdaptacao; variacao?: string; erro?: string }> => {

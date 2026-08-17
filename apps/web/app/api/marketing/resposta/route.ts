@@ -2,13 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
-import {
-  SISTEMA_RESPOSTA_REDES,
-  montarContextoConhecimento,
-  type TemaComItens,
-} from "@/lib/anthropic";
+import { SISTEMA_RESPOSTA_REDES } from "@/lib/anthropic";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
-import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { carregarContexto } from "@/lib/contexto-campanha";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -53,40 +49,22 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: temasDb } = await supabase
-    .from("temas_campanha")
-    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
-    .order("ordem");
-
-  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
-    nome: t.nome,
-    publicos_alvo: t.publicos_alvo ?? [],
-    regioes_prioritarias: t.regioes_prioritarias ?? [],
-    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
-  }));
-
-  const conhecimento = montarContextoConhecimento(temasCtx).slice(0, 12000);
-  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
-
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
-  const vozCandidato = (campanha as { voz_candidato?: string | null } | null)?.voz_candidato ?? null;
+  const ctx = await carregarContexto(supabase, eu.campanha_id, ["voz", "diretrizes", "temas"], campanha);
+
+  const mensagem = [
+    ctx.diretrizes || null,
+    ctx.voz ? `VOZ DO CANDIDATO (copie expressões, ritmo, jeito de falar):\n${ctx.voz}` : null,
+    `Canal: ${canal_origem}\n\nPergunta recebida:\n${pergunta}`,
+    ctx.temas ? `Conhecimento da campanha disponível:\n${ctx.temas.slice(0, 12000)}` : "(nenhum item de base de conhecimento cadastrado ainda)",
+    contexto_adicional?.trim() ? `Contexto adicional fornecido:\n${contexto_adicional}` : null,
+  ].filter(Boolean).join("\n\n");
 
   let respostaSugerida: string;
   try {
     respostaSugerida = await ia.gerar({
       sistema: SISTEMA_RESPOSTA_REDES,
-      mensagens: [
-        {
-          role: "user",
-          content: [
-            diretrizes || null,
-            vozCandidato ? `VOZ DO CANDIDATO (use como referência de estilo — copie expressões, ritmo, jeito de falar):\n${vozCandidato.slice(0, 4000)}` : null,
-            `Canal: ${canal_origem}\n\nPergunta recebida:\n${pergunta}`,
-            `Conhecimento da campanha disponível:\n${conhecimento || "(nenhum item de base de conhecimento cadastrado ainda)"}`,
-            contexto_adicional?.trim() ? `Contexto adicional fornecido:\n${contexto_adicional}` : null,
-          ].filter(Boolean).join("\n\n"),
-        },
-      ],
+      mensagens: [{ role: "user", content: mensagem }],
       maxTokens: 1000,
     });
   } catch (err) {

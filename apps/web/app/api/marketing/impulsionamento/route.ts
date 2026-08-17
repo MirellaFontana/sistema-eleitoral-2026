@@ -3,15 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { sanitizarTexto } from "@/lib/sanitizar";
-import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
-import {
-  SISTEMA_PLANO_IMPULSIONAMENTO,
-  montarContextoConhecimento,
-  type TemaComItens,
-} from "@/lib/anthropic";
+import { SISTEMA_PLANO_IMPULSIONAMENTO } from "@/lib/anthropic";
+import { parseJsonSeguro } from "@/lib/parse-json-seguro";
+import { carregarContexto, montarMensagemContexto } from "@/lib/contexto-campanha";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
-import { parseJsonSeguro } from "@/lib/parse-json-seguro";
 
 const OBJETIVOS_VALIDOS = new Set([
   "alcance",
@@ -86,47 +82,15 @@ export async function POST(request: Request) {
   }
 
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
-  const identidade = campanha
-    ? [
-        `Candidato: ${campanha.nome_candidato ?? "–"}`,
-        `Nome de urna: ${campanha.nome_urna ?? "–"}`,
-        `Número: ${campanha.numero_candidato ?? "–"}`,
-        `Cargo: ${campanha.cargo ?? "–"} – ${campanha.uf ?? "–"}`,
-        `Partido: ${campanha.partido ?? "–"}`,
-        `Coligação: ${campanha.coligacao ?? "–"}`,
-        `CNPJ: ${campanha.cnpj_campanha ?? "–"}`,
-      ].join("\n")
-    : "(identidade da campanha não cadastrada)";
+  const ctx = await carregarContexto(supabase, eu.campanha_id, ["identidade", "diretrizes", "temas"], campanha);
 
-  const { data: temasDb } = await supabase
-    .from("temas_campanha")
-    .select("nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
-    .order("ordem")
-    .limit(20);
-
-  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
-    nome: t.nome,
-    publicos_alvo: t.publicos_alvo ?? [],
-    regioes_prioritarias: t.regioes_prioritarias ?? [],
-    itens: (Array.isArray(t.base_conhecimento_itens)
-      ? t.base_conhecimento_itens
-      : []) as { titulo: string; descricao: string | null }[],
-  }));
-  const conhecimento = montarContextoConhecimento(temasCtx);
-  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
-
-  const mensagemUsuario = [
-    `IDENTIDADE DA CAMPANHA:\n${identidade}`,
-    diretrizes || null,
-    conhecimento ? `BASE DE CONHECIMENTO (temas, públicos e regiões):\n${conhecimento}` : "",
+  const mensagemUsuario = montarMensagemContexto(ctx, [
     `PEÇA A IMPULSIONAR:\n${peca_descricao.trim()}`,
     `OBJETIVO DESEJADO: ${objetivo}`,
     `PÚBLICO PRIORITÁRIO INFORMADO: ${publico_prioritario.trim()}`,
     `ORÇAMENTO TOTAL: R$ ${orcamento_total.toFixed(2)}`,
     `PRAZO: ${prazo_dias} dias`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  ]);
 
   let raw: string;
   try {

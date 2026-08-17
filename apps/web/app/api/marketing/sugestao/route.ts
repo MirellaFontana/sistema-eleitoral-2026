@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sanitizarTexto, sanitizarTextoOpcional } from "@/lib/sanitizar";
-import {
-  SISTEMA_GERADOR_PECAS,
-  montarContextoConhecimento,
-  type TemaComItens,
-} from "@/lib/anthropic";
+import { sanitizarTexto } from "@/lib/sanitizar";
+import { SISTEMA_GERADOR_PECAS } from "@/lib/anthropic";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
-import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { carregarContexto, montarMensagemContexto } from "@/lib/contexto-campanha";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -50,50 +46,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: temasDb } = await supabase
-    .from("temas_campanha")
-    .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
-    .order("ordem")
-    .limit(30);
-
-  const temasCtx: TemaComItens[] = (temasDb ?? []).map((t) => ({
-    nome: t.nome,
-    publicos_alvo: t.publicos_alvo ?? [],
-    regioes_prioritarias: t.regioes_prioritarias ?? [],
-    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
-  }));
-
   const campanha = Array.isArray(eu.campanhas) ? eu.campanhas[0] : eu.campanhas;
+  const ctx = await carregarContexto(supabase, eu.campanha_id, ["identidade", "voz", "diretrizes", "temas"], campanha);
 
-  const identidade = [
-    `Candidato: ${campanha?.nome_candidato ?? "–"}`,
-    `Nome de urna: ${campanha?.nome_urna ?? "–"}`,
-    `Número: ${campanha?.numero_candidato ?? "–"}`,
-    `Cargo: ${campanha?.cargo ?? "–"} – ${campanha?.uf ?? "–"}`,
-    `Partido: ${campanha?.partido ?? "–"}`,
-    `Coligação: ${campanha?.coligacao ?? "–"}`,
-    `CNPJ da campanha: ${campanha?.cnpj_campanha ?? "–"}`,
-  ].join("\n");
-
-  const conhecimento = montarContextoConhecimento(temasCtx);
-  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
-
-  const vozCandidato = campanha?.voz_candidato as string | null;
-
-  const mensagemUsuario = [
-    `IDENTIDADE DA CAMPANHA:\n${identidade}`,
-    vozCandidato ? `VOZ DO CANDIDATO (use como referência de estilo — copie expressões, ritmo, jeito de falar):\n${vozCandidato.slice(0, 4000)}` : null,
-    diretrizes || null,
-    conhecimento ? `BASE DE CONHECIMENTO DA CAMPANHA (público-alvo e regiões por tema):\n${conhecimento}` : "",
+  const mensagemUsuario = montarMensagemContexto(ctx, [
     `FORMATO PEDIDO: ${formato}`,
-    duracao?.trim() ? `DURAÇÃO / TEMPO DISPONÍVEL: ${duracao.trim()}` : "",
-    foco?.trim() ? `FOCO / TEMA ESPECÍFICO: ${foco.trim()}` : "",
+    duracao?.trim() ? `DURAÇÃO / TEMPO DISPONÍVEL: ${duracao.trim()}` : null,
+    foco?.trim() ? `FOCO / TEMA ESPECÍFICO: ${foco.trim()}` : null,
     variacoes_ab
       ? `MODO VARIAÇÕES A/B: Gere EXATAMENTE 3 variações da mesma peça. Cada variação deve ter um hook/abertura DIFERENTE e um CTA diferente, mantendo o mesmo tema e mensagem central. Separe claramente como "═══ VARIAÇÃO A ═══", "═══ VARIAÇÃO B ═══", "═══ VARIAÇÃO C ═══". Após as 3 variações, adicione uma linha "RECOMENDAÇÃO: [explique brevemente qual variação tende a performar melhor e por quê]."`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+      : null,
+  ]);
 
   let sugestao: string;
   try {

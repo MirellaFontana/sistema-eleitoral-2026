@@ -4,11 +4,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
   SISTEMA_ANALISE_CAMPANHA,
   SISTEMA_ANALISE_MARKETING_CONCORRENTES,
-  montarContextoConhecimento,
-  type TemaComItens,
 } from "@/lib/anthropic";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
-import { obterContextoDiretrizes } from "@/lib/diretrizes-context";
+import { carregarContexto, montarMensagemContexto } from "@/lib/contexto-campanha";
 
 const PAPEIS_QUE_GERAM = new Set(["coord_campanha", "coord_marketing", "redator_marketing"]);
 
@@ -43,47 +41,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const [temasRes, concorrentesRes, demandasRes] = await Promise.all([
-    supabase
-      .from("temas_campanha")
-      .select("id, nome, publicos_alvo, regioes_prioritarias, base_conhecimento_itens(titulo, descricao)")
-      .order("ordem"),
-    supabase.from("concorrentes").select("nome, partido, pontos_fortes, pontos_fracos, promessas"),
-    supabase.from("demandas_observadas").select("regiao, cidades, tema, demanda"),
-  ]);
+  const ctx = await carregarContexto(supabase, eu.campanha_id, ["diretrizes", "temas", "concorrentes", "demandas"]);
 
-  const temasCtx: TemaComItens[] = (temasRes.data ?? []).map((t) => ({
-    nome: t.nome,
-    publicos_alvo: t.publicos_alvo ?? [],
-    regioes_prioritarias: t.regioes_prioritarias ?? [],
-    itens: (Array.isArray(t.base_conhecimento_itens) ? t.base_conhecimento_itens : []) as { titulo: string; descricao: string | null }[],
-  }));
+  const contexto = montarMensagemContexto(ctx);
 
-  const propostasTxt = montarContextoConhecimento(temasCtx)
-    || "(nenhuma proposta com texto cadastrada ainda)";
-
-  const concorrentesTxt = (concorrentesRes.data ?? [])
-    .map((c) => `- ${c.nome} (${c.partido ?? "sem partido"}): promessas: ${c.promessas ?? "?"} | pontos fortes: ${c.pontos_fortes ?? "?"} | pontos fracos: ${c.pontos_fracos ?? "?"}`)
-    .join("\n") || "(nenhum concorrente cadastrado ainda)";
-
-  const demandasTxt = (demandasRes.data ?? [])
-    .map((d) => {
-      const cidadesTxt = Array.isArray(d.cidades) && d.cidades.length > 0 ? d.cidades.join(", ") : "";
-      return `- [${d.tema ?? "sem tema"}] ${d.regiao ?? ""} ${cidadesTxt}: ${d.demanda}`;
-    })
-    .join("\n") || "(nenhuma demanda observada cadastrada ainda)";
-
-  const diretrizes = await obterContextoDiretrizes(supabase, eu.campanha_id);
-  const contexto = [
-    diretrizes || null,
-    `PROPOSTAS DA CAMPANHA (público-alvo e regiões por tema):\n${propostasTxt}`,
-    `CONCORRENTES:\n${concorrentesTxt}`,
-    `DEMANDAS OBSERVADAS:\n${demandasTxt}`,
-  ].filter(Boolean).join("\n\n");
-
+  const sistema = tipo === "marketing_concorrentes" ? SISTEMA_ANALISE_MARKETING_CONCORRENTES : SISTEMA_ANALISE_CAMPANHA;
   let analise: string;
   try {
-    const sistema = tipo === "marketing_concorrentes" ? SISTEMA_ANALISE_MARKETING_CONCORRENTES : SISTEMA_ANALISE_CAMPANHA;
     analise = await ia.gerar({
       sistema,
       mensagens: [{ role: "user", content: contexto }],
