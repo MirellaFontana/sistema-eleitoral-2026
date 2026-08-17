@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PARTIDOS } from "@/lib/partidos";
 
 const CARGOS = ["deputado estadual", "deputado federal", "senador", "governador"];
 const UFS = [
@@ -99,12 +100,17 @@ export function NovaCampanhaForm() {
 
       <div className="space-y-1">
         <label className="block text-xs font-medium text-neutral-500">Partido</label>
-        <input
+        <select
           required
           value={partido}
           onChange={(e) => setPartido(e.target.value)}
           className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-        />
+        >
+          <option value="">Selecione</option>
+          {PARTIDOS.map((p) => (
+            <option key={p.numero} value={p.sigla}>{p.numero} - {p.sigla}</option>
+          ))}
+        </select>
       </div>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}

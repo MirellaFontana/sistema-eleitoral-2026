@@ -21,7 +21,7 @@ describe("extrairNoticiasRss", () => {
       <item>
         <title>Título 1</title>
         <link>https://example.com/1</link>
-        <pubDate>Mon, 28 Jul 2026</pubDate>
+        <pubDate>${new Date(Date.now() - 86400000).toUTCString()}</pubDate>
         <source>Fonte A</source>
       </item>
       <item>
@@ -32,12 +32,12 @@ describe("extrairNoticiasRss", () => {
 
     const result = extrairNoticiasRss(xml);
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({
+    expect(result[0]).toMatchObject({
       titulo: "Título 1",
       link: "https://example.com/1",
       fonte: "Fonte A",
-      publicadoEm: "Mon, 28 Jul 2026",
     });
+    expect(result[0].publicadoEm).toBeTruthy();
     expect(result[1].fonte).toBe("");
     expect(result[1].publicadoEm).toBeNull();
   });

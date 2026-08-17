@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PARTIDOS } from "@/lib/partidos";
 
 export function ConcorrenteForm({ campanhaId }: { campanhaId: string }) {
   const router = useRouter();
@@ -68,11 +69,16 @@ export function ConcorrenteForm({ campanhaId }: { campanhaId: string }) {
         </div>
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Partido</label>
-          <input
+          <select
             value={partido}
             onChange={(e) => setPartido(e.target.value)}
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-          />
+          >
+            <option value="">Selecione</option>
+            {PARTIDOS.map((p) => (
+              <option key={p.numero} value={p.sigla}>{p.numero} - {p.sigla}</option>
+            ))}
+          </select>
         </div>
       </div>
 

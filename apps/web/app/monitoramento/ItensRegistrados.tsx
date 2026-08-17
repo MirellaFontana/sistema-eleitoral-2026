@@ -61,12 +61,7 @@ export function ItensRegistrados({
   const supabase = createClient();
   const [filtroCategoria, setFiltroCategoria] = useState<string>("");
   const [soGraves, setSoGraves] = useState(false);
-
-  async function excluir(id: string) {
-    if (!confirm("Excluir este item do monitoramento?")) return;
-    await supabase.from("monitoramento_itens").delete().eq("id", id);
-    router.refresh();
-  }
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const categoriasPresentes = Array.from(new Set(itens.map((i) => i.categoria)));
 
@@ -75,6 +70,31 @@ export function ItensRegistrados({
     if (soGraves && i.gravidade !== "alta") return false;
     return true;
   });
+
+  function toggleSelecionado(id: string) {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTodos() {
+    if (selecionados.size === filtrados.length) {
+      setSelecionados(new Set());
+    } else {
+      setSelecionados(new Set(filtrados.map((i) => i.id)));
+    }
+  }
+
+  async function excluirSelecionados() {
+    if (selecionados.size === 0) return;
+    if (!confirm(`Excluir ${selecionados.size} item(ns) do monitoramento?`)) return;
+    const ids = Array.from(selecionados);
+    await supabase.from("monitoramento_itens").delete().in("id", ids);
+    setSelecionados(new Set());
+    router.refresh();
+  }
 
   if (itens.length === 0) {
     return <p className="text-sm text-neutral-400">Nenhum item registrado ainda.</p>;
@@ -118,6 +138,29 @@ export function ItensRegistrados({
         </button>
       </div>
 
+      {selecionados.size > 0 && (
+        <div className="flex items-center gap-3 rounded border border-red-200 bg-red-50 px-3 py-2">
+          <label className="flex items-center gap-2 text-xs font-medium text-neutral-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selecionados.size === filtrados.length}
+              onChange={toggleTodos}
+              className="accent-red-600"
+            />
+            {selecionados.size === filtrados.length ? "Desmarcar todos" : "Marcar todos"}
+          </label>
+          <span className="text-xs text-neutral-500">{selecionados.size} selecionado(s)</span>
+          <button
+            type="button"
+            onClick={excluirSelecionados}
+            className="ml-auto flex items-center gap-1 rounded bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700"
+          >
+            <Trash2 size={12} />
+            Excluir selecionados
+          </button>
+        </div>
+      )}
+
       {filtrados.length === 0 && (
         <p className="text-sm text-neutral-400">Nenhum item nesse filtro.</p>
       )}
@@ -129,12 +172,21 @@ export function ItensRegistrados({
             cls: "bg-neutral-100 text-neutral-600",
           };
           const gravMeta = item.gravidade ? GRAVIDADE_META[item.gravidade] : null;
+          const marcado = selecionados.has(item.id);
           return (
             <li
               key={item.id}
-              className="rounded-lg border border-neutral-200 bg-white p-3 space-y-1.5 shadow-sm shadow-neutral-900/5"
+              className={`rounded-lg border bg-white p-3 space-y-1.5 shadow-sm shadow-neutral-900/5 ${
+                marcado ? "border-red-300 bg-red-50/30" : "border-neutral-200"
+              }`}
             >
               <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <input
+                  type="checkbox"
+                  checked={marcado}
+                  onChange={() => toggleSelecionado(item.id)}
+                  className="accent-red-600 mr-1"
+                />
                 <span className={`rounded-full px-2 py-0.5 font-medium ${catMeta.cls}`}>
                   {catMeta.label}
                 </span>
@@ -169,14 +221,6 @@ export function ItensRegistrados({
                   </a>
                 )}
                 {item.captura_path && <VerCapturaButton path={item.captura_path} />}
-                <button
-                  type="button"
-                  onClick={() => excluir(item.id)}
-                  title="Excluir item"
-                  className="ml-auto text-neutral-400 hover:text-red-600 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
               </div>
             </li>
           );

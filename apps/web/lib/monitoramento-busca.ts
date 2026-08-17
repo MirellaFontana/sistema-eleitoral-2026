@@ -28,6 +28,24 @@ export function decodificarHtml(texto: string) {
 
 const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
 
+function normalizar(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+const STOP_WORDS = new Set([
+  "de","do","da","dos","das","no","na","nos","nas","em","o","a","os","as",
+  "e","ou","um","uma","para","por","com","que","se","ao","pelo","pela",
+]);
+
+function resultadoRelevante(titulo: string, termo: string): boolean {
+  const tituloNorm = normalizar(titulo);
+  const palavras = normalizar(termo)
+    .split(/\s+/)
+    .filter((p) => p.length > 2 && !STOP_WORDS.has(p));
+  if (palavras.length === 0) return true;
+  return palavras.some((p) => tituloNorm.includes(p));
+}
+
 export function extrairNoticiasRss(xml: string): Resultado[] {
   const agora = Date.now();
   const blocos = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
@@ -97,7 +115,7 @@ export async function buscarRedesSociais(termo: string, periodo: string = "7d"):
   return resultados.filter((r) => {
     if (vistos.has(r.link)) return false;
     vistos.add(r.link);
-    return true;
+    return resultadoRelevante(r.titulo, termo);
   }).slice(0, 30);
 }
 
@@ -113,7 +131,8 @@ export async function buscarTermo(
     const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
     const res = await fetch(rssUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
     if (res.ok) {
-      noticias = extrairNoticiasRss(await res.text());
+      noticias = extrairNoticiasRss(await res.text())
+        .filter((r) => resultadoRelevante(r.titulo, termoRow.termo));
     } else {
       erroNoticias = `Google News respondeu ${res.status}`;
     }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PARTIDOS } from "@/lib/partidos";
 
 const CARGOS = ["deputado estadual", "deputado federal", "senador", "governador"];
 const UFS = [
@@ -140,13 +141,18 @@ export function OnboardingForm() {
         <label htmlFor="partido" className="block text-sm font-medium">
           Partido
         </label>
-        <input
+        <select
           id="partido"
           required
           value={partido}
           onChange={(e) => setPartido(e.target.value)}
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
-        />
+        >
+          <option value="">Selecione</option>
+          {PARTIDOS.map((p) => (
+            <option key={p.numero} value={p.sigla}>{p.numero} - {p.sigla}</option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1">

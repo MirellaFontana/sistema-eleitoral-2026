@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { PARTIDOS } from "@/lib/partidos";
 
 type DadosCampanha = {
   campanhaId: string;
@@ -133,12 +134,16 @@ export function CampanhaForm({ dados }: { dados: DadosCampanha }) {
 
         <div className="space-y-1">
           <label className="block text-xs font-medium text-neutral-500">Partido</label>
-          <input
-            placeholder="Ex.: PT, PL, MDB"
+          <select
             value={partido}
             onChange={(e) => setPartido(e.target.value)}
             className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm"
-          />
+          >
+            <option value="">Selecione</option>
+            {PARTIDOS.map((p) => (
+              <option key={p.numero} value={p.sigla}>{p.numero} - {p.sigla}</option>
+            ))}
+          </select>
         </div>
 
         <div className="space-y-1">

@@ -7,6 +7,7 @@ import {
   obterRegra,
   limiteMaxCandidaturas,
 } from "@/lib/regras-eleitorais";
+import { PARTIDOS } from "@/lib/partidos";
 
 type Eleicao = Record<string, unknown>;
 type Chapa = Record<string, unknown>;
@@ -185,7 +186,12 @@ export function ChapasClient({ eleicoes }: { eleicoes: Eleicao[] }) {
           <div className="grid gap-3 sm:grid-cols-4">
             <label className="space-y-1">
               <span className="text-xs font-medium text-neutral-500">Partido *</span>
-              <input name="partido" required className="w-full rounded border px-2.5 py-1.5 text-sm" />
+              <select name="partido" required className="w-full rounded border px-2.5 py-1.5 text-sm">
+                <option value="">Selecione</option>
+                {PARTIDOS.map((p) => (
+                  <option key={p.numero} value={p.sigla}>{p.numero} - {p.sigla}</option>
+                ))}
+              </select>
             </label>
             <label className="space-y-1">
               <span className="text-xs font-medium text-neutral-500">Federação</span>
