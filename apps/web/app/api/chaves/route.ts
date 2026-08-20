@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { salvarChaveApi, removerChaveApi, type ProvedorApi } from "@/lib/chaves-api";
 
 const PROVEDORES_VALIDOS = new Set<ProvedorApi>([
-  "anthropic", "openai", "google_gemini", "xai_grok", "google_cse",
+  "anthropic", "openai", "openrouter", "google_gemini", "xai_grok", "google_cse",
   "meta_ad_library", "whatsapp_campanha", "whatsapp_denuncias",
 ]);
 const PAPEIS_PERMITIDOS = new Set(["coord_campanha", "candidato"]);

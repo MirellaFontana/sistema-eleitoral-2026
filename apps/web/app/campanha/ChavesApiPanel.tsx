@@ -37,11 +37,11 @@ const PROVEDORES: ProvedorConfig[] = [
     temAuxiliar: false,
   },
   {
-    id: "google_gemini",
-    nome: "Google Gemini",
+    id: "openrouter",
+    nome: "OpenRouter",
     grupo: "Inteligência Artificial",
-    descricao: "Alternativa via Gemini 2.5 Flash — mais econômica.",
-    instrucao: "Obtenha em aistudio.google.com > API Keys",
+    descricao: "Gateway unificado — acessa DeepSeek, Gemini, Qwen e outros com uma chave só.",
+    instrucao: "Obtenha em openrouter.ai > Keys",
     temAuxiliar: false,
   },
   {
@@ -183,7 +183,7 @@ export function ChavesApiPanel({ chavesIniciais }: { chavesIniciais: ChaveStatus
             </p>
             {grupo === "Inteligência Artificial" && (
               <p className="text-xs text-neutral-400 -mt-1">
-                Configure ao menos uma. O sistema usa a primeira disponível: Anthropic, OpenAI ou Gemini.
+                Configure ao menos uma. O sistema usa a primeira disponível: OpenRouter, Anthropic, OpenAI ou Grok.
               </p>
             )}
         {PROVEDORES.filter((p) => p.grupo === grupo).map((p) => {

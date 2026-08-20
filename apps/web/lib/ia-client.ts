@@ -1,11 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { obterChaveApi } from "./chaves-api";
 
-export type ProvedorIA = "anthropic" | "openai" | "google_gemini" | "xai_grok";
+export type ProvedorIA = "anthropic" | "openai" | "openrouter" | "xai_grok";
 
 type MensagemIA = { role: "user" | "assistant"; content: string };
 
@@ -15,8 +14,6 @@ export type ClienteIA = {
     sistema: string;
     mensagens: MensagemIA[];
     maxTokens?: number;
-    // Quando true, pede ao provedor pra devolver estritamente JSON.
-    // Gemini/OpenAI/Grok tem modo nativo; Anthropic segue só via prompt (nao ha modo nativo).
     jsonMode?: boolean;
   }) => Promise<string>;
 };
@@ -24,7 +21,7 @@ export type ClienteIA = {
 const MODELOS: Record<ProvedorIA, string> = {
   anthropic: "claude-sonnet-4-20250514",
   openai: "gpt-4.1",
-  google_gemini: "gemini-flash-latest",
+  openrouter: "deepseek/deepseek-v4-flash-latest",
   xai_grok: "grok-3",
 };
 
@@ -66,45 +63,21 @@ function criarClienteOpenAI(apiKey: string): ClienteIA {
   };
 }
 
-// BLOCK_ONLY_HIGH em vez do padrão (BLOCK_MEDIUM_AND_ABOVE) — ferramenta B2B autenticada pra
-// campanha eleitoral discute segurança pública, violência e crime como pauta legítima o tempo
-// todo; o filtro padrão do Gemini cortava respostas no meio por falso positivo nesses temas.
-const SAFETY_SETTINGS_GEMINI = [
-  HarmCategory.HARM_CATEGORY_HARASSMENT,
-  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }));
-
-function criarClienteGemini(apiKey: string): ClienteIA {
-  const ai = new GoogleGenAI({ apiKey });
+function criarClienteOpenRouter(apiKey: string): ClienteIA {
+  const client = new OpenAI({ apiKey, baseURL: "https://openrouter.ai/api/v1" });
   return {
-    provedor: "google_gemini",
+    provedor: "openrouter",
     async gerar({ sistema, mensagens, maxTokens = 2000, jsonMode }) {
-      const resp = await ai.models.generateContent({
-        model: MODELOS.google_gemini,
-        config: {
-          // +2000 de folga: o modelo gasta parte do orçamento em tokens de "pensamento"
-          // internos antes de escrever a resposta visível — sem essa folga, respostas curtas
-          // (maxTokens baixo) cortavam na metade porque o raciocínio consumia quase tudo antes
-          // do texto de fato começar. thinkingConfig:{budget:0} para desligar o pensamento foi
-          // tentado, mas o modelo atual rejeita com INVALID_ARGUMENT — folga extra é mais
-          // portável entre versões de modelo.
-          maxOutputTokens: maxTokens + 2000,
-          systemInstruction: sistema,
-          safetySettings: SAFETY_SETTINGS_GEMINI,
-          ...(jsonMode ? { responseMimeType: "application/json" } : {}),
-        },
-        contents: mensagens.map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.content }],
-        })),
+      const resp = await client.chat.completions.create({
+        model: MODELOS.openrouter,
+        max_tokens: maxTokens,
+        response_format: jsonMode ? { type: "json_object" } : undefined,
+        messages: [
+          { role: "system", content: sistema },
+          ...mensagens.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ],
       });
-      const finishReason = resp.candidates?.[0]?.finishReason;
-      if (finishReason && finishReason !== "STOP" && finishReason !== "MAX_TOKENS") {
-        throw new Error(`Gemini interrompeu a geração (${finishReason}) — resposta descartada.`);
-      }
-      return resp.text?.trim() ?? "";
+      return resp.choices[0]?.message?.content?.trim() ?? "";
     },
   };
 }
@@ -128,12 +101,12 @@ function criarClienteGrok(apiKey: string): ClienteIA {
   };
 }
 
-const ORDEM_PROVEDORES: ProvedorIA[] = ["anthropic", "openai", "google_gemini", "xai_grok"];
+const ORDEM_PROVEDORES: ProvedorIA[] = ["openrouter", "anthropic", "openai", "xai_grok"];
 
 const FABRICAS: Record<ProvedorIA, (key: string) => ClienteIA> = {
+  openrouter: criarClienteOpenRouter,
   anthropic: criarClienteAnthropic,
   openai: criarClienteOpenAI,
-  google_gemini: criarClienteGemini,
   xai_grok: criarClienteGrok,
 };
 
@@ -182,8 +155,8 @@ export async function criarClienteIA(supabase: SupabaseClient): Promise<ClienteI
   const envAnthropic = process.env.ANTHROPIC_API_KEY;
   if (envAnthropic) disponiveis.push({ provedor: "anthropic", chave: envAnthropic });
 
-  const envGemini = process.env.GEMINI_API_KEY;
-  if (envGemini) disponiveis.push({ provedor: "google_gemini", chave: envGemini });
+  const envOpenRouter = process.env.OPENROUTER_API_KEY;
+  if (envOpenRouter) disponiveis.push({ provedor: "openrouter", chave: envOpenRouter });
 
   const envOpenAI = process.env.OPENAI_API_KEY;
   if (envOpenAI) disponiveis.push({ provedor: "openai", chave: envOpenAI });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { verificarCronAuth } from "@/lib/cron-auth";
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { hojeBR } from "@/lib/fuso";
 
 function extrairTextoLegivel(html: string): string {
@@ -21,10 +21,10 @@ async function resumirAlteracoes(
   textoAnterior: string,
   textoAtual: string,
 ): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
-  const ai = new GoogleGenAI({ apiKey });
+  const client = new OpenAI({ apiKey, baseURL: "https://openrouter.ai/api/v1" });
   const prompt = `Você é um jurista brasileiro especialista em direito eleitoral.
 
 Abaixo está o texto ANTERIOR e o texto ATUAL de uma fonte normativa. Identifique as alterações relevantes.
@@ -48,12 +48,12 @@ Se as diferenças forem apenas de formatação HTML ou espaçamento (sem mudanç
 Máximo 500 palavras.`;
 
   try {
-    const resp = await ai.models.generateContent({
-      model: "gemini-flash-latest",
-      contents: prompt,
-      config: { maxOutputTokens: 1500 },
+    const resp = await client.chat.completions.create({
+      model: "deepseek/deepseek-v4-flash-latest",
+      max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }],
     });
-    return resp.text?.trim() || null;
+    return resp.choices[0]?.message?.content?.trim() || null;
   } catch {
     return null;
   }

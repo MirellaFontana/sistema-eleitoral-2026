@@ -57,7 +57,7 @@ export default async function CampanhaPage() {
   ]);
 
   const TODOS_PROVEDORES = [
-    "anthropic", "openai", "google_gemini", "xai_grok", "google_cse",
+    "anthropic", "openai", "openrouter", "google_gemini", "xai_grok", "google_cse",
     "meta_ad_library", "whatsapp_campanha", "whatsapp_denuncias",
   ];
   const chavesStatus = TODOS_PROVEDORES.map((p) => {

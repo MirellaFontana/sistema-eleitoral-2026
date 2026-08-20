@@ -4,8 +4,10 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { obterChaveApi } from "@/lib/chaves-api";
 import { criarClienteIA, respostaErroIA } from "@/lib/ia-client";
 import { SISTEMA_REVISOR_COMPLIANCE } from "@/lib/anthropic";
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { parseJsonSeguro } from "@/lib/parse-json-seguro";
+
+const MODELO_VISAO_OPENROUTER = "google/gemini-2.0-flash-001";
 
 const PAPEIS_QUE_REVISAM = new Set([
   "coord_campanha",
@@ -77,16 +79,12 @@ export async function POST(request: Request) {
 
   let respostaRaw: string;
 
-  // Se tem imagem, usa Gemini vision (única do stack atual com suporte multimodal simples).
   if (peca.arte_path) {
-    const chaveGemini =
-      (await obterChaveApi(supabase, "google_gemini")) ?? process.env.GEMINI_API_KEY ?? null;
-    if (!chaveGemini) {
+    const chaveOpenRouter =
+      (await obterChaveApi(supabase, "openrouter")) ?? process.env.OPENROUTER_API_KEY ?? null;
+    if (!chaveOpenRouter) {
       return NextResponse.json(
-        {
-          error:
-            "Peças com imagem exigem chave Gemini configurada (Cadastro de Campanha > Chaves de API ou GEMINI_API_KEY).",
-        },
+        { error: "Peças com imagem exigem chave OpenRouter configurada (Cadastro de Campanha > Chaves de API)." },
         { status: 400 },
       );
     }
@@ -111,20 +109,21 @@ export async function POST(request: Request) {
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey: chaveGemini });
-      const resp = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: [
+      const client = new OpenAI({ apiKey: chaveOpenRouter, baseURL: "https://openrouter.ai/api/v1" });
+      const resp = await client.chat.completions.create({
+        model: MODELO_VISAO_OPENROUTER,
+        max_tokens: 1200,
+        messages: [
           {
             role: "user",
-            parts: [
-              { text: `${SISTEMA_REVISOR_COMPLIANCE}\n\n${contextoTexto}` },
-              { inlineData: { mimeType: mime, data: imagemBase64 } },
+            content: [
+              { type: "text", text: `${SISTEMA_REVISOR_COMPLIANCE}\n\n${contextoTexto}` },
+              { type: "image_url", image_url: { url: `data:${mime};base64,${imagemBase64}` } },
             ],
           },
         ],
       });
-      respostaRaw = resp.text?.trim() ?? "";
+      respostaRaw = resp.choices[0]?.message?.content?.trim() ?? "";
     } catch (err) {
       return respostaErroIA(err);
     }

@@ -3,6 +3,7 @@ import { type SupabaseClient } from "@supabase/supabase-js";
 export type ProvedorApi =
   | "anthropic"
   | "openai"
+  | "openrouter"
   | "google_gemini"
   | "xai_grok"
   | "google_cse"
