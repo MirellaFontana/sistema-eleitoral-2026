@@ -21,7 +21,7 @@ export type ClienteIA = {
 const MODELOS: Record<ProvedorIA, string> = {
   anthropic: "claude-sonnet-4-20250514",
   openai: "gpt-4.1",
-  openrouter: "deepseek/deepseek-v4-flash-latest",
+  openrouter: "deepseek/deepseek-v4-flash-0731",
   xai_grok: "grok-3",
 };
 

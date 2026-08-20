@@ -49,7 +49,7 @@ Máximo 500 palavras.`;
 
   try {
     const resp = await client.chat.completions.create({
-      model: "deepseek/deepseek-v4-flash-latest",
+      model: "deepseek/deepseek-v4-flash-0731",
       max_tokens: 1500,
       messages: [{ role: "user", content: prompt }],
     });
