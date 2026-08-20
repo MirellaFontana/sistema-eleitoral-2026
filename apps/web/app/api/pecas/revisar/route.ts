@@ -7,7 +7,7 @@ import { SISTEMA_REVISOR_COMPLIANCE } from "@/lib/anthropic";
 import OpenAI from "openai";
 import { parseJsonSeguro } from "@/lib/parse-json-seguro";
 
-const MODELO_VISAO_OPENROUTER = "google/gemini-2.0-flash-001";
+const MODELO_VISAO_OPENROUTER = "xiaomi/mimo-v2.5";
 
 const PAPEIS_QUE_REVISAM = new Set([
   "coord_campanha",
